@@ -1,0 +1,49 @@
+{% extends "jobs/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h6 class="text-muted">Site</h6>
+    <p class="mb-0">{{job.site.name}}</p>
+  </div>
+</div>
+
+<hr />
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Work Required</div>
+    <div class="fw-semibold">
+      <p>{{job.work_required}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Due By</div>
+    <div class="fw-semibold">
+      <p>{{job.due_by | date}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Source</div>
+    <div class="fw-semibold">{{job.source_label}}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Status</div>
+    <div class="fw-semibold">{% include "jobs/_status_badge.html" %}</div>
+  </div>
+  {% if job.closed_at %}
+  <div class="col-md-6">
+    <div class="text-muted small">Closed On</div>
+    <div class="fw-semibold">{{job.closed_at | date}}</div>
+  </div>
+  {% endif %}
+  <div class="col-md-6">
+    <div class="text-muted small">Statutory Compliance</div>
+    <div class="fw-semibold">{% if job.statutory_compliance %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</div>
+  </div>
+</div>
+
+{% endblock tab_content %}

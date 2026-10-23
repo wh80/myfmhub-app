@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">User Groups</h1>
+  <a href="{{url_for('user_groups.create')}}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Create
+  </a>
+</div>
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-6">
+      <label for="search" class="form-label">Search</label>
+      <input type="text" id="search" name="search" value="{{search}}" class="form-control" placeholder="Name ..." />
+    </div>
+
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>
+      <a href="{{url_for('user_groups.index')}}" class="btn btn-secondary w-100"><i class="bi bi-x-circle"></i> Cancel</a>
+    </div>
+  </div>
+</form>
+
+{% if pagination.total %}
+
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('user_groups') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="user_groups">
+    <thead>
+      <tr>
+        <th scope="col" data-col="name" data-col-fixed>Name</th>
+        <th scope="col" data-col="access">Access</th>
+        <th scope="col" data-col="people">People</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user_group in user_groups %}
+      <tr class="position-relative">
+        <td><a href="{{url_for('user_groups.view', id=user_group.id)}}" class="stretched-link text-reset text-decoration-none">{{user_group.name}}</a></td>
+        <td>{% if user_group.is_admin %}Full access{% else %}{{ user_group.permissions | length }} permission(s){% endif %}</td>
+        <td>{{ member_counts.get(user_group.id, 0) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for user_group in user_groups %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><a href="{{url_for('user_groups.view', id=user_group.id)}}" class="stretched-link text-reset text-decoration-none">{{user_group.name}}</a></h5>
+          <p class="card-text">
+            <strong>Access:</strong> {% if user_group.is_admin %}Full access{% else %}{{ user_group.permissions | length }} permission(s){% endif %}<br>
+            <strong>People:</strong> {{ member_counts.get(user_group.id, 0) }}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ pagination_nav(pagination) }}
+{% elif search %}
+<p>No user groups match your search.</p>
+{% else %}
+<p>No user groups yet.</p>
+{% endif %}
+{% endblock body %}

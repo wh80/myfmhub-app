@@ -1,0 +1,100 @@
+
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
+    <div class="container">
+
+        <!-- Brand -->
+        <a class="navbar-brand" href="{{ url_for('dashboard.root') }}">MyFMHub</a>
+
+        <!-- Mobile toggle -->
+        <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#mainNavbar"
+            aria-controls="mainNavbar"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- Navigation links -->
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav ms-auto">
+
+                {% if can('sites.view') %}
+                <li class="nav-item">
+                    <a class="nav-link active" href="{{url_for('sites.index')}}">Sites</a>
+                </li>
+                {% endif %}
+
+                {% if can('assets.view') %}
+                <li class="nav-item">
+                     <a class="nav-link active" href="{{url_for('assets.index')}}">Assets</a>
+                </li>
+                {% endif %}
+
+                {% if can('jobs.view') %}
+                <li class="nav-item">
+                     <a class="nav-link active" href="{{url_for('jobs.index')}}">Jobs</a>
+                </li>
+                {% endif %}
+
+                {% if can('job_schedules.view') %}
+                <li class="nav-item">
+                     <a class="nav-link active" href="{{url_for('job_schedules.index')}}">Job Schedules</a>
+                </li>
+                {% endif %}
+                
+                 {% if can('suppliers.view') %}
+                 <li class="nav-item">
+                     <a class="nav-link active" href="{{url_for('suppliers.index')}}">Suppliers</a>
+                </li>
+                 {% endif %}
+
+                {% if can('people.view') %}
+                <li class="nav-item">
+                     <a class="nav-link active" href="{{url_for('people.index')}}">People</a>
+                </li>
+                {% endif %}
+
+                <li class="nav-item dropdown">
+                    <a class="nav-link active dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account">
+                        <i class="bi bi-person-circle fs-5" aria-hidden="true"></i>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <h6 class="dropdown-header">
+                                {% if g.user.person %}{{ g.user.person.first_name }} {{ g.user.person.last_name }}<br>{% endif %}
+                                <span class="fw-normal">{{ g.user.email }}</span>
+                            </h6>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.sessions') }}">{{ 'Sessions' if can('sessions.manage') else 'Your sessions' }}</a></li>
+                        {% if can('user_groups.manage') %}
+                        <li><a class="dropdown-item" href="{{ url_for('user_groups.index') }}">User groups</a></li>
+                        {% endif %}
+                        {% if can('imports.manage') %}
+                        <li><a class="dropdown-item" href="{{ url_for('imports.index') }}">Import data</a></li>
+                        {% endif %}
+                        {% if g.user.is_platform_admin %}
+                        <li><a class="dropdown-item" href="{{ url_for('admin.index') }}">Admin</a></li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="POST" action="{{ url_for('auth.logout') }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="dropdown-item">Sign out</button>
+                            </form>
+                        </li>
+                    </ul>
+                </li>
+
+            </ul>
+        </div>
+
+    </div>
+</nav>
+
+

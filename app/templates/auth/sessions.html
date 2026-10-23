@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block body %}
+{% set revoke_endpoint = 'auth.revoke' %}
+{% set show_organisation = False %}
+
+<h1 class="mb-2">{{ 'Sessions' if can('sessions.manage') else 'Your sessions' }}</h1>
+<p class="text-muted mb-4">
+  Revoking a session signs that device out.
+  {% if can('sessions.manage') %}To stop someone signing in at all, turn off "Can log in" on their person record.{% endif %}
+</p>
+
+{% if user_sessions %}
+{% include 'auth/session_list.html' %}
+{% else %}
+<p>No active sessions.</p>
+{% endif %}
+{% endblock body %}

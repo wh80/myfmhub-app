@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Sites</h1>
+  {% if can('sites.create') %}
+  <a href="{{url_for('sites.create')}}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Create
+  </a>
+  {% endif %}
+</div>
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-6">
+      <label for="search" class="form-label">Search</label>
+      <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{search}}"
+        class="form-control"
+        placeholder="Name ..."
+      />
+    </div>
+
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-search"></i> Search
+      </button>
+      <a href="{{url_for('sites.index')}}" class="btn btn-secondary w-100">
+        <i class="bi bi-x-circle"></i> Cancel
+      </a>
+    </div>
+  </div>
+</form>
+
+{% include "_import_filter_notice.html" %}
+
+{% if pagination.total %}
+
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('sites', 'sites.export') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="sites">
+    <thead>
+      <tr>
+        <th scope="col" data-col="name" data-col-fixed>Name</th>
+        <th scope="col" data-col="telephone">Telephone</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for site in sites %}
+      <tr class="position-relative">
+        <td><a href="{{url_for('sites.view', id=site.id)}}" class="stretched-link text-reset text-decoration-none">{{site.name}}</a></td>
+        <td>{{site.telephone or "-"}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for site in sites %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><a href="{{url_for('sites.view', id=site.id)}}" class="stretched-link text-reset text-decoration-none">{{site.name}}</a></h5>
+          <p class="card-text">
+            <strong>Tel:</strong> {{site.telephone or "-"}}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ pagination_nav(pagination) }}
+{% elif search or import_id %}
+<p>No sites match your search.</p>
+{% else %}
+<p>No sites yet.</p>
+{% endif %}
+{% endblock body %}

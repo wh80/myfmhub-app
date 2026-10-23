@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+
+  {% include "job_schedules/view/_header.html" %}
+
+  <div class="card-body">
+
+    {% include "job_schedules/view/_tabs.html" %}
+
+    {% block tab_content %}{% endblock tab_content %}
+
+  </div>
+</div>
+
+{% endblock body %}

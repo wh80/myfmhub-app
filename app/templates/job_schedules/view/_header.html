@@ -1,0 +1,23 @@
+<div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Job Schedule: {{ job_schedule.summary }}</h4>
+
+    <div class="d-flex gap-2">
+        {% if can('job_schedules.edit') %}
+        <a
+            href="{{ url_for('job_schedules.edit', id=job_schedule.id) }}"
+            class="btn btn-primary btn-sm"
+        >
+            Edit
+        </a>
+        {% endif %}
+
+        {% if can('job_schedules.delete') %}
+        <a
+            href="{{ url_for('job_schedules.delete', id=job_schedule.id) }}"
+            class="btn btn-danger btn-sm"
+        >
+            Delete
+        </a>
+        {% endif %}
+    </div>
+</div>

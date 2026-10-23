@@ -1,0 +1,75 @@
+{# expects user_sessions, revoke_endpoint and show_organisation #}
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('sessions') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="sessions">
+    <thead>
+      <tr>
+        <th scope="col" data-col="user" data-col-fixed>User</th>
+        {% if show_organisation %}<th scope="col" data-col="organisation">Organisation</th>{% endif %}
+        <th scope="col" data-col="device">Device</th>
+        <th scope="col" data-col="ip_address">IP address</th>
+        <th scope="col" data-col="signed_in">Signed in</th>
+        <th scope="col" data-col="last_active">Last active</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for user_session in user_sessions %}
+      <tr>
+        <td>
+          {% if user_session.user.person %}{{ user_session.user.person.first_name }} {{ user_session.user.person.last_name }}<br>{% endif %}
+          <span class="text-muted small">{{ user_session.user.email }}</span>
+        </td>
+        {% if show_organisation %}<td>{{ user_session.user.organisation.name }}</td>{% endif %}
+        <td class="text-truncate" style="max-width: 16rem;" title="{{ user_session.user_agent or '' }}">{{ user_session.user_agent or "-" }}</td>
+        <td>{{ user_session.ip_address or "-" }}</td>
+        <td>{{ user_session.created_at | datetime }}</td>
+        <td>{{ user_session.last_seen_at | datetime }}</td>
+        <td class="text-end text-nowrap">
+          {% if user_session.id == g.user_session.id %}<span class="badge text-bg-success me-2">This device</span>{% endif %}
+          <form method="POST" action="{{ url_for(revoke_endpoint, id=user_session.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for user_session in user_sessions %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3">
+            {% if user_session.user.person %}{{ user_session.user.person.first_name }} {{ user_session.user.person.last_name }}{% else %}{{ user_session.user.email }}{% endif %}
+            {% if user_session.id == g.user_session.id %}<span class="badge text-bg-success ms-1">This device</span>{% endif %}
+          </h5>
+          <p class="card-text">
+            <strong>Email:</strong> {{ user_session.user.email }}<br>
+            {% if show_organisation %}<strong>Organisation:</strong> {{ user_session.user.organisation.name }}<br>{% endif %}
+            <strong>Device:</strong> {{ user_session.user_agent or "-" }}<br>
+            <strong>IP address:</strong> {{ user_session.ip_address or "-" }}<br>
+            <strong>Signed in:</strong> {{ user_session.created_at | datetime }}<br>
+            <strong>Last active:</strong> {{ user_session.last_seen_at | datetime }}
+          </p>
+          <form method="POST" action="{{ url_for(revoke_endpoint, id=user_session.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>

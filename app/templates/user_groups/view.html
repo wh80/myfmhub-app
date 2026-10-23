@@ -1,0 +1,46 @@
+{% extends 'base.html' %} {% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">User Group: {{user_group.name}}</h4>
+
+    {% if not user_group.is_admin %}
+    <div class="d-flex gap-2">
+      <a href="{{url_for('user_groups.edit', id=user_group.id)}}" class="btn btn-primary btn-sm">Edit</a>
+      <a href="{{url_for('user_groups.delete', id=user_group.id)}}" class="btn btn-danger btn-sm">Delete</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card-body">
+    <h5>Permissions</h5>
+    {% if user_group.is_admin %}
+    <p>Full access to everything in your organisation, including organisation settings, signing people out and managing user groups.
+      This group can't be renamed, changed or deleted, and your organisation always needs at least one admin who can log in.</p>
+    {% else %}
+    {% set editable = False %}
+    {% set granted = user_group.permission_keys %}
+    {% include 'user_groups/_permissions_grid.html' %}
+    {% endif %}
+
+    <h5 class="mt-4">People</h5>
+    {% if members %}
+    <ul class="list-group">
+      {% for user in members %}
+      <li class="list-group-item position-relative">
+        {% if user.person %}
+        <a href="{{ url_for('people.view', id=user.person.id) }}" class="stretched-link text-reset text-decoration-none">{{ user.person.first_name }} {{ user.person.last_name }}</a>
+        {% else %}{{ user.email }}{% endif %}
+        <span class="text-muted small ms-2">{{ user.email }}</span>
+        {% if not user.can_login %}<span class="badge text-bg-secondary ms-2">No login</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="text-muted small mt-2">To move someone to another group, edit their person record.</p>
+    {% else %}
+    <p class="text-muted">No people in this group.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body%}

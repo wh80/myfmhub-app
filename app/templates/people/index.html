@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">People</h1>
+  {% if can('people.create') %}
+  <a href="{{url_for('people.create')}}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Create
+  </a>
+  {% endif %}
+</div>
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-6">
+      <label for="search" class="form-label">Search</label>
+      <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{search}}"
+        class="form-control"
+        placeholder="Name, email, job title ..."
+      />
+    </div>
+
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-search"></i> Search
+      </button>
+      <a href="{{url_for('people.index')}}" class="btn btn-secondary w-100">
+        <i class="bi bi-x-circle"></i> Cancel
+      </a>
+    </div>
+  </div>
+</form>
+
+{% include "_import_filter_notice.html" %}
+
+{% if pagination.total %}
+
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('people', 'people.export') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="people">
+    <thead>
+      <tr>
+        <th scope="col" data-col="name" data-col-fixed>Name</th>
+        <th scope="col" data-col="job_title">Job Title</th>
+        <th scope="col" data-col="email">Email</th>
+        <th scope="col" data-col="mobile">Mobile</th>
+        <th scope="col" data-col="user_group">User Group</th>
+        <th scope="col" data-col="can_log_in">Can log in</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for person in people %}
+      <tr class="position-relative">
+        <td><a href="{{url_for('people.view', id=person.id)}}" class="stretched-link text-reset text-decoration-none">{{person.first_name}} {{person.last_name}}</a></td>
+        <td>{{person.job_title or "-"}}</td>
+        <td>{{person.email}}</td>
+        <td>{{person.mobile or "-"}}</td>
+        <td>{{person.user.user_group.name if person.user and person.user.user_group else "-"}}</td>
+        <td>{% if not person.user or not person.user.can_login %}<span class="badge text-bg-secondary">No</span>{% else %}<span class="badge text-bg-success">Yes</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for person in people %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><a href="{{url_for('people.view', id=person.id)}}" class="stretched-link text-reset text-decoration-none">{{person.first_name}} {{person.last_name}}</a></h5>
+          <p class="card-text">
+            <strong>Job Title:</strong> {{person.job_title or "-"}}<br>
+            <strong>Email:</strong> {{person.email}}<br>
+            <strong>Mobile:</strong> {{person.mobile or "-"}}<br>
+            <strong>User Group:</strong> {{person.user.user_group.name if person.user and person.user.user_group else "-"}}<br>
+            <strong>Can log in:</strong> {% if not person.user or not person.user.can_login %}<span class="badge text-bg-secondary">No</span>{% else %}<span class="badge text-bg-success">Yes</span>{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ pagination_nav(pagination) }}
+{% elif search or import_id %}
+<p>No people match your search.</p>
+{% else %}
+<p>No people yet.</p>
+{% endif %}
+{% endblock body %}

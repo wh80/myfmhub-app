@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+{% set revoke_endpoint = 'admin.revoke' %}
+{% set show_organisation = True %}
+{% include 'admin/_tabs.html' %}
+
+{% include 'admin/_filters.html' %}
+
+<div class="d-flex flex-wrap gap-2 mb-4">
+  {% for organisation in organisations if organisation.id|string == organisation_id %}
+  <form method="POST" action="{{ url_for('admin.revoke_organisation', id=organisation.id) }}" onsubmit="return confirm('Revoke every active session for {{ organisation.name }}? Everyone in it will be signed out.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ request.full_path }}">
+    <button type="submit" class="btn btn-outline-danger">Revoke all sessions for {{ organisation.name }}</button>
+  </form>
+  {% endfor %}
+  <form method="POST" action="{{ url_for('admin.revoke_all') }}" onsubmit="return confirm('Revoke every session in every organisation? Everyone, including you, will need to sign in again.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-danger">Revoke all sessions everywhere</button>
+  </form>
+</div>
+
+{% if pagination.total %}
+{% include 'auth/session_list.html' %}
+{{ pagination_nav(pagination) }}
+{% elif search or organisation_id %}
+<p>No sessions match your search.</p>
+{% else %}
+<p>No active sessions.</p>
+{% endif %}
+{% endblock body %}

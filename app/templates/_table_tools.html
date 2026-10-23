@@ -1,0 +1,27 @@
+{# The Download and Columns buttons above a table. Import it "with context" (it reads request).
+   The table needs data-columns="<key>" and each hideable header data-col="<key>"; the column
+   you click through on also gets data-col-fixed. app.js builds the Columns menu and adds the
+   visible columns to the download links. Download only shows when export_endpoint is given #}
+{% macro table_tools(key, export_endpoint=None) %}
+<div class="d-flex justify-content-end gap-2 mb-2">
+  {% if export_endpoint %}
+  {% set args = request.args.to_dict() %}
+  {% set _ = args.pop('page', None) %}
+  <div class="dropdown">
+    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-download" aria-hidden="true"></i> Download
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end">
+      <li><a class="dropdown-item" href="{{ url_for(export_endpoint, file_format='csv', **args) }}" data-export-for="{{ key }}"><i class="bi bi-filetype-csv" aria-hidden="true"></i> CSV</a></li>
+      <li><a class="dropdown-item" href="{{ url_for(export_endpoint, file_format='pdf', **args) }}" data-export-for="{{ key }}"><i class="bi bi-filetype-pdf" aria-hidden="true"></i> PDF</a></li>
+    </ul>
+  </div>
+  {% endif %}
+  <div class="dropdown d-none d-md-block">
+    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+      <i class="bi bi-layout-three-columns" aria-hidden="true"></i> Columns
+    </button>
+    <div class="dropdown-menu dropdown-menu-end p-2" data-columns-menu="{{ key }}"></div>
+  </div>
+</div>
+{% endmacro %}

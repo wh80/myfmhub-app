@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<h3>Create Site</h3>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.name.label(class="form-label") }}
+        {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
+        {% if form.name.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.name.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.address_line_one.label(class="form-label") }}
+        {{ form.address_line_one(class="form-control" ~ (" is-invalid" if form.address_line_one.errors else "")) }}
+        {% if form.address_line_one.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.address_line_one.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.address_line_two.label(class="form-label") }}
+        {{ form.address_line_two(class="form-control" ~ (" is-invalid" if form.address_line_two.errors else "")) }}
+        {% if form.address_line_two.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.address_line_two.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.town_city.label(class="form-label") }}
+        {{ form.town_city(class="form-control" ~ (" is-invalid" if form.town_city.errors else "")) }}
+        {% if form.town_city.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.town_city.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.post_code.label(class="form-label") }}
+        {{ form.post_code(class="form-control" ~ (" is-invalid" if form.post_code.errors else "")) }}
+        {% if form.post_code.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.post_code.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.telephone.label(class="form-label") }}
+        {{ form.telephone(class="form-control" ~ (" is-invalid" if form.telephone.errors else "")) }}
+        {% if form.telephone.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.telephone.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+
+{% endblock body%}

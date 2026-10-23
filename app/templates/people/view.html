@@ -1,0 +1,66 @@
+{% extends 'base.html' %} {% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Person: {{person.first_name}} {{person.last_name}}</h4>
+
+    {% set can_manage = g.user.is_org_admin or not person.user.is_org_admin %}
+    <div class="d-flex gap-2">
+      {% if can('people.edit') and can_manage and person.user.can_login and person.user_id != g.user.id %}
+      <form method="POST" action="{{ url_for('people.resend_invite', id=person.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Resend sign-in email</button>
+      </form>
+      {% endif %}
+      {% if can('people.edit') and can_manage %}
+      <a
+        href="{{url_for('people.edit', id=person.id)}}"
+        class="btn btn-primary btn-sm"
+      >
+        Edit
+      </a>
+      {% endif %}
+      {% if can('people.delete') and can_manage and person.user_id != g.user.id %}
+      <a
+        href="{{url_for('people.delete', id=person.id)}}"
+        class="btn btn-danger btn-sm"
+      >
+        Delete
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="text-muted small">Job Title</div>
+        <div class="fw-semibold">{{person.job_title or "-"}}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Email</div>
+        <div class="fw-semibold">{{person.email}}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Mobile</div>
+        <div class="fw-semibold">{{person.mobile or "-"}}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">User Group</div>
+        <div class="fw-semibold">{{ person.user.user_group.name if person.user and person.user.user_group else "-" }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Can log in</div>
+        <div class="fw-semibold">{% if not person.user or not person.user.can_login %}<span class="badge text-bg-secondary">No</span>{% else %}<span class="badge text-bg-success">Yes</span>{% endif %}</div>
+      </div>
+      {% if person.user and person.user.can_login %}
+      <div class="col-md-6">
+        <div class="text-muted small">Email verified</div>
+        <div class="fw-semibold">{{ person.user.email_verified_at | datetime if person.user.email_verified_at else "Not yet" }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock body%}

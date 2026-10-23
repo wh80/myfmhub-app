@@ -1,0 +1,80 @@
+{% extends "assets/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h6 class="text-muted">Site</h6>
+    <p class="mb-0">{{asset.site.name}}</p>
+  </div>
+</div>
+
+<hr />
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Asset Number</div>
+    <div class="fw-semibold">
+      <p>{{asset.asset_number or '-'}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Make</div>
+    <div class="fw-semibold">
+      <p>{{asset.make or '-'}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Model</div>
+    <div class="fw-semibold">
+      <p>{{asset.model or '-'}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Serial Number</div>
+    <div class="fw-semibold">
+      <p>{{asset.serial_number or '-'}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Purchase Date</div>
+    <div class="fw-semibold">
+      <p>{{asset.purchase_date|date}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Purchased From</div>
+    <div class="fw-semibold">
+      <p>{{asset.purchased_from or '-'}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Warranty Expiry</div>
+    <div class="fw-semibold">
+      <p>{{asset.warranty_expiry|date}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Estimated Replacement Date</div>
+    <div class="fw-semibold">
+      <p>{{asset.estimated_replacement_date|date}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Estimated Replacement Cost</div>
+    <div class="fw-semibold">
+      <p>{{asset.estimated_replacement_cost|currency}}</p>
+
+    </div>
+  </div>
+</div>
+
+{% endblock tab_content %}

@@ -1,0 +1,23 @@
+<div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Site: {{ site.name }}</h4>
+
+    <div class="d-flex gap-2">
+        {% if can('sites.edit') %}
+        <a
+            href="{{ url_for('sites.edit', id=site.id) }}"
+            class="btn btn-primary btn-sm"
+        >
+            Edit
+        </a>
+        {% endif %}
+
+        {% if can('sites.delete') %}
+        <a
+            href="{{ url_for('sites.delete', id=site.id) }}"
+            class="btn btn-danger btn-sm"
+        >
+            Delete
+        </a>
+        {% endif %}
+    </div>
+</div>

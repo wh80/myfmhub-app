@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block body %}
+{% set label = import_type.label if import_type else import_event.import_type %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">{{ label }} Import</h1>
+  <div class="d-flex gap-2">
+    {% if import_type and not import_event.undone_at and import_event.rows_imported and can(import_type.delete_permission) %}
+    <a href="{{ url_for('imports.undo', id=import_event.id) }}" class="btn btn-danger">Undo</a>
+    {% endif %}
+    <a href="{{ url_for('imports.index') }}" class="btn btn-secondary">Back</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="text-muted small">Imported</div>
+    <div class="fw-semibold">{{ import_event.created_at | datetime }}</div>
+  </div>
+  <div class="col-md-4">
+    <div class="text-muted small">File</div>
+    <div class="fw-semibold text-break">{{ import_event.filename }}</div>
+  </div>
+  <div class="col-md-4">
+    <div class="text-muted small">Imported By</div>
+    <div class="fw-semibold">{{ import_event.user.email if import_event.user else '-' }}</div>
+  </div>
+</div>
+
+{% if import_event.undone_at %}
+<div class="alert alert-secondary">
+  <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+  Undone {{ import_event.undone_at | datetime }}{% if import_event.undone_by %} by {{ import_event.undone_by.email }}{% endif %}. The imported records were deleted.
+</div>
+{% endif %}
+
+<div class="alert {{ 'alert-success' if not import_event.errors else 'alert-warning' }} d-flex justify-content-between align-items-center gap-2">
+  <span>
+    <strong>{{ import_event.rows_imported }} row{{ 's' if import_event.rows_imported != 1 }} imported successfully.</strong>
+    {% if import_event.errors %}{{ import_event.errors | length }} row{{ 's' if import_event.errors | length != 1 }} had errors and {{ 'were' if import_event.errors | length != 1 else 'was' }} not imported.{% endif %}
+  </span>
+  {% if import_type and import_event.rows_imported and not import_event.undone_at %}
+  <a href="{{ url_for(import_type.index_endpoint, import_id=import_event.id) }}" class="btn btn-sm btn-outline-primary text-nowrap">View imported {{ label | lower }}</a>
+  {% endif %}
+</div>
+
+{% if import_event.errors %}
+<h5>The following rows had errors:</h5>
+<p class="text-muted small">Row numbers match the spreadsheet, so the header is row 1.</p>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead>
+      <tr>
+        <th scope="col">Row</th>
+        <th scope="col">Error</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for error in import_event.errors %}
+      <tr>
+        <td>{{ error.row }}</td>
+        <td>{{ error.error }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock body %}

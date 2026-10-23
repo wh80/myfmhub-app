@@ -1,0 +1,47 @@
+{% extends 'base.html' %} {% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Undo {{ import_type.label }} Import</h4>
+  </div>
+
+  <div class="card-body">
+    <p>
+      Imported {{ import_event.created_at | datetime }} from <strong>{{ import_event.filename }}</strong>.
+    </p>
+
+    {% if blockers %}
+    <div class="alert alert-warning">
+      <p class="mb-2"><strong>This import can't be undone yet:</strong></p>
+      <ul class="mb-0">
+        {% for blocker in blockers %}
+        <li>{{ blocker }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% elif remaining %}
+    <p class="mb-4">
+      This will permanently delete the <strong>{{ remaining }} {{ 'record' if remaining == 1 else 'records' }}</strong>
+      still left from this import, including any changes made to them since.
+      {% if import_type.key == 'assets' %}They'll be unlinked from any jobs and job schedules.{% endif %}
+      {% if import_type.key == 'people' %}Their user accounts are deleted too.{% endif %}
+      The import stays in the history, marked as undone.
+    </p>
+    {% else %}
+    <p class="mb-4">None of this import's records are left; they've been deleted since. Undoing it just marks it as undone.</p>
+    {% endif %}
+
+    <form method="post" id="undo-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    </form>
+
+    <div class="d-flex gap-2">
+      {% if not blockers %}
+      <button class="btn btn-danger" form="undo-form">Undo Import</button>
+      {% endif %}
+      <a href="{{ url_for('imports.view', id=import_event.id) }}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

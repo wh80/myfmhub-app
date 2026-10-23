@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+{% macro organisation_actions(organisation) %}
+  <a href="{{ url_for('admin.sessions', organisation_id=organisation.id) }}" class="btn btn-sm btn-outline-secondary">Sessions</a>
+  {% if organisation.id == g.user.organisation_id %}
+    <span class="text-muted small ms-1">Yours</span>
+  {% elif organisation.suspended_at %}
+    <form method="POST" action="{{ url_for('admin.reinstate_organisation_route', id=organisation.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="btn btn-sm btn-outline-success">Reinstate</button>
+          </form>
+  {% else %}
+    <form method="POST" action="{{ url_for('admin.suspend_organisation_route', id=organisation.id) }}" class="d-inline" onsubmit="return confirm('Suspend {{ organisation.name }}? Everyone in it will be signed out and unable to sign in.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Suspend</button>
+          </form>
+  {% endif %}
+{% endmacro %}
+
+{% macro organisation_status(organisation) %}
+  {% if organisation.suspended_at %}<span class="badge text-bg-danger">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}
+{% endmacro %}
+
+{% include 'admin/_tabs.html' %}
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-6">
+      <label for="search" class="form-label">Search</label>
+      <input type="text" id="search" name="search" value="{{search}}" class="form-control" placeholder="Name ..." />
+    </div>
+
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>
+      <a href="{{url_for('admin.organisations')}}" class="btn btn-secondary w-100"><i class="bi bi-x-circle"></i> Cancel</a>
+    </div>
+  </div>
+</form>
+
+{% if pagination.total %}
+
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('organisations') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="organisations">
+    <thead>
+      <tr>
+        <th scope="col" data-col="name" data-col-fixed>Name</th>
+        <th scope="col" data-col="registered">Registered</th>
+        <th scope="col" data-col="users">Users</th>
+        <th scope="col" data-col="active_sessions">Active sessions</th>
+        <th scope="col" data-col="status">Status</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for organisation in organisations %}
+      <tr>
+        <td>{{ organisation.name }}</td>
+        <td>{{ organisation.created_at | datetime }}</td>
+        <td>{{ user_counts.get(organisation.id, 0) }}</td>
+        <td>{{ session_counts.get(organisation.id, 0) }}</td>
+        <td>{{ organisation_status(organisation) }}</td>
+        <td class="text-end text-nowrap">{{ organisation_actions(organisation) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for organisation in organisations %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3">{{ organisation.name }} {{ organisation_status(organisation) }}</h5>
+          <p class="card-text">
+            <strong>Registered:</strong> {{ organisation.created_at | datetime }}<br>
+            <strong>Users:</strong> {{ user_counts.get(organisation.id, 0) }}<br>
+            <strong>Active sessions:</strong> {{ session_counts.get(organisation.id, 0) }}
+          </p>
+          {{ organisation_actions(organisation) }}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ pagination_nav(pagination) }}
+{% elif search %}
+<p>No organisations match your search.</p>
+{% else %}
+<p>No organisations yet.</p>
+{% endif %}
+{% endblock body %}

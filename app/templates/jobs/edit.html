@@ -1,0 +1,64 @@
+{% extends 'base.html' %} {% block body %}
+<h3>Edit Job</h3>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+
+ <div class="mb-3">
+    {{ form.summary.label(class="form-label") }} {{
+    form.summary(class="form-control" ~ (" is-invalid" if
+    form.summary.errors else "")) }} {% if form.summary.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.summary.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.work_required.label(class="form-label") }} {{
+    form.work_required(class="form-control" ~ (" is-invalid" if
+    form.work_required.errors else "")) }} {% if form.work_required.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.work_required.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.site_id.label(class="form-label") }} {{
+    form.site_id(class="form-select" ~ (" is-invalid" if
+    form.site_id.errors else "")) }} {% if form.site_id.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.site_id.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.due_by.label(class="form-label") }} {{
+    form.due_by(class="form-control" ~ (" is-invalid" if
+    form.due_by.errors else "")) }} {% if form.due_by.errors %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.due_by.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{url_for('jobs.view', id=job.id)}}" class="btn btn-secondary"
+    >Back</a
+  >
+</form>
+
+{% endblock body%}

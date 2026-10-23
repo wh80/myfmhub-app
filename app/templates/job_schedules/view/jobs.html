@@ -1,0 +1,15 @@
+{% extends "job_schedules/view/_layout.html" %}
+
+{% block tab_content %}
+
+<h5 class="mb-3">Jobs</h5>
+
+{% if job_schedule.jobs %}
+    {% with jobs=job_schedule.jobs %}
+        {% include "jobs/job_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No jobs found.</p>
+{% endif %}
+
+{% endblock tab_content %}

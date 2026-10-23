@@ -1,0 +1,25 @@
+# Direct dependencies, pinned to the versions the app was built and tested with.
+# Their own dependencies (Werkzeug, Jinja2, alembic, pillow, requests...) are pulled in automatically.
+
+# web framework and database
+Flask==3.1.3
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+SQLAlchemy==2.1.3
+# PostgreSQL driver. [binary] bundles libpq, so the server doesn't need it installed
+psycopg[binary]==3.3.6
+
+# forms
+Flask-WTF==1.3.0
+WTForms==3.2.2
+email-validator==2.3.0
+
+# config, email, PDFs
+python-dotenv==1.2.4
+resend==2.50.0
+reportlab==5.1.0
+# time zone data for zoneinfo (Europe/London); Windows has none built in
+tzdata==2026.5
+
+# production web server (Linux only; locally use run.py)
+gunicorn==26.2.0

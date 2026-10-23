@@ -1,0 +1,34 @@
+{% extends 'base.html' %} {% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Close Job: {{ job.summary }}</h4>
+  </div>
+
+  <div class="card-body">
+    <form method="POST" id="close-form">
+      {{ form.hidden_tag() }}
+
+      <div class="mb-3">
+        {{ form.closed_at.label(class="form-label") }} {{
+        form.closed_at(class="form-control" ~ (" is-invalid" if
+        form.closed_at.errors else "")) }} {% if form.closed_at.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.closed_at.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-success" form="close-form">Close Job</button>
+      <a href="{{url_for('jobs.view', id=job.id)}}" class="btn btn-secondary"
+        >Back</a
+      >
+    </div>
+  </div>
+</div>
+
+{% endblock body%}

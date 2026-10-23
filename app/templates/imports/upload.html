@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Import {{ import_type.label }}</h1>
+  <a href="{{ url_for('imports.index') }}" class="btn btn-secondary">Back</a>
+</div>
+
+{% if problems %}
+<div class="alert alert-danger">
+  <strong>Nothing was imported.</strong> Fix these problems with the file's header row (or the file itself) and upload it again.
+</div>
+<div class="table-responsive mb-4">
+  <table class="table align-middle text-nowrap">
+    <thead>
+      <tr>
+        <th scope="col">Header</th>
+        <th scope="col">Problem</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for header, problem in problems %}
+      <tr>
+        <td>{{ header or '-' }}</td>
+        <td>{{ problem }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h5 class="card-title">Upload a file</h5>
+    <form method="POST" enctype="multipart/form-data">
+      {{ form.hidden_tag() }}
+      <div class="mb-3">
+        {{ form.file.label(class="form-label") }}
+        {{ form.file(class="form-control" ~ (" is-invalid" if form.file.errors else ""), accept=".csv") }}
+        {% if form.file.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.file.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-upload" aria-hidden="true"></i> Import</button>
+      <a href="{{ url_for('imports.template', slug=import_type.slug) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-download" aria-hidden="true"></i> Download a template
+      </a>
+    </form>
+  </div>
+</div>
+
+<h5>How to prepare the file</h5>
+<ul>
+  <li>Save it as CSV. From Excel, "CSV UTF-8" is best, but "CSV (Comma delimited)" works too.</li>
+  <li>The first row must be the headers below, in any order. Headers aren't case sensitive, and spaces count as underscores. Columns that aren't required can be left out.</li>
+  <li>Each row after that is one new record. Blank rows are skipped.</li>
+  <li>Rows that pass every check are imported. Rows with a problem are skipped, and the results page lists each one with the reason, so you can fix them and import just those rows again.</li>
+  <li>Importing only adds records. It never changes or deletes existing ones.</li>
+  <li>Up to {{ max_rows }} rows and {{ max_mb }} MB per file.</li>
+  {% for note in import_type.notes %}
+  <li>{{ note }}</li>
+  {% endfor %}
+</ul>
+
+<h5 class="mt-4">Columns</h5>
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead>
+      <tr>
+        <th scope="col">Header</th>
+        <th scope="col">Required</th>
+        <th scope="col">Format</th>
+        <th scope="col">Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for column in import_type.columns %}
+      <tr>
+        <td class="text-nowrap"><code>{{ column.key }}</code></td>
+        <td>{% if column.required %}<span class="badge text-bg-primary">Required</span>{% else %}<span class="text-muted">Optional</span>{% endif %}</td>
+        <td>{{ column.format }}</td>
+        <td>{{ column.notes }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock body %}

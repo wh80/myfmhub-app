@@ -1,0 +1,29 @@
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'overview' %}active{% endif %}"
+            href="{{ url_for('assets.view', id=asset.id) }}"
+        >
+            Overview
+        </a>
+    </li>
+
+   
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'jobs' %}active{% endif %}"
+            href="{{ url_for('assets.jobs', id=asset.id) }}"
+        >
+            Jobs
+        </a>
+    </li>
+
+     <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'job_schedules' %}active{% endif %}"
+            href="{{ url_for('assets.job_schedules', id=asset.id) }}"
+        >
+            Job Schedules
+        </a>
+    </li>
+</ul>

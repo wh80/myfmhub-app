@@ -1,0 +1,201 @@
+from flask import Blueprint, render_template, redirect, url_for, request, flash, g
+from app import db
+from app.forms import JobScheduleForm
+from app.models import JobSchedule, Site, Asset
+from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid
+from app.services.exports import export_response
+from app.services.scheduling import job_creation_date
+job_schedules_bp = Blueprint('job_schedules', __name__, url_prefix="/job-schedules")
+job_schedules_bp.before_request(require_login)
+job_schedules_bp.before_request(require_permission)
+
+# the index table's columns, for downloads. Keys match data-col in job_schedules/job_schedule_list.html
+JOB_SCHEDULE_COLUMNS = [
+    ('summary', 'Summary', lambda job_schedule: job_schedule.summary),
+    ('site', 'Site', lambda job_schedule: job_schedule.site.name),
+    ('next_due_by', 'Next Due By', lambda job_schedule: job_schedule.next_due_by),
+    ('frequency', 'Frequency', lambda job_schedule: job_schedule.frequency_label),
+    ('next_job_creation', 'Next Job Creation', lambda job_schedule: job_schedule.next_job_creation_date),
+    ('statutory', 'Statutory', lambda job_schedule: job_schedule.statutory_compliance),
+]
+
+# the index filters, shared by the page and its downloads
+def filtered_job_schedules():
+    search = request.args.get('search', '').strip()
+    site_id = request.args.get('site_id', '').strip()
+    statutory = request.args.get('statutory') == '1'
+
+    query = org_query(JobSchedule)
+
+    # set by "View imported items" on an import
+    import_id = parse_uuid(request.args.get('import_id'))
+    if import_id:
+        query = query.filter(JobSchedule.import_event_id == import_id)
+
+    if search:
+        query = query.filter(
+            db.or_(
+                JobSchedule.summary.ilike(f'%{search}%'),
+                JobSchedule.work_required.ilike(f'%{search}%')
+            )
+        )
+
+    if site_id:
+        query = query.filter(JobSchedule.site_id == site_id)
+
+    if statutory:
+        query = query.filter(JobSchedule.statutory_compliance.is_(True))
+
+    return query.order_by(JobSchedule.summary, JobSchedule.id), dict(search=search, site_id=site_id, statutory=statutory, import_id=import_id)
+
+@job_schedules_bp.route('/')
+def index():
+    query, filters = filtered_job_schedules()
+    page = request.args.get('page', 1, type=int)
+
+    pagination = query.paginate(page=page, per_page=25, error_out=False)
+
+    return render_template(
+        'job_schedules/index.html',
+        job_schedules=pagination.items,
+        pagination=pagination,
+        sites=org_query(Site).all(),
+        **filters
+    )
+
+@job_schedules_bp.route('/export/<any(csv, pdf):file_format>')
+def export(file_format):
+    query, _ = filtered_job_schedules()
+    job_schedules = query.options(db.joinedload(JobSchedule.site)).all()
+    return export_response(file_format, 'job-schedules', 'Job Schedules', JOB_SCHEDULE_COLUMNS, job_schedules)
+
+@job_schedules_bp.route('/create', methods=['GET', 'POST'])
+def create():
+    form = JobScheduleForm()
+    form.site_id.choices = [
+        ('', '--- Select Site ---')
+    ] + [
+        (str(s.id), s.name)
+        for s in org_query(Site).order_by(Site.name).all()
+    ]
+    
+    if form.validate_on_submit():
+        job_schedule = JobSchedule(
+            summary=form.summary.data,
+            work_required=form.work_required.data,
+            next_due_by=form.next_due_by.data,
+            frequency=form.frequency.data,
+            notice_days=form.notice_days.data,
+            next_job_creation_date=job_creation_date(form.next_due_by.data, form.notice_days.data),
+            statutory_compliance=form.statutory_compliance.data,
+            site_id=form.site_id.data,
+            organisation_id=g.user.organisation_id,
+        )
+        db.session.add(job_schedule)
+        db.session.commit()
+        flash(f"Job Schedule '{job_schedule.summary}' created successfully!", 'success')
+        return redirect(url_for('job_schedules.index'))
+
+    return render_template('job_schedules/create.html', form=form)
+
+@job_schedules_bp.route('/<uuid:id>', methods=['GET'])
+def view(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+
+    return render_template('job_schedules/view/overview.html', job_schedule=job_schedule, active_tab="overview")
+
+@job_schedules_bp.route('/<uuid:id>/edit', methods=['GET', 'POST'])
+def edit(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+
+    form=JobScheduleForm(obj=job_schedule)
+    form.site_id.choices = [(s.id, s.name) for s in org_query(Site).order_by(Site.name)]
+
+    if form.validate_on_submit():
+        
+        job_schedule.summary=form.summary.data
+        job_schedule.work_required=form.work_required.data
+        job_schedule.next_due_by=form.next_due_by.data
+        job_schedule.frequency=form.frequency.data
+        job_schedule.notice_days=form.notice_days.data
+        job_schedule.next_job_creation_date=job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
+        job_schedule.statutory_compliance=form.statutory_compliance.data
+        job_schedule.site_id=form.site_id.data
+                
+        db.session.commit()
+        flash(f"Job Schedule '{job_schedule.work_required}' updated successfully!", 'success')
+        return redirect(url_for('job_schedules.view', id=job_schedule.id))
+
+    return render_template('job_schedules/edit.html', job_schedule=job_schedule, form=form)
+
+@job_schedules_bp.route('/<uuid:id>/delete', methods=['GET', 'POST'])
+def delete(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+
+    if request.method =="POST":
+        db.session.delete(job_schedule)
+        db.session.commit()
+        flash(f"Job Schedule '{job_schedule.summary}' deleted successfully!", 'success')
+        return redirect(url_for('job_schedules.index'))
+
+    return render_template('job_schedules/delete.html', job_schedule=job_schedule)
+
+
+### RELATED DATA ###
+
+@job_schedules_bp.route("/<uuid:id>/jobs")
+def jobs(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+    return render_template("job_schedules/view/jobs.html", job_schedule=job_schedule, active_tab="jobs",)
+
+@job_schedules_bp.route("/<uuid:id>/assets")
+def assets(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+    return render_template("job_schedules/view/assets.html", job_schedule=job_schedule, active_tab="assets",)
+
+@job_schedules_bp.route("/<uuid:id>/assets/link", methods=['GET', 'POST'])
+def link_assets(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+
+    # assets on the job schedule's site that aren't already linked to it
+    query = org_query(Asset).filter(
+        Asset.site_id == job_schedule.site_id,
+        ~Asset.job_schedules.any(JobSchedule.id == job_schedule.id)
+    )
+
+    if request.method == "POST":
+        ids = selected_ids('asset_ids')
+
+        if not ids:
+            flash("Select at least one asset to link.", 'warning')
+            return redirect(url_for('job_schedules.link_assets', id=job_schedule.id))
+
+        assets = query.filter(Asset.id.in_(ids)).all()
+        job_schedule.assets.extend(assets)
+        db.session.commit()
+        flash(f"Linked {len(assets)} asset(s) to '{job_schedule.summary}'.", 'success')
+        return redirect(url_for('job_schedules.assets', id=job_schedule.id))
+
+    assets = query.order_by(Asset.description).all()
+    return render_template("job_schedules/view/assets_link.html", job_schedule=job_schedule, assets=assets)
+
+@job_schedules_bp.route("/<uuid:id>/assets/unlink", methods=['GET', 'POST'])
+def unlink_assets(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+
+    if request.method == "POST":
+        ids = selected_ids('asset_ids')
+
+        if not ids:
+            flash("Select at least one asset to unlink.", 'warning')
+            return redirect(url_for('job_schedules.unlink_assets', id=job_schedule.id))
+
+        assets = [asset for asset in job_schedule.assets if asset.id in ids]
+        for asset in assets:
+            job_schedule.assets.remove(asset)
+        db.session.commit()
+        flash(f"Unlinked {len(assets)} asset(s) from '{job_schedule.summary}'.", 'success')
+        return redirect(url_for('job_schedules.assets', id=job_schedule.id))
+
+    assets = sorted(job_schedule.assets, key=lambda asset: asset.description)
+    return render_template("job_schedules/view/assets_unlink.html", job_schedule=job_schedule, assets=assets)

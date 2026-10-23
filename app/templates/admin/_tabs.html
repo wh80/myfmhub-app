@@ -1,0 +1,6 @@
+<h1 class="mb-3">Admin</h1>
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item"><a class="nav-link {% if request.endpoint == 'admin.organisations' %}active{% endif %}" href="{{ url_for('admin.organisations') }}">Organisations</a></li>
+  <li class="nav-item"><a class="nav-link {% if request.endpoint == 'admin.sessions' %}active{% endif %}" href="{{ url_for('admin.sessions') }}">Sessions</a></li>
+  <li class="nav-item"><a class="nav-link {% if request.endpoint == 'admin.users' %}active{% endif %}" href="{{ url_for('admin.users') }}">Users</a></li>
+</ul>

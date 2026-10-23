@@ -1,0 +1,7 @@
+{# on an index page filtered with ?import_id= by "View imported items" #}
+{% if import_id %}
+<div class="alert alert-info d-flex justify-content-between align-items-center gap-2">
+  <span><i class="bi bi-upload" aria-hidden="true"></i> Showing only the records from one import.</span>
+  <a href="{{ url_for(request.endpoint) }}" class="btn btn-sm btn-outline-secondary">Show all</a>
+</div>
+{% endif %}

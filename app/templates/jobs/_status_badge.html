@@ -1,0 +1,3 @@
+{# expects job in context #}
+{% set status_colours = {'new': 'primary', 'open': 'warning', 'closed': 'secondary'} %}
+<span class="badge text-bg-{{ status_colours.get(job.status, 'light') }}">{{ job.status_label }}</span>

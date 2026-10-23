@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+{% set revoke_user_endpoint = 'admin.revoke_user' %}
+{% set show_organisation = True %}
+{% include 'admin/_tabs.html' %}
+
+{% include 'admin/_filters.html' %}
+
+{% if pagination.total %}
+{% include 'auth/user_list.html' %}
+{{ pagination_nav(pagination) }}
+{% elif search or organisation_id %}
+<p>No users match your search.</p>
+{% else %}
+<p>No users yet.</p>
+{% endif %}
+{% endblock body %}

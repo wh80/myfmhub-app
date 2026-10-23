@@ -1,0 +1,90 @@
+
+
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('assets', export_endpoint) }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle text-nowrap" data-columns="assets">
+    <thead>
+      <tr>
+        <th scope="col" data-col="description" data-col-fixed>Description</th>
+        <th scope="col" data-col="site">Site</th>
+        <th scope="col" data-col="asset_number">Asset Number</th>
+        <th scope="col" data-col="make">Make</th>
+        <th scope="col" data-col="model">Model</th>
+        <th scope="col" data-col="serial_number">Serial Number</th>
+        <th scope="col" data-col="purchase_date">Purchase Date</th>
+        <th scope="col" data-col="purchased_from">Purchased From</th>
+        <th scope="col" data-col="warranty_expiry">Warranty Expiry</th>
+        <th scope="col" data-col="est_replacement_date">Est. Replacement Date</th>
+        <th scope="col" data-col="est_replacement_cost">Est. Replacement Cost</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for asset in assets %}
+      <tr class="position-relative">
+        <td><a href="{{url_for('assets.view', id=asset.id)}}" class="stretched-link text-reset text-decoration-none">{{asset.description}}</a></td>
+        <td>{{asset.site.name}}</td>
+        <td>{{asset.asset_number or '-'}}</td>
+        <td>{{asset.make or '-'}}</td>
+        <td>{{asset.model or '-'}}</td>
+        <td>{{asset.serial_number or '-'}}</td>
+        <td>{{asset.purchase_date|date}}</td>
+        <td>{{asset.purchased_from or '-'}}</td>
+        <td>{{asset.warranty_expiry|date}}</td>
+        <td>{{asset.estimated_replacement_date|date}}</td>
+        <td>{{asset.estimated_replacement_cost|currency}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+
+<!-- Mobile  UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for asset in assets %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><a href="{{url_for('assets.view', id=asset.id)}}" class="stretched-link text-reset text-decoration-none">{{asset.description}}</a></h5>
+          
+          <p class="card-text">
+            <strong>Asset Number:</strong> {{asset.asset_number or '-'}}
+          </p>
+          <p class="card-text">
+            <strong>Make:</strong> {{asset.make or '-'}}
+          </p>
+          <p class="card-text">
+            <strong>Model:</strong> {{asset.model or '-'}}
+          </p>
+          <p class="card-text">
+            <strong>Serial Number:</strong> {{asset.serial_number or '-'}}
+          </p>
+          <p class="card-text">
+            <strong>Purchase Date:</strong> {{asset.purchase_date|date}}
+          </p>
+          <p class="card-text">
+            <strong>Purchased From:</strong> {{asset.purchased_from or '-'}}
+          </p>
+          <p class="card-text">
+            <strong>Warranty Expiry:</strong> {{asset.warranty_expiry|date}}
+          </p>
+          <p class="card-text">
+            <strong>Est. Replacement Date:</strong> {{asset.estimated_replacement_date|date}}
+          </p>
+          <p class="card-text">
+            <strong>Est. Replacement Cost:</strong> {{asset.estimated_replacement_cost|currency}}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+

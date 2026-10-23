@@ -1,0 +1,42 @@
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-6">
+      <label for="search" class="form-label">Search</label>
+      <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{search}}"
+        class="form-control"
+        placeholder="Search description, asset number, serial number..."
+      />
+    </div>
+
+    <div class="col-md-4">
+      <label for="site_id" class="form-label">Site</label>
+      <select name="site_id" id="site_id" class="form-select">
+        <option value="" {% if not site_id %}selected{% endif %}>
+          All sites
+        </option>
+
+        {% for site in sites %}
+          <option
+            value="{{ site.id }}"
+            {% if site_id == site.id|string %}selected{% endif %}
+          >
+            {{ site.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-search"></i> Search
+      </button>
+      <a href="{{url_for('assets.index')}}" class="btn btn-secondary w-100">
+        <i class="bi bi-x-circle"></i> Cancel
+      </a>
+    </div>
+  </div>
+</form>

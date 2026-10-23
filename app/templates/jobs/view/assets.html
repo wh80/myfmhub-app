@@ -1,0 +1,29 @@
+{% extends "jobs/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Assets</h5>
+    {% if can('jobs.edit') %}
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('jobs.link_assets', id=job.id) }}" class="btn btn-primary btn-sm">
+            Link Assets
+        </a>
+        {% if job.assets %}
+            <a href="{{ url_for('jobs.unlink_assets', id=job.id) }}" class="btn btn-outline-danger btn-sm">
+                Unlink Assets
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% if job.assets %}
+    {% with assets=job.assets %}
+        {% include "assets/asset_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No assets found.</p>
+{% endif %}
+
+{% endblock tab_content %}

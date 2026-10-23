@@ -1,0 +1,102 @@
+{% extends 'base.html' %} {% block body %}
+<h3>Edit Job Schedule</h3>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+
+ <div class="mb-3">
+    {{ form.summary.label(class="form-label") }} {{
+    form.summary(class="form-control" ~ (" is-invalid" if
+    form.summary.errors else "")) }} {% if form.summary.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.summary.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.work_required.label(class="form-label") }} {{
+    form.work_required(class="form-control" ~ (" is-invalid" if
+    form.work_required.errors else "")) }} {% if form.work_required.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.work_required.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.site_id.label(class="form-label") }} {{
+    form.site_id(class="form-select" ~ (" is-invalid" if
+    form.site_id.errors else "")) }} {% if form.site_id.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.site_id.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.next_due_by.label(class="form-label") }} {{
+    form.next_due_by(class="form-control" ~ (" is-invalid" if
+    form.next_due_by.errors else "")) }} {% if form.next_due_by.errors %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.next_due_by.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.frequency.label(class="form-label") }} {{
+    form.frequency(class="form-select" ~ (" is-invalid" if
+    form.frequency.errors else "")) }} {% if form.frequency.errors %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.frequency.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.notice_days.label(class="form-label") }} {{
+    form.notice_days(class="form-control" ~ (" is-invalid" if
+    form.notice_days.errors else ""), min="0", max="365") }}
+    <div class="form-text">{{ form.notice_days.description }}</div>
+    {% if form.notice_days.errors %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.notice_days.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="form-check mb-3">
+    {{ form.statutory_compliance(class="form-check-input" ~ (" is-invalid" if form.statutory_compliance.errors else "")) }}
+    {{ form.statutory_compliance.label(class="form-check-label") }}
+    {% if form.statutory_compliance.errors %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.statutory_compliance.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{url_for('job_schedules.view', id=job_schedule.id)}}" class="btn btn-secondary"
+    >Back</a
+  >
+</form>
+
+{% endblock body%}

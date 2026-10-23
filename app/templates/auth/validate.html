@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<h3>Enter your code</h3>
+<p>We've emailed a 6-digit code to {{ otp.user.email }}.</p>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.code.label(class="form-label") }}
+        {{ form.code(class="form-control" ~ (" is-invalid" if form.code.errors else ""), inputmode="numeric", autocomplete="one-time-code", maxlength="6") }}
+        {% if form.code.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.code.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Continue</button>
+</form>
+
+<form method="POST" action="{{ url_for('auth.resend', id=otp.id, next=request.args.get('next')) }}" class="mt-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <span class="text-muted">Didn't get the email, or has the code expired?</span>
+    <button type="submit" class="btn btn-link p-0 align-baseline">Send a new code</button>
+</form>
+<p class="mt-2"><a href="{{ url_for('auth.login') }}">Sign in with a different email</a></p>
+
+
+{% endblock body%}

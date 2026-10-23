@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Jobs</h1>
+  {% if can('jobs.create') %}
+  <a href="{{url_for('jobs.create')}}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Create
+  </a>
+  {% endif %}
+</div>
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-4">
+      <label for="search" class="form-label">Search</label>
+      <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{search}}"
+        class="form-control"
+        placeholder="Search summary, work required..."
+      />
+    </div>
+
+    <div class="col-md-4">
+  <label for="site_id" class="form-label">Site</label>
+  <select name="site_id" id="site_id" class="form-select">
+    <option value="" {% if not site_id %}selected{% endif %}>
+      All sites
+    </option>
+
+    {% for site in sites %}
+      <option
+        value="{{ site.id }}"
+        {% if site_id == site.id|string %}selected{% endif %}
+      >
+        {{ site.name }}
+      </option>
+    {% endfor %}
+  </select>
+</div>
+
+    <div class="col-md-2">
+      <label for="status" class="form-label">Status</label>
+      <select name="status" id="status" class="form-select">
+        <option value="" {% if not status %}selected{% endif %}>All statuses</option>
+        <option value="not_closed" {% if status == 'not_closed' %}selected{% endif %}>Not closed</option>
+        {% for key, label in statuses %}
+        <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <label for="source" class="form-label">Source</label>
+      <select name="source" id="source" class="form-select">
+        <option value="" {% if not source %}selected{% endif %}>All sources</option>
+        {% for key, label in sources %}
+        <option value="{{ key }}" {% if source == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <label for="due_from" class="form-label">Due from</label>
+      <input type="date" id="due_from" name="due_from" value="{{ due_from.isoformat() if due_from else '' }}" class="form-control" />
+    </div>
+
+    <div class="col-md-2">
+      <label for="due_to" class="form-label">Due to</label>
+      <input type="date" id="due_to" name="due_to" value="{{ due_to.isoformat() if due_to else '' }}" class="form-control" />
+    </div>
+
+    <div class="col-md-2">
+      <label for="closed_from" class="form-label">Closed from</label>
+      <input type="date" id="closed_from" name="closed_from" value="{{ closed_from.isoformat() if closed_from else '' }}" class="form-control" />
+    </div>
+
+    <div class="col-md-2">
+      <label for="closed_to" class="form-label">Closed to</label>
+      <input type="date" id="closed_to" name="closed_to" value="{{ closed_to.isoformat() if closed_to else '' }}" class="form-control" />
+    </div>
+
+    <div class="col-md-2 d-flex flex-column justify-content-end">
+      <div class="form-check">
+        <input
+          type="checkbox"
+          id="overdue"
+          name="overdue"
+          value="1"
+          class="form-check-input"
+          {% if overdue %}checked{% endif %}
+        />
+        <label for="overdue" class="form-check-label">Overdue only</label>
+      </div>
+      <div class="form-check mb-2">
+        <input
+          type="checkbox"
+          id="statutory"
+          name="statutory"
+          value="1"
+          class="form-check-input"
+          {% if statutory %}checked{% endif %}
+        />
+        <label for="statutory" class="form-check-label">Statutory only</label>
+      </div>
+    </div>
+
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-search"></i> Search
+      </button>
+      <a href="{{url_for('jobs.index')}}" class="btn btn-secondary w-100">
+        <i class="bi bi-x-circle"></i> Cancel
+      </a>
+    </div>
+  </div>
+</form>
+
+{% if pagination.total %}
+
+ {% set export_endpoint = 'jobs.export' %}
+{% include "jobs/job_list.html" %}
+
+{{ pagination_nav(pagination) }}
+{% elif search or site_id or statutory or overdue or status or source or due_from or due_to or closed_from or closed_to %}
+<p>No jobs match your search.</p>
+{% else %}
+<p>No jobs yet.</p>
+{% endif %}
+{% endblock body %}

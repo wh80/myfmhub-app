@@ -1,0 +1,22 @@
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'overview' %}active{% endif %}"
+            href="{{ url_for('jobs.view', id=job.id) }}"
+        >
+            Overview
+        </a>
+    </li>
+
+   
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'assets' %}active{% endif %}"
+            href="{{ url_for('jobs.assets', id=job.id) }}"
+        >
+            Assets
+        </a>
+    </li>
+
+   
+</ul>

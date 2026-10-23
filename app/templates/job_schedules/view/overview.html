@@ -1,0 +1,56 @@
+{% extends "job_schedules/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h6 class="text-muted">Site</h6>
+    <p class="mb-0">{{job_schedule.site.name}}</p>
+  </div>
+</div>
+
+<hr />
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Work Required</div>
+    <div class="fw-semibold">
+      <p>{{job_schedule.work_required}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Next Due By</div>
+    <div class="fw-semibold">
+      <p>{{job_schedule.next_due_by | date}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Frequency</div>
+    <div class="fw-semibold">
+      <p>{{job_schedule.frequency_label}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Notice Days</div>
+    <div class="fw-semibold">
+      <p>{{job_schedule.notice_days}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Next Job Creation</div>
+    <div class="fw-semibold">
+      <p>{{job_schedule.next_job_creation_date | date}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Statutory Compliance</div>
+    <div class="fw-semibold">{% if job_schedule.statutory_compliance %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</div>
+  </div>
+</div>
+
+{% endblock tab_content %}

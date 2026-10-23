@@ -1,0 +1,81 @@
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('job_schedules') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle text-nowrap" data-columns="job_schedules">
+    <thead>
+      <tr>
+        <th scope="col"></th>
+        <th scope="col" data-col="summary" data-col-fixed>Summary</th>
+        <th scope="col" data-col="site">Site</th>
+        <th scope="col" data-col="next_due_by">Next Due By</th>
+        <th scope="col" data-col="frequency">Frequency</th>
+        <th scope="col" data-col="next_job_creation">Next Job Creation</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job_schedule in job_schedules %}
+      <tr>
+        <td>
+          <input
+            class="form-check-input"
+            type="checkbox"
+            name="job_schedule_ids"
+            value="{{job_schedule.id}}"
+            id="job-schedule-desktop-{{job_schedule.id}}"
+          />
+        </td>
+        <td>
+          <label class="form-check-label" for="job-schedule-desktop-{{job_schedule.id}}"
+            >{{job_schedule.summary}}</label
+          >
+        </td>
+        <td>{{job_schedule.site.name}}</td>
+        <td>{{job_schedule.next_due_by | date}}</td>
+        <td>{{job_schedule.frequency_label}}</td>
+        <td>{{job_schedule.next_job_creation_date | date}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for job_schedule in job_schedules %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="form-check mb-3">
+            <input
+              class="form-check-input"
+              type="checkbox"
+              name="job_schedule_ids"
+              value="{{job_schedule.id}}"
+              id="job-schedule-mobile-{{job_schedule.id}}"
+            />
+            <label class="form-check-label stretched-link" for="job-schedule-mobile-{{job_schedule.id}}">
+              <h5 class="card-title mb-0">{{job_schedule.summary}}</h5>
+            </label>
+          </div>
+          <p class="card-text"><strong>Site:</strong> {{job_schedule.site.name}}</p>
+          <p class="card-text">
+            <strong>Next due by:</strong> {{job_schedule.next_due_by | date}}
+          </p>
+          <p class="card-text">
+            <strong>Frequency:</strong> {{job_schedule.frequency_label}}
+          </p>
+          <p class="card-text">
+            <strong>Next job creation:</strong> {{job_schedule.next_job_creation_date | date}}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>

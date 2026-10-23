@@ -1,0 +1,39 @@
+{# standalone on purpose: no base.html or navbar, which load the user from the database,
+   so this still renders when the error was the database #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Something went wrong</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark mb-3">
+        <div class="container">
+            <a class="navbar-brand" href="/">MyFMHub</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>Something went wrong</h4>
+            </div>
+
+            <div class="card-body">
+                <p class="mb-4">
+                    Sorry, something went wrong on our side and we couldn't finish that. Please try again in a moment.
+                    If it keeps happening, contact <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+                </p>
+
+                <div class="d-flex gap-2">
+                    <a href="/dashboard/" class="btn btn-primary">Go to dashboard</a>
+                    <button type="button" class="btn btn-secondary" onclick="history.back()">Back</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

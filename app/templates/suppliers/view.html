@@ -1,0 +1,51 @@
+{% extends 'base.html' %} {% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Supplier: {{supplier.name}}</h4>
+
+    <div class="d-flex gap-2">
+      {% if can('suppliers.edit') %}
+      <a
+        href="{{url_for('suppliers.edit', id=supplier.id)}}"
+        class="btn btn-primary btn-sm"
+      >
+        Edit
+      </a>
+      {% endif %}
+      {% if can('suppliers.delete') %}
+      <a
+        href="{{url_for('suppliers.delete', id=supplier.id)}}"
+        class="btn btn-danger btn-sm"
+      >
+        Delete
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="row mb-4">
+      <div class="col-md-8">
+        <h6 class="text-muted">Telephone</h6>
+        <p class="mb-0">{{supplier.telephone or "-"}}</p>
+      </div>
+    </div>
+
+    <hr />
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="text-muted small">Address</div>
+        <div class="fw-semibold">
+          <p>{{supplier.address_line_one}}</p>
+          <p>{{supplier.address_line_two}}</p>
+          <p>{{supplier.town_city}}</p>
+          <p>{{supplier.post_code}}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock body%}

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+
+  {% include "assets/view/_header.html" %}
+
+  <div class="card-body">
+
+    {% include "assets/view/_tabs.html" %}
+
+    {% block tab_content %}{% endblock tab_content %}
+
+  </div>
+</div>
+
+{% endblock body %}

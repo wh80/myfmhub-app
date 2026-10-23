@@ -1,0 +1,46 @@
+{% extends "sites/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h6 class="text-muted">Telephone</h6>
+        <p class="mb-0">{{ site.telephone or "-" }}</p>
+    </div>
+</div>
+
+<hr />
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="text-muted small">Address</div>
+
+        {% if site.address_line_one or site.address_line_two or site.town_city or site.post_code %}
+
+            <div class="fw-semibold">
+                {% if site.address_line_one %}
+                    <p>{{ site.address_line_one }}</p>
+                {% endif %}
+
+                {% if site.address_line_two %}
+                    <p>{{ site.address_line_two }}</p>
+                {% endif %}
+
+                {% if site.town_city %}
+                    <p>{{ site.town_city }}</p>
+                {% endif %}
+
+                {% if site.post_code %}
+                    <p>{{ site.post_code }}</p>
+                {% endif %}
+            </div>
+
+        {% else %}
+
+            <div class="fw-semibold">-</div>
+
+        {% endif %}
+    </div>
+</div>
+
+{% endblock tab_content %}

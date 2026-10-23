@@ -1,0 +1,39 @@
+<div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Job: {{ job.summary }}</h4>
+
+    <div class="d-flex gap-2">
+        {% if can('jobs.close') and job.status != 'closed' %}
+        <a
+            href="{{ url_for('jobs.close', id=job.id) }}"
+            class="btn btn-success btn-sm"
+        >
+            Close
+        </a>
+        {% endif %}
+
+        {% if can('jobs.reopen') and job.status == 'closed' %}
+        <form method="POST" action="{{ url_for('jobs.reopen', id=job.id) }}" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="btn btn-warning btn-sm">Reopen</button>
+        </form>
+        {% endif %}
+
+        {% if can('jobs.edit') %}
+        <a
+            href="{{ url_for('jobs.edit', id=job.id) }}"
+            class="btn btn-primary btn-sm"
+        >
+            Edit
+        </a>
+        {% endif %}
+
+        {% if can('jobs.delete') %}
+        <a
+            href="{{ url_for('jobs.delete', id=job.id) }}"
+            class="btn btn-danger btn-sm"
+        >
+            Delete
+        </a>
+        {% endif %}
+    </div>
+</div>

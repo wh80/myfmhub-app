@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your sign-in code</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #212529;">
+    <p>Hi{% if first_name %} {{ first_name }}{% endif %},</p>
+    {% if invited_by %}
+    <p>{{ invited_by }} has added you to {{ organisation_name }} on MyFmHub. Your sign-in code is:</p>
+    {% else %}
+    <p>{% if welcome %}Welcome to MyFmHub. {% endif %}Your sign-in code is:</p>
+    {% endif %}
+    <p style="font-size: 28px; font-weight: bold; letter-spacing: 4px;">{{ code }}</p>
+    <p>Enter it on the sign-in page, or <a href="{{ validate_url }}">click here to enter your code</a>.</p>
+    <p>The code expires in {{ expiry_minutes }} minutes. After that you can get a new code at any time from <a href="{{ login_url }}">{{ login_url }}</a>.</p>
+    {% if not invited_by %}<p>If you didn't request this code, you can ignore this email.</p>{% endif %}
+</body>
+</html>

@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<h3>Create User Group</h3>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.name.label(class="form-label") }}
+        {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
+        {% if form.name.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.name.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <h5 class="mt-4">Permissions</h5>
+    {% set editable = True %}
+    {% include 'user_groups/_permissions_grid.html' %}
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{{url_for('user_groups.index')}}" class="btn btn-secondary">Back</a>
+</form>
+
+
+{% endblock body%}

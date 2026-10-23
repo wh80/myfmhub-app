@@ -1,0 +1,40 @@
+{% macro page_url(n) -%}
+  {{ url_for(request.endpoint, **dict(request.view_args, **dict(request.args, page=n))) }}
+{%- endmacro %}
+
+{% macro pagination_nav(pagination) %}
+{% if pagination.pages > 1 %}
+<nav aria-label="Pagination" class="mt-4">
+  <ul class="pagination justify-content-center">
+
+    <li class="page-item{% if not pagination.has_prev %} disabled{% endif %}">
+      <a class="page-link"
+         href="{{ page_url(pagination.prev_num) if pagination.has_prev else '#' }}"
+         {% if not pagination.has_prev %}aria-disabled="true" tabindex="-1"{% endif %}>
+        &laquo; Previous
+      </a>
+    </li>
+
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+        <li class="page-item{% if p == pagination.page %} active{% endif %}">
+          <a class="page-link" href="{{ page_url(p) }}"
+             {% if p == pagination.page %}aria-current="page"{% endif %}>{{ p }}</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+      {% endif %}
+    {% endfor %}
+
+    <li class="page-item{% if not pagination.has_next %} disabled{% endif %}">
+      <a class="page-link"
+         href="{{ page_url(pagination.next_num) if pagination.has_next else '#' }}"
+         {% if not pagination.has_next %}aria-disabled="true" tabindex="-1"{% endif %}>
+        Next &raquo;
+      </a>
+    </li>
+
+  </ul>
+</nav>
+{% endif %}
+{% endmacro %}

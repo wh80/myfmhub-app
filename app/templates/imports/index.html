@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% from "pagination.html" import pagination_nav %}
+{% from "_table_tools.html" import table_tools with context %}
+{% block body %}
+<h1 class="mb-4">Import Data</h1>
+
+<h5>What do you want to import?</h5>
+<div class="row g-3 mb-5">
+  {% for import_type in import_types %}
+  <div class="col-12 col-sm-6 col-lg">
+    <div class="card h-100 shadow-sm position-relative">
+      <div class="card-body text-center">
+        <i class="bi bi-upload fs-3 text-muted" aria-hidden="true"></i>
+        <h6 class="card-title mt-2 mb-0">
+          <a href="{{ url_for('imports.upload', slug=import_type.slug) }}" class="stretched-link text-reset text-decoration-none">{{ import_type.label }}</a>
+        </h6>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<h5>Previous imports</h5>
+{% if pagination.total %}
+{{ table_tools('imports') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="imports">
+    <thead>
+      <tr>
+        <th scope="col" data-col="import_date" data-col-fixed>Import Date</th>
+        <th scope="col" data-col="import_type">Import Type</th>
+        <th scope="col" data-col="file">File</th>
+        <th scope="col" data-col="imported_by">Imported By</th>
+        <th scope="col" data-col="rows_imported">Rows Imported</th>
+        <th scope="col" data-col="rows_with_errors">Rows With Errors</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for import_event in import_events %}
+      {% set import_type = IMPORT_TYPES.get(import_event.import_type) %}
+      <tr>
+        <td><a href="{{ url_for('imports.view', id=import_event.id) }}">{{ import_event.created_at | datetime }}</a></td>
+        <td>{{ import_type.label if import_type else import_event.import_type }}</td>
+        <td>{{ import_event.filename }}</td>
+        <td>{{ import_event.user.email if import_event.user else '-' }}</td>
+        <td>{{ import_event.rows_imported }}</td>
+        <td>{% if import_event.errors %}<span class="badge text-bg-warning">{{ import_event.errors | length }}</span>{% else %}0{% endif %}</td>
+        <td class="text-end">
+          {% if import_event.undone_at %}
+          <span class="badge text-bg-secondary">Undone</span>
+          {% elif import_type and import_event.rows_imported %}
+          <a href="{{ url_for(import_type.index_endpoint, import_id=import_event.id) }}" class="btn btn-outline-primary btn-sm">View</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for import_event in import_events %}
+    {% set import_type = IMPORT_TYPES.get(import_event.import_type) %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><a href="{{ url_for('imports.view', id=import_event.id) }}" class="text-reset">{{ import_type.label if import_type else import_event.import_type }}, {{ import_event.created_at | datetime }}</a></h5>
+          <p class="card-text"><strong>File:</strong> {{ import_event.filename }}</p>
+          <p class="card-text"><strong>Rows imported:</strong> {{ import_event.rows_imported }}</p>
+          <p class="card-text"><strong>Rows with errors:</strong> {{ import_event.errors | length }}</p>
+          {% if import_event.undone_at %}
+          <span class="badge text-bg-secondary">Undone</span>
+          {% elif import_type and import_event.rows_imported %}
+          <a href="{{ url_for(import_type.index_endpoint, import_id=import_event.id) }}" class="btn btn-outline-primary btn-sm">View imported {{ import_type.label | lower }}</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ pagination_nav(pagination) }}
+{% else %}
+<p>No imports yet.</p>
+{% endif %}
+{% endblock body %}

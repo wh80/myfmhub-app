@@ -1,0 +1,158 @@
+{% extends 'base.html' %} {% block body %}
+<h3>Create Asset</h3>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+
+  
+  <div class="mb-3">
+    {{ form.description.label(class="form-label") }} {{
+    form.description(class="form-control" ~ (" is-invalid" if
+    form.description.errors else "")) }} {% if form.description.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.description.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.site_id.label(class="form-label") }} {{
+    form.site_id(class="form-select" ~ (" is-invalid" if
+    form.site_id.errors else "")) }} {% if form.site_id.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.site_id.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.asset_number.label(class="form-label") }} {{
+    form.asset_number(class="form-control" ~ (" is-invalid" if
+    form.asset_number.errors else "")) }} {% if form.asset_number.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.asset_number.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.make.label(class="form-label") }} {{
+    form.make(class="form-control" ~ (" is-invalid" if
+    form.make.errors else "")) }} {% if form.make.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.make.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.model.label(class="form-label") }} {{
+    form.model(class="form-control" ~ (" is-invalid" if
+    form.model.errors else "")) }} {% if form.model.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.model.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.serial_number.label(class="form-label") }} {{
+    form.serial_number(class="form-control" ~ (" is-invalid" if
+    form.serial_number.errors else "")) }} {% if form.serial_number.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.serial_number.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  
+
+  <div class="mb-3">
+    {{ form.purchase_date.label(class="form-label") }} {{
+    form.purchase_date(class="form-control" ~ (" is-invalid" if
+    form.purchase_date.errors else "")) }} {% if form.purchase_date.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.purchase_date.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.purchased_from.label(class="form-label") }} {{
+    form.purchased_from(class="form-control" ~ (" is-invalid" if
+    form.purchased_from.errors else "")) }} {% if form.purchased_from.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.purchased_from.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.warranty_expiry.label(class="form-label") }} {{
+    form.warranty_expiry(class="form-control" ~ (" is-invalid" if
+    form.warranty_expiry.errors else "")) }} {% if form.warranty_expiry.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.warranty_expiry.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.estimated_replacement_date.label(class="form-label") }} {{
+    form.estimated_replacement_date(class="form-control" ~ (" is-invalid" if
+    form.estimated_replacement_date.errors else "")) }} {% if form.estimated_replacement_date.errors
+    %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.estimated_replacement_date.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    {{ form.estimated_replacement_cost.label(class="form-label") }}
+    <div class="input-group">
+      <span class="input-group-text">£</span>
+      {{ form.estimated_replacement_cost(class="form-control" ~ (" is-invalid" if
+      form.estimated_replacement_cost.errors else ""), type="number", step="0.01", min="0") }}
+    </div>
+    {% if form.estimated_replacement_cost.errors %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.estimated_replacement_cost.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+{% endblock body%}
