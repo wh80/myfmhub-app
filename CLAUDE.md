@@ -10,7 +10,7 @@ A facilities management (CAFM-style) SaaS app, pre-production. It tracks sites, 
 - PostgreSQL. Primary keys are UUIDs (`sqlalchemy.dialects.postgresql.UUID(as_uuid=True)`)
 - Server-rendered Jinja templates with Bootstrap 5.3 and Bootstrap Icons 1.11.3 (`<i class="bi bi-...">`) from the CDN with SRI hashes, plus a small `app/static/js/app.js` (toast auto-hide, the person form's group toggle, table Columns menus)
 - Windows dev machine, venv at `venv/`, run with `venv/Scripts/python.exe`
-- Not a git repo yet. When one is created, add `.env` to `.gitignore` before the first commit.
+- Git repo, `main` pushed to https://github.com/wh80/myfmhub-app. `.gitignore` excludes `.env`, `venv/`, `__pycache__/` and local `*.db` files. Never commit `.env` or secrets.
 
 ## Running
 
