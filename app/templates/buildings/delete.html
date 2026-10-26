@@ -1,0 +1,26 @@
+{% extends 'base.html' %} {% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Confirm Delete</h4>
+  </div>
+
+  <div class="card-body">
+    <p class="mb-4">
+      Are you sure you want to delete <strong>{{ building.name }}</strong> at {{ building.site.name }}?
+      Its {{ building.zones|length }} zone(s) will be deleted too. Assets, jobs and job schedules in the
+      building aren't deleted: they stay at the site, with no building or zone.
+    </p>
+
+    <form method="post" id="delete-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-danger" form="delete-form">Confirm Delete</button>
+      <a href="{{ url_for('buildings.view', id=building.id) }}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

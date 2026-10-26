@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+
+{% block body %}
+{% set heading = 'Edit Zone' %}
+{% set intro = 'In ' ~ zone.building.name ~ ' at ' ~ zone.building.site.name %}
+{% set back_url = url_for('zones.view', id=zone.id) %}
+{% include "_name_form.html" %}
+{% endblock body %}

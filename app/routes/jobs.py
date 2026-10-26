@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
-from app.forms import JobForm, JobCloseForm
+from app.forms import JobForm, JobCloseForm, JobScheduleNextDueForm
 from app.models import Job, Site, Asset, JOB_STATUSES, JOB_STATUS_LABELS, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.jobs import overdue_conditions
-from app.services.scheduling import uk_today
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404
+from app.services.scheduling import job_creation_date, next_due_date, uk_today
+from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location
 from app.services.exports import export_response
 jobs_bp = Blueprint('jobs', __name__, url_prefix="/jobs")
 jobs_bp.before_request(require_login)
@@ -12,8 +12,10 @@ jobs_bp.before_request(require_permission)
 
 # the index table's columns, for downloads. Keys match data-col in jobs/job_list.html
 JOB_COLUMNS = [
-    ('summary', 'Summary', lambda job: job.summary),
+    ('description', 'Description', lambda job: job.description),
     ('site', 'Site', lambda job: job.site.name),
+    ('building', 'Building', lambda job: job.building.name if job.building else None),
+    ('zone', 'Zone', lambda job: job.zone.name if job.zone else None),
     ('due_by', 'Due By', lambda job: job.due_by),
     ('source', 'Source', lambda job: job.source_label),
     ('status', 'Status', lambda job: job.status_label),
@@ -43,7 +45,7 @@ def filtered_jobs():
     if search:
         query = query.filter(
             db.or_(
-                Job.summary.ilike(f'%{search}%'),
+                Job.description.ilike(f'%{search}%'),
                 Job.work_required.ilike(f'%{search}%')
             )
         )
@@ -78,6 +80,8 @@ def filtered_jobs():
     if closed_to:
         query = query.filter(Job.closed_at <= closed_to)
 
+    query, location = filter_location(query, Job)
+
     filters = dict(
         search=search,
         site_id=site_id,
@@ -89,8 +93,9 @@ def filtered_jobs():
         due_to=due_to,
         closed_from=closed_from,
         closed_to=closed_to,
+        **location,
     )
-    return query.order_by(Job.summary, Job.id), filters
+    return query.order_by(Job.description, Job.id), filters
 
 @jobs_bp.route('/')
 def index():
@@ -103,7 +108,7 @@ def index():
         'jobs/index.html',
         jobs=pagination.items,
         pagination=pagination,
-        sites=org_query(Site).all(),
+        **location_options(),
         statuses=JOB_STATUSES,
         sources=JOB_SOURCES,
         **filters
@@ -118,25 +123,22 @@ def export(file_format):
 @jobs_bp.route('/create', methods=['GET', 'POST'])
 def create():
     form = JobForm()
-    form.site_id.choices = [
-        ('', '--- Select Site ---')
-    ] + [
-        (str(s.id), s.name)
-        for s in org_query(Site).order_by(Site.name).all()
-    ]
+    set_location_choices(form)
     
-    if form.validate_on_submit():
+    if form.validate_on_submit() and check_location(form):
         job = Job(
-            summary=form.summary.data,
+            description=form.description.data,
             work_required=form.work_required.data,
             due_by=form.due_by.data,
             source='reactive',
             site_id=form.site_id.data,
+            building_id=parse_uuid(form.building_id.data),
+            zone_id=parse_uuid(form.zone_id.data),
             organisation_id=g.user.organisation_id,
         )
         db.session.add(job)
         db.session.commit()
-        flash(f"Job '{job.summary}' created successfully!", 'success')
+        flash(f"Job '{job.description}' created successfully!", 'success')
         return redirect(url_for('jobs.index'))
 
     return render_template('jobs/create.html', form=form)
@@ -152,14 +154,18 @@ def edit(id):
     job = org_get_or_404(Job, id)
 
     form=JobForm(obj=job)
-    form.site_id.choices = [(s.id, s.name) for s in org_query(Site).order_by(Site.name)]
+    set_location_choices(form)
 
-    if form.validate_on_submit():
+    if form.validate_on_submit() and check_location(form):
         
-        job.summary=form.summary.data
+        job.description=form.description.data
         job.work_required=form.work_required.data
-        job.due_by=form.due_by.data
+        # a planned job is due when its schedule said, so its due date can't be changed
+        if job.source != 'planned':
+            job.due_by=form.due_by.data
         job.site_id=form.site_id.data
+        job.building_id=parse_uuid(form.building_id.data)
+        job.zone_id=parse_uuid(form.zone_id.data)
                 
         db.session.commit()
         flash(f"Job '{job.work_required}' updated successfully!", 'success')
@@ -171,10 +177,15 @@ def edit(id):
 def delete(id):
     job = org_get_or_404(Job, id)
 
+    # its schedule is waiting for it to close, so deleting it would stop the schedule raising jobs
+    if job.source == 'planned' and job.status != 'closed':
+        flash(f"Job '{job.description}' can't be deleted because it's an open planned job. Close it instead.", 'warning')
+        return redirect(url_for('jobs.view', id=job.id))
+
     if request.method =="POST":
         db.session.delete(job)
         db.session.commit()
-        flash(f"Job '{job.summary}' deleted successfully!", 'success')
+        flash(f"Job '{job.description}' deleted successfully!", 'success')
         return redirect(url_for('jobs.index'))
 
     return render_template('jobs/delete.html', job=job)
@@ -184,32 +195,76 @@ def close(id):
     job = org_get_or_404(Job, id)
 
     if job.status == 'closed':
-        flash(f"Job '{job.summary}' is already closed.", 'warning')
+        flash(f"Job '{job.description}' is already closed.", 'warning')
         return redirect(url_for('jobs.view', id=job.id))
 
-    form = JobCloseForm()
+    # ?closed_at= is set by Back on the update schedule page, so the date chosen is kept
+    form = JobCloseForm(raised_on=job.raised_on, closed_at=parse_date(request.args.get('closed_at')) or uk_today())
 
     if form.validate_on_submit():
+        # a planned job's schedule needs its next due date as well. Nothing is saved here: the update
+        # schedule page closes the job and moves the schedule on in one commit, so they can't get out of step
+        if job.closes_with_schedule_update:
+            return redirect(url_for('jobs.update_schedule', id=job.id, closed_at=form.closed_at.data.isoformat()))
         job.status = 'closed'
         job.closed_at = form.closed_at.data
         db.session.commit()
-        flash(f"Job '{job.summary}' closed.", 'success')
+        flash(f"Job '{job.description}' closed.", 'success')
         return redirect(url_for('jobs.view', id=job.id))
 
     return render_template('jobs/close.html', job=job, form=form)
+
+# the second step of closing a planned job: closes it with the close date from the close page
+# (?closed_at=) and moves its schedule on, together. The date offered is the close date plus the
+# schedule's frequency. It can be brought forward, but not past that or before today
+@jobs_bp.route('/<uuid:id>/update-schedule', methods=['GET', 'POST'])
+def update_schedule(id):
+    job = org_get_or_404(Job, id)
+
+    if job.status == 'closed' or not job.closes_with_schedule_update:
+        flash(f"Job '{job.description}' has no job schedule waiting to be updated.", 'warning')
+        return redirect(url_for('jobs.view', id=job.id))
+
+    # checked again, as the close page did, because it comes from the query string
+    closed_at = parse_date(request.args.get('closed_at'))
+    if closed_at is None or closed_at > uk_today() or closed_at < job.raised_on:
+        flash('Choose the date the job was closed.', 'warning')
+        return redirect(url_for('jobs.close', id=job.id))
+
+    job_schedule = job.job_schedule
+    calculated = next_due_date(closed_at, job_schedule.frequency)
+    # a job closed long enough ago can give a date that's already passed. Today is then the only choice
+    latest = max(calculated, uk_today())
+    form = JobScheduleNextDueForm(latest=latest, data={'next_due_by': latest})
+
+    if form.validate_on_submit():
+        job.status = 'closed'
+        job.closed_at = closed_at
+        job_schedule.next_due_by = form.next_due_by.data
+        job_schedule.next_job_creation_date = job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
+        db.session.commit()
+        flash(f"Job '{job.description}' closed. Job Schedule '{job_schedule.description}' next due {job_schedule.next_due_by:%d-%m-%Y}.", 'success')
+        return redirect(url_for('jobs.view', id=job.id))
+
+    return render_template('jobs/update_schedule.html', job=job, job_schedule=job_schedule, closed_at=closed_at, calculated=calculated, form=form)
 
 @jobs_bp.route('/<uuid:id>/reopen', methods=['POST'])
 def reopen(id):
     job = org_get_or_404(Job, id)
 
     if job.status != 'closed':
-        flash(f"Job '{job.summary}' isn't closed.", 'warning')
+        flash(f"Job '{job.description}' isn't closed.", 'warning')
+        return redirect(url_for('jobs.view', id=job.id))
+
+    # closing it moved its schedule on, so reopening would leave the schedule with two open jobs
+    if job.source == 'planned':
+        flash(f"Job '{job.description}' can't be reopened because it's a planned job. Create a new job instead.", 'warning')
         return redirect(url_for('jobs.view', id=job.id))
 
     job.status = 'open'
     job.closed_at = None
     db.session.commit()
-    flash(f"Job '{job.summary}' reopened.", 'success')
+    flash(f"Job '{job.description}' reopened.", 'success')
     return redirect(url_for('jobs.view', id=job.id))
 
 ### RELATED DATA ###
@@ -239,7 +294,7 @@ def link_assets(id):
         assets = query.filter(Asset.id.in_(ids)).all()
         job.assets.extend(assets)
         db.session.commit()
-        flash(f"Linked {len(assets)} asset(s) to '{job.summary}'.", 'success')
+        flash(f"Linked {len(assets)} asset(s) to '{job.description}'.", 'success')
         return redirect(url_for('jobs.assets', id=job.id))
 
     assets = query.order_by(Asset.description).all()
@@ -260,7 +315,7 @@ def unlink_assets(id):
         for asset in assets:
             job.assets.remove(asset)
         db.session.commit()
-        flash(f"Unlinked {len(assets)} asset(s) from '{job.summary}'.", 'success')
+        flash(f"Unlinked {len(assets)} asset(s) from '{job.description}'.", 'success')
         return redirect(url_for('jobs.assets', id=job.id))
 
     assets = sorted(job.assets, key=lambda asset: asset.description)

@@ -1,5 +1,5 @@
 <div class="card-header d-flex justify-content-between align-items-center">
-    <h4 class="mb-0">Job: {{ job.summary }}</h4>
+    <h4 class="mb-0">Job: {{ job.description }}</h4>
 
     <div class="d-flex gap-2">
         {% if can('jobs.close') and job.status != 'closed' %}
@@ -11,7 +11,7 @@
         </a>
         {% endif %}
 
-        {% if can('jobs.reopen') and job.status == 'closed' %}
+        {% if can('jobs.reopen') and job.status == 'closed' and job.source != 'planned' %}
         <form method="POST" action="{{ url_for('jobs.reopen', id=job.id) }}" class="m-0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-warning btn-sm">Reopen</button>
@@ -27,7 +27,11 @@
         </a>
         {% endif %}
 
-        {% if can('jobs.delete') %}
+        {% if can('jobs.delete') and job.source == 'planned' and job.status != 'closed' %}
+        <button type="button" class="btn btn-danger btn-sm" disabled title="An open planned job can't be deleted. Close it instead">
+            Delete
+        </button>
+        {% elif can('jobs.delete') %}
         <a
             href="{{ url_for('jobs.delete', id=job.id) }}"
             class="btn btn-danger btn-sm"

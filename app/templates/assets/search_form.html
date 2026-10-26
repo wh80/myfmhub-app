@@ -1,3 +1,4 @@
+{% from "_location_fields.html" import location_filters %}
 <form method="get" class="mb-4">
   <div class="row g-2">
     <div class="col-md-6">
@@ -12,23 +13,7 @@
       />
     </div>
 
-    <div class="col-md-4">
-      <label for="site_id" class="form-label">Site</label>
-      <select name="site_id" id="site_id" class="form-select">
-        <option value="" {% if not site_id %}selected{% endif %}>
-          All sites
-        </option>
-
-        {% for site in sites %}
-          <option
-            value="{{ site.id }}"
-            {% if site_id == site.id|string %}selected{% endif %}
-          >
-            {{ site.name }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
+    {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
 
     <div class="col-md-2 d-flex align-items-end">
       <button type="submit" class="btn btn-primary w-100">

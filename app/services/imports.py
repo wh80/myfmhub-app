@@ -8,7 +8,7 @@ from email_validator import EmailNotValidError, validate_email
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Asset, ImportEvent, JobSchedule, Person, Site, Supplier, User, UserGroup
+from app.models import Asset, Building, ImportEvent, JobSchedule, Person, Site, Supplier, User, UserGroup, Zone
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date
 
 # CSV imports. Each import type lists its columns; the header row must use the column keys.
@@ -31,6 +31,8 @@ class Column:
     required: bool = False
     max_length: int = None
     notes: str = ''
+    # yes_no only: what a blank cell means
+    blank_means_yes: bool = False
 
     @property
     def label(self):
@@ -45,7 +47,7 @@ class Column:
             'date': 'Date: dd/mm/yyyy, dd-mm-yyyy or yyyy-mm-dd',
             'money': 'Amount in pounds, e.g. 1250.00 (£ and commas are allowed)',
             'whole_number': 'Whole number',
-            'yes_no': 'Yes or No. Blank means No',
+            'yes_no': f"Yes or No. Blank means {'Yes' if self.blank_means_yes else 'No'}",
             'frequency': 'One of: ' + ', '.join(label for _, label in FREQUENCIES),
             'site': 'The name of an existing site',
             'email': f'Email address, up to {self.max_length} characters',
@@ -86,6 +88,15 @@ class Lookups:
             user_group.name.strip().lower(): user_group
             for user_group in UserGroup.query.filter_by(organisation_id=user.organisation_id)
         }
+        # by (site id, lower-case name) and (building id, lower-case name). Names are unique there
+        self.buildings = {
+            (building.site_id, building.name.strip().lower()): building
+            for building in Building.query.filter_by(organisation_id=user.organisation_id)
+        }
+        self.zones = {
+            (zone.building_id, zone.name.strip().lower()): zone
+            for zone in Zone.query.filter_by(organisation_id=user.organisation_id)
+        }
         self.seen = {}
 
     def first_in_file(self, key, value):
@@ -102,7 +113,7 @@ def parse_value(column, raw, lookups):
     if raw == '':
         if column.required:
             raise RowError(f'{column.label} is required')
-        return False if column.kind == 'yes_no' else None
+        return column.blank_means_yes if column.kind == 'yes_no' else None
 
     if column.kind == 'text':
         if len(raw) > column.max_length:
@@ -196,7 +207,54 @@ def address_fields(values):
 
 
 def create_site(values, lookups):
+    # names are unique in the organisation, ignoring case, as on the site form
+    name = values['name']
+    if lookups.sites.get(name.lower()):
+        raise RowError(f"There's already a site called '{name}'")
+    if not lookups.first_in_file('site', name.lower()):
+        raise RowError(f"Site '{name}' is used by an earlier row in the file")
     return [Site(**address_fields(values))]
+
+
+def find_building(site, name, lookups):
+    building = lookups.buildings.get((site.id, name.lower()))
+    if building is None:
+        raise RowError(f"{site.name} has no building called '{name}'")
+    return building
+
+
+def location(values, lookups):
+    """The row's optional building (at its site) and zone (in that building) as ids, or raise RowError."""
+    building = zone = None
+    if values['building']:
+        building = find_building(values['site'], values['building'], lookups)
+    if values['zone']:
+        if building is None:
+            raise RowError('A zone needs a building as well')
+        zone = lookups.zones.get((building.id, values['zone'].lower()))
+        if zone is None:
+            raise RowError(f"{building.name} has no zone called '{values['zone']}'")
+    return dict(building_id=building.id if building else None, zone_id=zone.id if zone else None)
+
+
+def create_building(values, lookups):
+    site, name = values['site'], values['name']
+    # unique within the site, ignoring case, as on the building form
+    if (site.id, name.lower()) in lookups.buildings:
+        raise RowError(f"{site.name} already has a building called '{name}'")
+    if not lookups.first_in_file('building', (site.id, name.lower())):
+        raise RowError(f"Building '{name}' at {site.name} is used by an earlier row in the file")
+    return [Building(name=name, site_id=site.id)]
+
+
+def create_zone(values, lookups):
+    building, name = find_building(values['site'], values['building'], lookups), values['name']
+    # unique within the building, ignoring case, as on the zone form
+    if (building.id, name.lower()) in lookups.zones:
+        raise RowError(f"{building.name} already has a zone called '{name}'")
+    if not lookups.first_in_file('zone', (building.id, name.lower())):
+        raise RowError(f"Zone '{name}' in {building.name} is used by an earlier row in the file")
+    return [Zone(name=name, building_id=building.id)]
 
 
 def create_supplier(values, lookups):
@@ -220,6 +278,7 @@ def create_asset(values, lookups):
     return [Asset(
         description=values['description'],
         site_id=values['site'].id,
+        **location(values, lookups),
         asset_number=values['asset_number'],
         make=values['make'],
         model=values['model'],
@@ -242,14 +301,16 @@ def create_job_schedule(values, lookups):
                        f"({FREQUENCY_MIN_DAYS[frequency]} days for {FREQUENCY_LABELS[frequency].lower()})")
 
     return [JobSchedule(
-        summary=values['summary'],
+        description=values['description'],
         work_required=values['work_required'],
         site_id=values['site'].id,
+        **location(values, lookups),
         next_due_by=values['next_due_by'],
         frequency=frequency,
         notice_days=notice_days,
         next_job_creation_date=job_creation_date(values['next_due_by'], notice_days),
         statutory_compliance=values['statutory_compliance'],
+        is_active=values['active'],
     )]
 
 
@@ -288,12 +349,30 @@ ADDRESS_COLUMNS = [
     text('telephone', 100),
 ]
 
-# in the order they're offered. Sites come first because assets and job schedules refer to them
+LOCATION_COLUMNS = [
+    text('building', 100, notes="Optional. The name of a building at the row's site. Import buildings first"),
+    text('zone', 100, notes='Optional. The name of a zone in that building. Needs a building'),
+]
+
+# in the order they're offered. Sites, buildings and zones come first because the others refer to them
 IMPORT_TYPES = {import_type.key: import_type for import_type in [
-    ImportType('sites', 'Sites', Site, 'sites.index', ADDRESS_COLUMNS, create_site),
+    ImportType('sites', 'Sites', Site, 'sites.index', [
+        text('name', 100, required=True, notes='Unique within your organisation, ignoring case'),
+        *ADDRESS_COLUMNS[1:],
+    ], create_site),
+    ImportType('buildings', 'Buildings', Building, 'buildings.index', [
+        text('name', 100, required=True, notes='Unique within the site, ignoring case'),
+        Column('site', 'site', required=True, notes='Import sites first'),
+    ], create_building),
+    ImportType('zones', 'Zones', Zone, 'zones.index', [
+        text('name', 100, required=True, notes='Unique within the building, ignoring case'),
+        Column('site', 'site', required=True, notes='The site the building is at'),
+        text('building', 100, required=True, notes='The name of a building at that site. Import buildings first'),
+    ], create_zone),
     ImportType('assets', 'Assets', Asset, 'assets.index', [
         text('description', 50, required=True),
-        Column('site', 'site', required=True, notes='Import sites first. If two sites share a name, rename one so rows can be matched'),
+        Column('site', 'site', required=True, notes='Import sites first'),
+        *LOCATION_COLUMNS,
         text('asset_number', 50, notes='Unique within your organisation, ignoring case'),
         text('make', 50),
         text('model', 50),
@@ -316,14 +395,16 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
     ]),
     ImportType('suppliers', 'Suppliers', Supplier, 'suppliers.index', ADDRESS_COLUMNS, create_supplier),
     ImportType('job_schedules', 'Job Schedules', JobSchedule, 'job_schedules.index', [
-        text('summary', 100, required=True),
+        text('description', 100, required=True),
         text('work_required', 500, required=True),
-        Column('site', 'site', required=True, notes='Import sites first. If two sites share a name, rename one so rows can be matched'),
+        Column('site', 'site', required=True, notes='Import sites first'),
+        *LOCATION_COLUMNS,
         Column('next_due_by', 'date', required=True),
         Column('frequency', 'frequency', required=True, notes='The short form also works, e.g. monthly or three_monthly'),
         Column('notice_days', 'whole_number', required=True,
                notes="0 to 365, and no more than the gap between jobs (e.g. 28 for monthly). The next job creation date is worked out from it"),
         Column('statutory_compliance', 'yes_no'),
+        Column('active', 'yes_no', blank_means_yes=True, notes="Inactive schedules don't raise any jobs until they're made active"),
     ], create_job_schedule),
 ]}
 
@@ -461,11 +542,24 @@ def undo_blockers(import_type, import_event, user):
     blockers = []
 
     if model is Site:
-        # deleting a site deletes its assets, jobs and job schedules, imported or not
-        count = query.filter(db.or_(Site.assets.any(), Site.jobs.any(), Site.job_schedules.any())).count()
+        # deleting a site deletes its buildings, assets, jobs and job schedules, imported or not
+        count = query.filter(db.or_(Site.buildings.any(), Site.assets.any(), Site.jobs.any(), Site.job_schedules.any())).count()
         if count:
-            blockers.append(f'{count} of the imported sites now have assets, jobs or job schedules. '
+            blockers.append(f'{count} of the imported sites now have buildings, assets, jobs or job schedules. '
                             'Delete those first, or undo the imports that added them.')
+
+    if model is Building:
+        # deleting a building deletes its zones, and takes it off assets, jobs and job schedules
+        count = query.filter(db.or_(Building.zones.any(), Building.assets.any(), Building.jobs.any(), Building.job_schedules.any())).count()
+        if count:
+            blockers.append(f'{count} of the imported buildings now have zones, assets, jobs or job schedules. '
+                            'Delete or move those first, or undo the imports that added them.')
+
+    if model is Zone:
+        count = query.filter(db.or_(Zone.assets.any(), Zone.jobs.any(), Zone.job_schedules.any())).count()
+        if count:
+            blockers.append(f'{count} of the imported zones now have assets, jobs or job schedules in them. '
+                            'Move those first, or undo the imports that added them.')
 
     if model is JobSchedule:
         # Job.job_schedule_id is ondelete RESTRICT

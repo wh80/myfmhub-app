@@ -10,6 +10,15 @@
 
     <li class="nav-item">
         <a
+            class="nav-link {% if active_tab == 'buildings' %}active{% endif %}"
+            href="{{ url_for('sites.buildings', id=site.id) }}"
+        >
+            Buildings
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a
             class="nav-link {% if active_tab == 'assets' %}active{% endif %}"
             href="{{ url_for('sites.assets', id=site.id) }}"
         >

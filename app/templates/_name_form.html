@@ -1,0 +1,22 @@
+{# a form with only a name field. Set heading, intro (optional) and back_url before including #}
+<h3>{{ heading }}</h3>
+{% if intro %}<p class="text-muted">{{ intro }}</p>{% endif %}
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.name.label(class="form-label") }}
+        {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
+        {% if form.name.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.name.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+</form>

@@ -1,0 +1,22 @@
+{% extends "sites/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Buildings</h5>
+    {% if can('buildings.create') %}
+    <a href="{{ url_for('buildings.create', site_id=site.id) }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> Add Building
+    </a>
+    {% endif %}
+</div>
+
+{% if site.buildings %}
+    {% with buildings=site.buildings %}
+        {% include "buildings/building_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No buildings found.</p>
+{% endif %}
+
+{% endblock tab_content %}

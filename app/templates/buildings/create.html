@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+
+{% block body %}
+{% set heading = 'Create Building' %}
+{% set intro = 'At ' ~ site.name %}
+{% set back_url = url_for('sites.buildings', id=site.id) %}
+{% include "_name_form.html" %}
+{% endblock body %}

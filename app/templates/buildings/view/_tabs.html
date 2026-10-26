@@ -1,0 +1,12 @@
+<ul class="nav nav-tabs mb-4">
+    {% for tab, endpoint, label in [
+        ('overview', 'buildings.view', 'Overview'),
+        ('zones', 'buildings.zones', 'Zones'),
+        ('assets', 'buildings.assets', 'Assets'),
+        ('job_schedules', 'buildings.job_schedules', 'Job Schedules'),
+    ] %}
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == tab %}active{% endif %}" href="{{ url_for(endpoint, id=building.id) }}">{{ label }}</a>
+    </li>
+    {% endfor %}
+</ul>

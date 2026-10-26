@@ -1,8 +1,12 @@
 <div class="card-header d-flex justify-content-between align-items-center">
-    <h4 class="mb-0">Job Schedule: {{ job_schedule.summary }}</h4>
+    <h4 class="mb-0">Job Schedule: {{ job_schedule.description }}</h4>
 
     <div class="d-flex gap-2">
-        {% if can('job_schedules.edit') %}
+        {% if can('job_schedules.edit') and job_schedule.open_job %}
+        <button type="button" class="btn btn-primary btn-sm" disabled title="Close the open job before editing this schedule">
+            Edit
+        </button>
+        {% elif can('job_schedules.edit') %}
         <a
             href="{{ url_for('job_schedules.edit', id=job_schedule.id) }}"
             class="btn btn-primary btn-sm"
@@ -11,7 +15,11 @@
         </a>
         {% endif %}
 
-        {% if can('job_schedules.delete') %}
+        {% if can('job_schedules.delete') and job_schedule.jobs %}
+        <button type="button" class="btn btn-danger btn-sm" disabled title="A schedule that has raised jobs can't be deleted">
+            Delete
+        </button>
+        {% elif can('job_schedules.delete') %}
         <a
             href="{{ url_for('job_schedules.delete', id=job_schedule.id) }}"
             class="btn btn-danger btn-sm"

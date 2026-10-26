@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block body %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('support.index') }}">Support</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Sites, Buildings and Zones</li>
+  </ol>
+</nav>
+
+<h1 class="mb-4">Sites, Buildings and Zones</h1>
+
+<p>
+  MyFmHub records where things are in three levels:
+</p>
+<ul>
+  <li><strong>Site</strong>: a location you look after, such as an office, school or depot.</li>
+  <li><strong>Building</strong>: a building at a site, such as Main Building or North Block.</li>
+  <li><strong>Zone</strong>: an area of a building, such as Ground Floor, Plant Room or Roof.</li>
+</ul>
+<p>
+  Every asset, job and job schedule belongs to a site. You can also say which building it's in, and
+  which zone of that building. Buildings and zones are optional, so you only need them where they help.
+</p>
+
+<h4 class="mt-4">Adding buildings and zones</h4>
+<p>
+  Buildings are added from a site: open the site, go to its <strong>Buildings</strong> tab and choose
+  <strong>Add Building</strong>. Zones are added from a building in the same way: open the building, go to
+  its <strong>Zones</strong> tab and choose <strong>Add Zone</strong>.
+</p>
+<p>A building's page also has tabs listing the assets and job schedules in it.</p>
+
+<h4 class="mt-4">Names</h4>
+<ul>
+  <li>Each site in your organisation needs a different name.</li>
+  <li>Each building at a site needs a different name. Two sites can both have a "Main Building".</li>
+  <li>Each zone in a building needs a different name. Two buildings can both have a "Ground Floor".</li>
+</ul>
+<p>Names are compared ignoring capitals, so "North Block" and "north block" count as the same name.</p>
+
+<h4 class="mt-4">Renaming and moving</h4>
+<p>
+  You can rename a building or zone at any time by editing it. A building can't be moved to a different
+  site, and a zone can't be moved to a different building. This keeps everything in a building at the
+  same site as the building. If a building was added to the wrong site, add it again at the right site
+  and move its assets, jobs and job schedules across.
+</p>
+
+<h4 class="mt-4">Choosing a location</h4>
+<p>
+  When you create or edit an asset, job or job schedule, choose the <strong>Site</strong> first. The
+  <strong>Building</strong> list then shows only the buildings at that site, and the <strong>Zone</strong>
+  list only the zones in the chosen building. If you change the site, a building that isn't at the new
+  site is cleared, and the same goes for the zone when you change the building.
+</p>
+<p>
+  Building and zone are both optional, but a zone can only be chosen with its building. MyFmHub checks
+  the combination when you save, so an asset can never be in a building at a different site.
+</p>
+<p>
+  A job raised from a job schedule is given the schedule's site, building and zone.
+</p>
+
+<h4 class="mt-4">Finding things by location</h4>
+<p>
+  The Assets, Jobs and Job Schedules lists can be filtered by site, building and zone. These filters work
+  the same way as the form: pick a site to narrow the buildings, then a building to narrow the zones.
+  Downloads from those lists follow the filters, and include Building and Zone columns.
+</p>
+
+<h4 class="mt-4">Deleting</h4>
+<ul>
+  <li>
+    <strong>Deleting a site</strong> deletes everything at it: its buildings and zones, and its assets,
+    jobs and job schedules.
+  </li>
+  <li>
+    <strong>Deleting a building</strong> deletes its zones. Its assets, jobs and job schedules aren't
+    deleted: they stay at the site, with no building or zone.
+  </li>
+  <li>
+    <strong>Deleting a zone</strong> doesn't delete anything in it: its assets, jobs and job schedules stay
+    in the building, with no zone.
+  </li>
+</ul>
+
+<h4 class="mt-4">Importing</h4>
+<p>
+  Sites, buildings and zones can all be imported from a CSV file under <strong>Import data</strong>.
+  Import them in that order, because each one refers to the one before:
+</p>
+<ol>
+  <li><strong>Sites</strong>: the name must not already be used by another site.</li>
+  <li><strong>Buildings</strong>: a name and the name of an existing site.</li>
+  <li><strong>Zones</strong>: a name, plus the names of an existing site and of a building at that site.</li>
+</ol>
+<p>
+  Asset and job schedule imports have optional <strong>building</strong> and <strong>zone</strong> columns.
+  Leave them blank for no building or zone. If you fill them in, the building must be at the row's site
+  and the zone must be in that building, and a zone needs a building too. Rows that don't match aren't
+  imported, and the import's results say why.
+</p>
+<p>
+  An import of buildings can't be undone once any of them have zones, assets, jobs or job schedules, and
+  an import of zones can't be undone once any of them have assets, jobs or job schedules.
+</p>
+
+<h4 class="mt-4">Permissions</h4>
+<p>
+  Buildings and Zones have their own rows in the user group permissions, with view, create, edit and
+  delete like the other records. A user group needs Sites: View to see a site's Buildings tab, and
+  Buildings: Create to add buildings to it.
+</p>
+{% endblock body %}

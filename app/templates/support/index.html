@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block body %}
+<h1 class="mb-4">Support</h1>
+
+<p class="text-muted">Guides to how MyFmHub works.</p>
+
+<div class="list-group">
+  <a href="{{ url_for('support.locations') }}" class="list-group-item list-group-item-action">
+    <div class="fw-semibold">Sites, Buildings and Zones</div>
+    <div class="small text-muted">How locations are organised, and how to add, choose, filter and import them.</div>
+  </a>
+  <a href="{{ url_for('support.job_schedules') }}" class="list-group-item list-group-item-action">
+    <div class="fw-semibold">Job Schedules</div>
+    <div class="small text-muted">How planned maintenance schedules raise jobs, and how their dates are worked out.</div>
+  </a>
+</div>
+{% endblock body %}

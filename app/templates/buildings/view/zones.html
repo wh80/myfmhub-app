@@ -1,0 +1,22 @@
+{% extends "buildings/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Zones</h5>
+    {% if can('zones.create') %}
+    <a href="{{ url_for('zones.create', building_id=building.id) }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> Add Zone
+    </a>
+    {% endif %}
+</div>
+
+{% if building.zones %}
+    {% with zones=building.zones %}
+        {% include "zones/zone_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No zones found.</p>
+{% endif %}
+
+{% endblock tab_content %}

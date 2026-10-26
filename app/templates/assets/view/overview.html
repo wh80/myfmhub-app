@@ -1,11 +1,12 @@
 {% extends "assets/view/_layout.html" %}
+{% from "_location_fields.html" import location_text %}
 
 {% block tab_content %}
 
 <div class="row mb-4">
   <div class="col-md-8">
-    <h6 class="text-muted">Site</h6>
-    <p class="mb-0">{{asset.site.name}}</p>
+    <h6 class="text-muted">Location</h6>
+    <p class="mb-0">{{ location_text(asset, links=True) }}</p>
   </div>
 </div>
 

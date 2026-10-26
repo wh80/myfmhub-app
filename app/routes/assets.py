@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import AssetForm
 from app.models import Asset, Site, Job, JobSchedule
-from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid
+from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location
 from app.services.exports import export_response
 assets_bp = Blueprint('assets', __name__, url_prefix="/assets")
 assets_bp.before_request(require_login)
@@ -31,6 +31,8 @@ def check_unique(form, asset=None):
 ASSET_COLUMNS = [
     ('description', 'Description', lambda asset: asset.description),
     ('site', 'Site', lambda asset: asset.site.name),
+    ('building', 'Building', lambda asset: asset.building.name if asset.building else None),
+    ('zone', 'Zone', lambda asset: asset.zone.name if asset.zone else None),
     ('asset_number', 'Asset Number', lambda asset: asset.asset_number),
     ('make', 'Make', lambda asset: asset.make),
     ('model', 'Model', lambda asset: asset.model),
@@ -68,7 +70,9 @@ def filtered_assets():
     if site_id:
         query = query.filter(Asset.site_id == site_id)
 
-    return query.order_by(Asset.description, Asset.id), dict(search=search, site_id=site_id, import_id=import_id)
+    query, location = filter_location(query, Asset)
+
+    return query.order_by(Asset.description, Asset.id), dict(search=search, site_id=site_id, import_id=import_id, **location)
 
 @assets_bp.route('/')
 def index():
@@ -81,7 +85,7 @@ def index():
         'assets/index.html',
         assets=pagination.items,
         pagination=pagination,
-        sites=org_query(Site).all(),
+        **location_options(),
         **filters
     )
 
@@ -94,14 +98,9 @@ def export(file_format):
 @assets_bp.route('/create', methods=['GET', 'POST'])
 def create():
     form = AssetForm()
-    form.site_id.choices = [
-        ('', '--- Select Site ---')
-    ] + [
-        (str(s.id), s.name)
-        for s in org_query(Site).order_by(Site.name).all()
-    ]
+    set_location_choices(form)
     
-    if form.validate_on_submit() and check_unique(form):
+    if form.validate_on_submit() and check_location(form) and check_unique(form):
         asset = Asset(
             description=form.description.data,
             asset_number=form.asset_number.data,
@@ -114,6 +113,8 @@ def create():
             estimated_replacement_date=form.estimated_replacement_date.data,
             estimated_replacement_cost=form.estimated_replacement_cost.data,
             site_id=form.site_id.data,
+            building_id=parse_uuid(form.building_id.data),
+            zone_id=parse_uuid(form.zone_id.data),
             organisation_id=g.user.organisation_id,
         )
         db.session.add(asset)
@@ -134,9 +135,9 @@ def edit(id):
     asset = org_get_or_404(Asset, id)
 
     form=AssetForm(obj=asset)
-    form.site_id.choices = [(s.id, s.name) for s in org_query(Site).order_by(Site.name)]
+    set_location_choices(form)
 
-    if form.validate_on_submit() and check_unique(form, asset):
+    if form.validate_on_submit() and check_location(form) and check_unique(form, asset):
 
         asset.description=form.description.data
         asset.asset_number=form.asset_number.data
@@ -149,6 +150,8 @@ def edit(id):
         asset.estimated_replacement_date=form.estimated_replacement_date.data
         asset.estimated_replacement_cost=form.estimated_replacement_cost.data
         asset.site_id=form.site_id.data
+        asset.building_id=parse_uuid(form.building_id.data)
+        asset.zone_id=parse_uuid(form.zone_id.data)
                 
         db.session.commit()
         flash(f"Asset '{asset.description}' updated successfully!", 'success')
@@ -198,7 +201,7 @@ def link_jobs(id):
         flash(f"Linked {len(jobs)} job(s) to '{asset.description}'.", 'success')
         return redirect(url_for('assets.jobs', id=asset.id))
 
-    jobs = query.order_by(Job.summary).all()
+    jobs = query.order_by(Job.description).all()
     return render_template("assets/view/jobs_link.html", asset=asset, jobs=jobs)
 
 @assets_bp.route("/<uuid:id>/job-schedules")
@@ -229,7 +232,7 @@ def link_job_schedules(id):
         flash(f"Linked {len(job_schedules)} job schedule(s) to '{asset.description}'.", 'success')
         return redirect(url_for('assets.job_schedules', id=asset.id))
 
-    job_schedules = query.order_by(JobSchedule.summary).all()
+    job_schedules = query.order_by(JobSchedule.description).all()
     return render_template("assets/view/job_schedules_link.html", asset=asset, job_schedules=job_schedules)
 
 @assets_bp.route("/<uuid:id>/jobs/unlink", methods=['GET', 'POST'])
@@ -250,7 +253,7 @@ def unlink_jobs(id):
         flash(f"Unlinked {len(jobs)} job(s) from '{asset.description}'.", 'success')
         return redirect(url_for('assets.jobs', id=asset.id))
 
-    jobs = sorted(asset.jobs, key=lambda job: job.summary)
+    jobs = sorted(asset.jobs, key=lambda job: job.description)
     return render_template("assets/view/jobs_unlink.html", asset=asset, jobs=jobs)
 
 @assets_bp.route("/<uuid:id>/job-schedules/unlink", methods=['GET', 'POST'])
@@ -271,5 +274,5 @@ def unlink_job_schedules(id):
         flash(f"Unlinked {len(job_schedules)} job schedule(s) from '{asset.description}'.", 'success')
         return redirect(url_for('assets.job_schedules', id=asset.id))
 
-    job_schedules = sorted(asset.job_schedules, key=lambda job_schedule: job_schedule.summary)
+    job_schedules = sorted(asset.job_schedules, key=lambda job_schedule: job_schedule.description)
     return render_template("assets/view/job_schedules_unlink.html", asset=asset, job_schedules=job_schedules)

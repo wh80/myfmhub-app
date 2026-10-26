@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 # customers are in the UK, so "today" means the UK date whatever the server's timezone,
@@ -10,6 +10,7 @@ UK_TIMEZONE = ZoneInfo('Europe/London')
 FREQUENCIES = [
     ('daily', 'Every Day'),
     ('weekly', 'Every Week'),
+    ('six_weekly', 'Every 6 Weeks'),
     ('monthly', 'Every Month'),
     ('three_monthly', 'Every Three Months'),
     ('six_monthly', 'Every Six Months'),
@@ -25,6 +26,7 @@ FREQUENCY_LABELS = dict(FREQUENCIES)
 FREQUENCY_MIN_DAYS = {
     'daily': 1,
     'weekly': 7,
+    'six_weekly': 42,
     'monthly': 28,
     'three_monthly': 89,
     'six_monthly': 181,
@@ -44,6 +46,7 @@ def job_creation_date(next_due_by, notice_days):
 FREQUENCY_DAYS = {
     'daily': 1,
     'weekly': 7,
+    'six_weekly': 42,
 }
 FREQUENCY_MONTHS = {
     'monthly': 1,
@@ -58,6 +61,13 @@ FREQUENCY_MONTHS = {
 
 def uk_today():
     return datetime.now(UK_TIMEZONE).date()
+
+
+# the UK date of a stored timestamp. created_at and updated_at are naive UTC
+def uk_date(value):
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(UK_TIMEZONE).date()
 
 
 # the 31st becomes the last day of a shorter month, e.g. 31-01 + 1 month is 28-02 (29-02 in a leap year)

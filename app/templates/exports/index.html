@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block body %}
+<h1 class="mb-4">Export Data</h1>
+
+<p class="text-muted">
+  Download your organisation's records as a zip file containing one CSV file for each type you choose.
+  Every field is included, with IDs so records can be matched up (for example a job's site and linked assets).
+  Dates and times are in UTC.
+</p>
+
+{% if export_types %}
+<form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  <h5>What do you want to export?</h5>
+  <div class="mb-3">
+    {% for export_type in export_types %}
+    <div class="form-check">
+      <input class="form-check-input{% if error %} is-invalid{% endif %}" type="checkbox" name="types" value="{{ export_type.key }}" id="type-{{ export_type.key }}" checked>
+      <label class="form-check-label" for="type-{{ export_type.key }}">{{ export_type.label }}</label>
+    </div>
+    {% endfor %}
+    {% if error %}
+    <div class="invalid-feedback d-block">{{ error }}</div>
+    {% endif %}
+  </div>
+  <button type="submit" class="btn btn-primary"><i class="bi bi-download" aria-hidden="true"></i> Download</button>
+</form>
+{% else %}
+<p>Your user group can't view any of the data that can be exported.</p>
+{% endif %}
+{% endblock %}

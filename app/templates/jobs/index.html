@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% from "_location_fields.html" import location_filters %}
 {% from "pagination.html" import pagination_nav %}
 {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -20,27 +21,11 @@
         name="search"
         value="{{search}}"
         class="form-control"
-        placeholder="Search summary, work required..."
+        placeholder="Search description, work required..."
       />
     </div>
 
-    <div class="col-md-4">
-  <label for="site_id" class="form-label">Site</label>
-  <select name="site_id" id="site_id" class="form-select">
-    <option value="" {% if not site_id %}selected{% endif %}>
-      All sites
-    </option>
-
-    {% for site in sites %}
-      <option
-        value="{{ site.id }}"
-        {% if site_id == site.id|string %}selected{% endif %}
-      >
-        {{ site.name }}
-      </option>
-    {% endfor %}
-  </select>
-</div>
+    {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
 
     <div class="col-md-2">
       <label for="status" class="form-label">Status</label>
@@ -125,7 +110,7 @@
 {% include "jobs/job_list.html" %}
 
 {{ pagination_nav(pagination) }}
-{% elif search or site_id or statutory or overdue or status or source or due_from or due_to or closed_from or closed_to %}
+{% elif search or site_id or statutory or overdue or status or source or due_from or due_to or closed_from or closed_to or building_id or zone_id %}
 <p>No jobs match your search.</p>
 {% else %}
 <p>No jobs yet.</p>

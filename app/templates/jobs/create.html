@@ -1,16 +1,17 @@
-{% extends 'base.html' %} {% block body %}
+{% extends 'base.html' %}
+{% from "_location_fields.html" import location_fields %} {% block body %}
 <h3>Create Job</h3>
 
 <form method="POST">
   {{ form.hidden_tag() }}
 
   <div class="mb-3">
-    {{ form.summary.label(class="form-label") }} {{
-    form.summary(class="form-control" ~ (" is-invalid" if
-    form.summary.errors else "")) }} {% if form.summary.errors
+    {{ form.description.label(class="form-label") }} {{
+    form.description(class="form-control" ~ (" is-invalid" if
+    form.description.errors else "")) }} {% if form.description.errors
     %}
     <div class="invalid-feedback d-block">
-      {% for error in form.summary.errors %}
+      {% for error in form.description.errors %}
       <div>{{ error }}</div>
       {% endfor %}
     </div>
@@ -30,18 +31,7 @@
     {% endif %}
   </div>
 
-  <div class="mb-3">
-    {{ form.site_id.label(class="form-label") }} {{
-    form.site_id(class="form-select" ~ (" is-invalid" if
-    form.site_id.errors else "")) }} {% if form.site_id.errors
-    %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.site_id.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
+  {{ location_fields(form) }}
 
   <div class="mb-3">
     {{ form.due_by.label(class="form-label") }} {{

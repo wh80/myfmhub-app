@@ -2,11 +2,18 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import SiteForm
 from app.models import Site
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken
 from app.services.exports import export_response
 sites_bp = Blueprint('sites', __name__, url_prefix="/sites")
 sites_bp.before_request(require_login)
 sites_bp.before_request(require_permission)
+
+# site names are unique within the organisation, ignoring case
+def check_name(form, site=None):
+    if name_taken(org_query(Site), Site.name, form.name.data, site):
+        form.name.errors.append('There is already a site with this name.')
+        return False
+    return True
 
 # the index table's columns, for downloads. Keys match data-col in sites/index.html
 SITE_COLUMNS = [
@@ -53,7 +60,7 @@ def export(file_format):
 def create():
     form = SiteForm()
     
-    if form.validate_on_submit():
+    if form.validate_on_submit() and check_name(form):
         site = Site(
             name=form.name.data,
             address_line_one=form.address_line_one.data,
@@ -82,7 +89,7 @@ def edit(id):
 
     form=SiteForm(obj=site)
 
-    if form.validate_on_submit():
+    if form.validate_on_submit() and check_name(form, site):
         
         site.name=form.name.data
         site.address_line_one=form.address_line_one.data
@@ -110,6 +117,11 @@ def delete(id):
     return render_template('sites/delete.html', site=site)
 
 ### RELATED DATA ###
+
+@sites_bp.route("/<uuid:id>/buildings")
+def buildings(id):
+    site = org_get_or_404(Site, id)
+    return render_template("sites/view/buildings.html", site=site, active_tab="buildings",)
 
 @sites_bp.route("/<uuid:id>/assets")
 def assets(id):

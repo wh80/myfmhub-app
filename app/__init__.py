@@ -37,6 +37,10 @@ def create_app():
     from app.routes.people import people_bp
     from app.routes.user_groups import user_groups_bp
     from app.routes.imports import imports_bp
+    from app.routes.exports import exports_bp
+    from app.routes.support import support_bp
+    from app.routes.buildings import buildings_bp
+    from app.routes.zones import zones_bp
 
     app.register_blueprint(sites_bp)
     app.register_blueprint(jobs_bp)
@@ -50,6 +54,10 @@ def create_app():
     app.register_blueprint(people_bp)
     app.register_blueprint(user_groups_bp)
     app.register_blueprint(imports_bp)
+    app.register_blueprint(exports_bp)
+    app.register_blueprint(support_bp)
+    app.register_blueprint(buildings_bp)
+    app.register_blueprint(zones_bp)
 
     # / goes to the dashboard (which sends signed-out visitors to /login)
     app.add_url_rule('/', endpoint='dashboard.root', view_func=root)

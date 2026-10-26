@@ -1,11 +1,22 @@
 {% extends "job_schedules/view/_layout.html" %}
+{% from "_location_fields.html" import location_text %}
 
 {% block tab_content %}
 
+{% set open_job = job_schedule.open_job %}
+{% if open_job %}
+<div class="alert alert-info">
+  This schedule has an open job,
+  {% if can('jobs.view') %}<a href="{{ url_for('jobs.view', id=open_job.id) }}">{{ open_job.description }}</a>{% else %}{{ open_job.description }}{% endif %},
+  due {{ open_job.due_by | date }}. The schedule can't be edited until that job is closed.
+  <a href="{{ url_for('support.job_schedules') }}#editing">Why?</a>
+</div>
+{% endif %}
+
 <div class="row mb-4">
   <div class="col-md-8">
-    <h6 class="text-muted">Site</h6>
-    <p class="mb-0">{{job_schedule.site.name}}</p>
+    <h6 class="text-muted">Location</h6>
+    <p class="mb-0">{{ location_text(job_schedule, links=True) }}</p>
   </div>
 </div>
 
@@ -43,13 +54,17 @@
   <div class="col-md-6">
     <div class="text-muted small">Next Job Creation</div>
     <div class="fw-semibold">
-      <p>{{job_schedule.next_job_creation_date | date}}</p>
+      <p>{{ job_schedule.next_job_creation_label }}</p>
 
     </div>
   </div>
   <div class="col-md-6">
     <div class="text-muted small">Statutory Compliance</div>
     <div class="fw-semibold">{% if job_schedule.statutory_compliance %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Active</div>
+    <div class="fw-semibold">{% if job_schedule.is_active %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</div>
   </div>
 </div>
 

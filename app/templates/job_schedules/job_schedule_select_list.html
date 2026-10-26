@@ -8,7 +8,7 @@
     <thead>
       <tr>
         <th scope="col"></th>
-        <th scope="col" data-col="summary" data-col-fixed>Summary</th>
+        <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="site">Site</th>
         <th scope="col" data-col="next_due_by">Next Due By</th>
         <th scope="col" data-col="frequency">Frequency</th>
@@ -29,13 +29,13 @@
         </td>
         <td>
           <label class="form-check-label" for="job-schedule-desktop-{{job_schedule.id}}"
-            >{{job_schedule.summary}}</label
+            >{{job_schedule.description}}</label
           >
         </td>
         <td>{{job_schedule.site.name}}</td>
         <td>{{job_schedule.next_due_by | date}}</td>
         <td>{{job_schedule.frequency_label}}</td>
-        <td>{{job_schedule.next_job_creation_date | date}}</td>
+        <td>{{ job_schedule.next_job_creation_label }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -60,7 +60,7 @@
               id="job-schedule-mobile-{{job_schedule.id}}"
             />
             <label class="form-check-label stretched-link" for="job-schedule-mobile-{{job_schedule.id}}">
-              <h5 class="card-title mb-0">{{job_schedule.summary}}</h5>
+              <h5 class="card-title mb-0">{{job_schedule.description}}</h5>
             </label>
           </div>
           <p class="card-text"><strong>Site:</strong> {{job_schedule.site.name}}</p>
@@ -71,7 +71,7 @@
             <strong>Frequency:</strong> {{job_schedule.frequency_label}}
           </p>
           <p class="card-text">
-            <strong>Next job creation:</strong> {{job_schedule.next_job_creation_date | date}}
+            <strong>Next job creation:</strong> {{ job_schedule.next_job_creation_label }}
           </p>
         </div>
       </div>

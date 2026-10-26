@@ -1,0 +1,32 @@
+{# zones, for the building Zones tab and the zones index. Set show_building to add Site and Building columns #}
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('zones') }}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="zones">
+    <thead>
+      <tr>
+        <th scope="col" data-col="name" data-col-fixed>Name</th>
+        {% if show_building %}
+        <th scope="col" data-col="site">Site</th>
+        <th scope="col" data-col="building">Building</th>
+        {% endif %}
+        <th scope="col" data-col="assets">Assets</th>
+        <th scope="col" data-col="job_schedules">Job Schedules</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for zone in zones %}
+      <tr class="position-relative">
+        <td><a href="{{ url_for('zones.view', id=zone.id) }}" class="stretched-link text-reset text-decoration-none">{{ zone.name }}</a></td>
+        {% if show_building %}
+        <td>{{ zone.building.site.name }}</td>
+        <td>{{ zone.building.name }}</td>
+        {% endif %}
+        <td>{{ zone.assets|length }}</td>
+        <td>{{ zone.job_schedules|length }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

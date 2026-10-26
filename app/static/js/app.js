@@ -23,6 +23,40 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
+// Site > building > zone selects (templates/_location_fields.html), on forms and index filters.
+// Every building and zone option has its parent's id as data-parent. Only the ones belonging to
+// the selected site (or building) are shown, and a choice that no longer fits goes back to blank
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll('select[data-location="site"]').forEach((site) => {
+    const scope = site.closest("form") || document;
+    const building = scope.querySelector('select[data-location="building"]');
+    const zone = scope.querySelector('select[data-location="zone"]');
+    if (!building || !zone) return;
+
+    const allOptions = new Map([
+      [building, Array.from(building.options)],
+      [zone, Array.from(zone.options)],
+    ]);
+
+    function narrow(select, parentId) {
+      const current = select.value;
+      // the blank option has no data-parent, so it's always kept
+      const options = allOptions.get(select).filter((option) => !option.dataset.parent || option.dataset.parent === parentId);
+      select.replaceChildren(...options);
+      select.value = options.some((option) => option.value === current) ? current : "";
+    }
+
+    function update() {
+      narrow(building, site.value);
+      narrow(zone, building.value);
+    }
+
+    site.addEventListener("change", update);
+    building.addEventListener("change", update);
+    update();
+  });
+});
+
 // Table Columns menus (see templates/_table_tools.html). A table with data-columns="<key>" gets a
 // checkbox for each header with data-col. Hidden columns are remembered per key in this browser,
 // so a choice on the jobs index also applies to jobs tabs. Downloads get the visible columns

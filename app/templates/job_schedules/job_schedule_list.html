@@ -1,3 +1,4 @@
+{% from "_location_fields.html" import location_text %}
 
 
 {% from "_table_tools.html" import table_tools with context %}
@@ -9,23 +10,29 @@
     <table class="table table-hover align-middle text-nowrap" data-columns="job_schedules">
     <thead>
       <tr>
-        <th scope="col" data-col="summary" data-col-fixed>Summary</th>
+        <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="site">Site</th>
+        <th scope="col" data-col="building">Building</th>
+        <th scope="col" data-col="zone">Zone</th>
         <th scope="col" data-col="next_due_by">Next Due By</th>
         <th scope="col" data-col="frequency">Frequency</th>
         <th scope="col" data-col="next_job_creation">Next Job Creation</th>
         <th scope="col" data-col="statutory">Statutory</th>
+        <th scope="col" data-col="active">Active</th>
       </tr>
     </thead>
     <tbody>
       {% for job_schedule in job_schedules %}
       <tr class="position-relative">
-        <td><a href="{{url_for('job_schedules.view', id=job_schedule.id)}}" class="stretched-link text-reset text-decoration-none">{{job_schedule.summary}}</a></td>
+        <td><a href="{{url_for('job_schedules.view', id=job_schedule.id)}}" class="stretched-link text-reset text-decoration-none">{{job_schedule.description}}</a></td>
         <td>{{job_schedule.site.name}}</td>
+        <td>{{ job_schedule.building.name if job_schedule.building else '-' }}</td>
+        <td>{{ job_schedule.zone.name if job_schedule.zone else '-' }}</td>
         <td>{{job_schedule.next_due_by | date}}</td>
         <td>{{job_schedule.frequency_label}}</td>
-        <td>{{job_schedule.next_job_creation_date | date}}</td>
+        <td>{{ job_schedule.next_job_creation_label }}</td>
         <td>{% if job_schedule.statutory_compliance %}<i class="bi bi-check-lg" aria-hidden="true"></i><span class="visually-hidden">Yes</span>{% endif %}</td>
+        <td>{% if job_schedule.is_active %}<i class="bi bi-check-lg" aria-hidden="true"></i><span class="visually-hidden">Yes</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -41,8 +48,8 @@
     <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-body">
-          <h5 class="card-title mb-3"><a href="{{url_for('job_schedules.view', id=job_schedule.id)}}" class="stretched-link text-reset text-decoration-none">{{job_schedule.summary}}</a></h5>
-          <p class="card-text"><strong>Site:</strong> {{job_schedule.site.name}}</p>
+          <h5 class="card-title mb-3"><a href="{{url_for('job_schedules.view', id=job_schedule.id)}}" class="stretched-link text-reset text-decoration-none">{{job_schedule.description}}</a></h5>
+          <p class="card-text"><strong>Location:</strong> {{ location_text(job_schedule) }}</p>
           <p class="card-text">
             <strong>Next due by:</strong> {{job_schedule.next_due_by | date}}
           </p>
@@ -50,7 +57,7 @@
             <strong>Frequency:</strong> {{job_schedule.frequency_label}}
           </p>
           <p class="card-text">
-            <strong>Next job creation:</strong> {{job_schedule.next_job_creation_date | date}}
+            <strong>Next job creation:</strong> {{ job_schedule.next_job_creation_label }}
           </p>
           {% if job_schedule.statutory_compliance %}
           <p class="card-text"><strong>Statutory compliance:</strong> <i class="bi bi-check-lg" aria-hidden="true"></i><span class="visually-hidden">Yes</span></p>

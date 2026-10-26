@@ -22,9 +22,11 @@ from app import create_app
 from app.extensions import db
 from app.services.permissions import create_default_groups
 from app.services.scheduling import FREQUENCIES, job_creation_date
-from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Site, Asset, Job, JobSchedule, Supplier, job_assets, job_schedule_assets
+from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Site, Building, Zone, Asset, Job, JobSchedule, Supplier, job_assets, job_schedule_assets
 
 PLACE_NAMES = ['Riverside', 'Oakwood', 'Hillcrest', 'Kingsway', 'Meadow', 'Harbour', 'Station', 'Market', 'Abbey', 'Victoria']
+BUILDING_NAMES = ['Main Building', 'North Block', 'South Block', 'East Wing', 'West Wing', 'Annex', 'Plant House', 'Gatehouse']
+ZONE_NAMES = ['Basement', 'Ground Floor', 'First Floor', 'Second Floor', 'Roof', 'Plant Room', 'Kitchen', 'Reception']
 SITE_TYPES = ['House', 'Court', 'Centre', 'Park', 'Plaza', 'Tower', 'Depot', 'Campus', 'Works', 'Hall']
 STREETS = ['High Street', 'Church Road', 'Mill Lane', 'Park Avenue', 'London Road', 'Queen Street', 'Green Lane', 'Station Road']
 TOWNS = ['Leeds', 'Bristol', 'Manchester', 'Birmingham', 'Sheffield', 'Nottingham', 'Cardiff', 'Glasgow', 'Newcastle', 'York']
@@ -53,7 +55,7 @@ FIRST_NAMES = ['Alice', 'Ben', 'Chloe', 'Dan', 'Emma', 'Farah', 'George', 'Hanna
 LAST_NAMES = ['Smith', 'Jones', 'Patel', 'Brown', 'Taylor', 'Khan', 'Wilson', 'Evans', 'Walker', 'Clarke']
 JOB_TITLES = ['Facilities Manager', 'Helpdesk Coordinator', 'Maintenance Engineer', 'Site Manager', None]
 
-# (summary, work required, statutory compliance)
+# (description, work required, statutory compliance)
 JOB_SCHEDULES = [
     ('Annual boiler service', 'Full annual service and gas safety check on all boilers.', True),
     ('Quarterly AHU filter change', 'Replace filters and inspect belts on air handling units.', False),
@@ -64,6 +66,7 @@ JOB_SCHEDULES = [
     ('Annual fire door inspection', 'Inspect all fire doors, closers and seals.', True),
     ('Generator load test', 'Run generator under load for one hour and record readings.', False),
 ]
+# (description, work required)
 JOBS = [
     ('Boiler not firing', 'Boiler showing fault code and not producing heating or hot water.'),
     ('Leak under kitchen sink', 'Water pooling under the sink unit, needs urgent attention.'),
@@ -98,7 +101,7 @@ def days_from_today(low, high):
 def clear():
     db.session.execute(job_assets.delete())
     db.session.execute(job_schedule_assets.delete())
-    for model in (Job, Asset, JobSchedule, Supplier, Site, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
+    for model in (Job, Asset, JobSchedule, Supplier, Zone, Building, Site, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
         db.session.execute(db.delete(model))
     db.session.commit()
 
@@ -122,10 +125,30 @@ def seed(count):
             user=User(email=email, user_group=admin_group if i == 0 else team_group, can_login=i < 5, organisation=organisation),
         ))
 
+    # site names are unique in the organisation. Past 100 sites they get a number
+    names = random.sample([f'{place} {kind}' for place in PLACE_NAMES for kind in SITE_TYPES], min(count, len(PLACE_NAMES) * len(SITE_TYPES)))
+    names += [f'{random.choice(PLACE_NAMES)} {random.choice(SITE_TYPES)} {i + 1}' for i in range(len(names), count)]
     sites = [
-        Site(name=f'{random.choice(PLACE_NAMES)} {random.choice(SITE_TYPES)}', telephone=phone(), organisation=organisation, **address())
-        for _ in range(count)
+        Site(name=name, telephone=phone(), organisation=organisation, **address())
+        for name in names
     ]
+
+    # one to three buildings a site, each with one to four zones. Names are unique within their parent
+    buildings, zones = [], []
+    for site in sites:
+        for building_name in random.sample(BUILDING_NAMES, random.randint(1, 3)):
+            building = Building(name=building_name, site=site, organisation=organisation)
+            buildings.append(building)
+            for zone_name in random.sample(ZONE_NAMES, random.randint(1, 4)):
+                zones.append(Zone(name=zone_name, building=building, organisation=organisation))
+
+    # sets an optional building, and sometimes a zone in it, on a record at site
+    def place(record, site):
+        if site.buildings and random.random() < 0.7:
+            record.building = random.choice(site.buildings)
+            if record.building.zones and random.random() < 0.6:
+                record.zone = random.choice(record.building.zones)
+        return record
 
     # most records go to a handful of busy sites, so the related tabs have something to show
     busy_sites = sites[:max(1, count // 5)]
@@ -166,50 +189,58 @@ def seed(count):
 
     job_schedules = []
     for _ in range(count):
-        summary, work_required, statutory_compliance = random.choice(JOB_SCHEDULES)
+        description, work_required, statutory_compliance = random.choice(JOB_SCHEDULES)
         next_due_by = days_from_today(1, 365)
         # notice shorter than the gap between jobs
         frequency = random.choice(FREQUENCIES)[0]
         notice_days = {'daily': 0, 'weekly': random.randint(0, 3)}.get(frequency, random.choice([7, 14, 21, 28]))
         job_schedules.append(JobSchedule(
-            summary=summary,
+            description=description,
             work_required=work_required,
             next_due_by=next_due_by,
             frequency=frequency,
             notice_days=notice_days,
             next_job_creation_date=job_creation_date(next_due_by, notice_days),
             statutory_compliance=statutory_compliance,
+            is_active=random.random() > 0.1,
             site=pick_site(),
             organisation=organisation,
         ))
 
+    for record in assets + job_schedules:
+        place(record, record.site)
+
     jobs = []
     for _ in range(count):
         # roughly a third of jobs are raised from a job schedule
+        # inactive schedules raise nothing, so only active ones have jobs
         if random.random() < 0.33:
-            job_schedule = random.choice(job_schedules)
+            job_schedule = random.choice([job_schedule for job_schedule in job_schedules if job_schedule.is_active])
             jobs.append(Job(
-                summary=job_schedule.summary,
+                description=job_schedule.description,
                 work_required=job_schedule.work_required,
                 due_by=days_from_today(-30, 90),
                 statutory_compliance=job_schedule.statutory_compliance,
                 status=random.choice(JOB_STATUSES)[0],
                 source='planned',
                 site=job_schedule.site,
+                building=job_schedule.building,
+                zone=job_schedule.zone,
                 organisation=organisation,
                 job_schedule=job_schedule,
             ))
         else:
-            summary, work_required = random.choice(JOBS)
-            jobs.append(Job(
-                summary=summary,
+            description, work_required = random.choice(JOBS)
+            site = pick_site()
+            jobs.append(place(Job(
+                description=description,
                 work_required=work_required,
                 due_by=random.choice([None, days_from_today(-30, 60)]),
                 status=random.choice(JOB_STATUSES)[0],
                 source=random.choice(['reactive', 'remedial']),
-                site=pick_site(),
+                site=site,
                 organisation=organisation,
-            ))
+            ), site))
 
     for job in jobs:
         if job.status == 'closed':
@@ -222,12 +253,13 @@ def seed(count):
         asset.jobs = random.sample(site_jobs, min(len(site_jobs), random.randint(0, 3)))
         asset.job_schedules = random.sample(site_job_schedules, min(len(site_job_schedules), random.randint(0, 2)))
 
-    db.session.add_all([organisation] + people + sites + suppliers + assets + job_schedules + jobs)
+    db.session.add_all([organisation] + people + sites + buildings + zones + suppliers + assets + job_schedules + jobs)
     db.session.commit()
 
     links = sum(len(asset.jobs) + len(asset.job_schedules) for asset in assets)
     print(f"Created organisation '{organisation.name}' with {len(people)} people ({sum(1 for person in people if person.user.can_login)} can log in).")
     print(f'Created {count} each of sites, suppliers, assets, job schedules and jobs, plus {links} asset links.')
+    print(f'Created {len(buildings)} buildings and {len(zones)} zones.')
 
 
 if __name__ == '__main__':

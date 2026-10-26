@@ -8,7 +8,7 @@
     <thead>
       <tr>
         <th scope="col"></th>
-        <th scope="col" data-col="summary" data-col-fixed>Summary</th>
+        <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="site">Site</th>
         <th scope="col" data-col="due_by">Due By</th>
         <th scope="col" data-col="source">Source</th>
@@ -30,7 +30,7 @@
         </td>
         <td>
           <label class="form-check-label" for="job-desktop-{{job.id}}"
-            >{{job.summary}}</label
+            >{{job.description}}</label
           >
         </td>
         <td>{{job.site.name}}</td>
@@ -62,7 +62,7 @@
               id="job-mobile-{{job.id}}"
             />
             <label class="form-check-label stretched-link" for="job-mobile-{{job.id}}">
-              <h5 class="card-title mb-0">{{job.summary}}</h5>
+              <h5 class="card-title mb-0">{{job.description}}</h5>
             </label>
           </div>
           <p class="card-text"><strong>Site:</strong> {{job.site.name}}</p>

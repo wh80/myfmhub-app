@@ -1,3 +1,4 @@
+{% from "_location_fields.html" import location_text %}
 
 
 {% from "_table_tools.html" import table_tools with context %}
@@ -11,6 +12,8 @@
       <tr>
         <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="site">Site</th>
+        <th scope="col" data-col="building">Building</th>
+        <th scope="col" data-col="zone">Zone</th>
         <th scope="col" data-col="asset_number">Asset Number</th>
         <th scope="col" data-col="make">Make</th>
         <th scope="col" data-col="model">Model</th>
@@ -27,6 +30,8 @@
       <tr class="position-relative">
         <td><a href="{{url_for('assets.view', id=asset.id)}}" class="stretched-link text-reset text-decoration-none">{{asset.description}}</a></td>
         <td>{{asset.site.name}}</td>
+        <td>{{ asset.building.name if asset.building else '-' }}</td>
+        <td>{{ asset.zone.name if asset.zone else '-' }}</td>
         <td>{{asset.asset_number or '-'}}</td>
         <td>{{asset.make or '-'}}</td>
         <td>{{asset.model or '-'}}</td>
@@ -52,7 +57,10 @@
       <div class="card shadow-sm">
         <div class="card-body">
           <h5 class="card-title mb-3"><a href="{{url_for('assets.view', id=asset.id)}}" class="stretched-link text-reset text-decoration-none">{{asset.description}}</a></h5>
-          
+
+          <p class="card-text">
+            <strong>Location:</strong> {{ location_text(asset) }}
+          </p>
           <p class="card-text">
             <strong>Asset Number:</strong> {{asset.asset_number or '-'}}
           </p>

@@ -2,7 +2,7 @@ from app.extensions import db
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, timezone
-from app.services.scheduling import FREQUENCY_LABELS
+from app.services.scheduling import FREQUENCY_LABELS, uk_date
 
 # a job's lifecycle. The key is stored on Job.status, which is set by the app, never a form
 JOB_STATUSES = [
@@ -50,6 +50,8 @@ class Organisation(db.Model):
     user_groups = db.relationship('UserGroup', backref='organisation', lazy=True, cascade='delete')
     people = db.relationship('Person', backref='organisation', lazy=True, cascade='delete')
     import_events = db.relationship('ImportEvent', backref='organisation', lazy=True, cascade='delete')
+    buildings = db.relationship('Building', backref='organisation', lazy=True, cascade='delete')
+    zones = db.relationship('Zone', backref='organisation', lazy=True, cascade='delete')
 
 
 class Site(db.Model):
@@ -71,6 +73,62 @@ class Site(db.Model):
     jobs = db.relationship('Job', backref='site', lazy=True, cascade='delete')
     assets = db.relationship('Asset', backref='site', lazy=True, cascade='delete')
     job_schedules = db.relationship('JobSchedule', backref='site', lazy=True, cascade='delete')
+    buildings = db.relationship('Building', backref='site', lazy=True, cascade='delete', order_by='Building.name')
+
+    # unique per organisation. The routes and imports also check case-insensitively
+    __table_args__ = (
+        db.UniqueConstraint('organisation_id', 'name'),
+    )
+
+
+# a building at a site. Assets, jobs and job schedules can optionally say which building (and zone) they're in
+class Building(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    name = db.Column(db.String(100), nullable=False)
+
+    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+    # set when the record came from a CSV import
+    import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
+    # never changes after creation, so the records in it always stay in its site
+    site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
+
+    zones = db.relationship('Zone', backref='building', lazy=True, cascade='delete', order_by='Zone.name')
+    # deleting the building clears building_id (and zone_id, through the zones) on these
+    assets = db.relationship('Asset', backref='building', lazy=True)
+    jobs = db.relationship('Job', backref='building', lazy=True)
+    job_schedules = db.relationship('JobSchedule', backref='building', lazy=True)
+
+    # unique within the site. The routes and imports also check case-insensitively
+    __table_args__ = (
+        db.UniqueConstraint('site_id', 'name'),
+    )
+
+
+# an area of a building, such as a floor or plant room
+class Zone(db.Model):
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    name = db.Column(db.String(100), nullable=False)
+
+    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+    # set when the record came from a CSV import
+    import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
+    # never changes after creation, like Building.site_id
+    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='CASCADE'), nullable=False)
+
+    assets = db.relationship('Asset', backref='zone', lazy=True)
+    jobs = db.relationship('Job', backref='zone', lazy=True)
+    job_schedules = db.relationship('JobSchedule', backref='zone', lazy=True)
+
+    # unique within the building. The routes and imports also check case-insensitively
+    __table_args__ = (
+        db.UniqueConstraint('building_id', 'name'),
+    )
 
 
 class Job(db.Model):
@@ -78,7 +136,7 @@ class Job(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
-    summary = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(100), nullable=False)
     work_required = db.Column(db.String(500), nullable=False)
     due_by = db.Column(db.Date())
     # not on JobForm: copied from the job schedule when a job is raised from one
@@ -92,6 +150,9 @@ class Job(db.Model):
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
+    # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
+    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
+    zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
     job_schedule_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_schedule.id', ondelete='RESTRICT'))
 
     __table_args__ = (
@@ -112,6 +173,21 @@ class Job(db.Model):
     @property
     def source_label(self):
         return JOB_SOURCE_LABELS.get(self.source, '-')
+
+    # the UK date the job was created. It can't be closed before this
+    @property
+    def raised_on(self):
+        return uk_date(self.created_at)
+
+    # a planned job whose schedule is waiting on it (raise_job cleared the creation date). Closing it
+    # goes through jobs.update_schedule, which closes the job and sets the schedule's next due date together
+    @property
+    def closes_with_schedule_update(self):
+        return (
+            self.source == 'planned'
+            and self.job_schedule is not None
+            and self.job_schedule.next_job_creation_date is None
+        )
 
 
 class Asset(db.Model):
@@ -135,6 +211,9 @@ class Asset(db.Model):
     # set when the record came from a CSV import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
+    # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
+    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
+    zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
 
     jobs = db.relationship('Job', secondary=job_assets, backref='assets', lazy=True)
     job_schedules = db.relationship('JobSchedule', secondary=job_schedule_assets, backref='assets', lazy=True)
@@ -152,27 +231,48 @@ class JobSchedule(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
-    summary = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(100), nullable=False)
     work_required = db.Column(db.String(500), nullable=False)
     next_due_by = db.Column(db.Date(), nullable=False)
     statutory_compliance = db.Column(db.Boolean, default=False, nullable=False)
+    # an inactive schedule raises no jobs. Making it active again needs a next due date in the future
+    is_active = db.Column(db.Boolean, default=True, server_default=db.text('true'), nullable=False)
     # a key from services/scheduling.py FREQUENCIES
     frequency = db.Column(db.String(20), nullable=False)
     # how many days ahead of next_due_by the job is created
     notice_days = db.Column(db.Integer, nullable=False)
-    # calculated from next_due_by and notice_days, never taken from a form
-    next_job_creation_date = db.Column(db.Date(), nullable=False)
+    # calculated from next_due_by and notice_days, never taken from a form. NULL once a job has been
+    # raised for next_due_by, so the schedule raises nothing more while that job is waiting
+    next_job_creation_date = db.Column(db.Date())
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     # set when the record came from a CSV import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
+    # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
+    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
+    zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
 
     jobs = db.relationship('Job', backref='job_schedule', lazy=True)
 
     @property
     def frequency_label(self):
         return FREQUENCY_LABELS.get(self.frequency, '-')
+
+    # Next Job Creation as shown on pages and downloads
+    @property
+    def next_job_creation_label(self):
+        if not self.is_active:
+            return 'Inactive'
+        if self.next_job_creation_date is None:
+            return 'Pending current job closure'
+        return self.next_job_creation_date.strftime('%d-%m-%Y')
+
+    # a job raised from the schedule that isn't closed yet, or None. The schedule can't be edited
+    # while there is one, so it can never have two open jobs
+    @property
+    def open_job(self):
+        return Job.query.filter(Job.job_schedule_id == self.id, Job.status != 'closed').order_by(Job.due_by, Job.id).first()
 
 
 class Supplier(db.Model):

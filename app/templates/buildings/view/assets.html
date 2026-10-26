@@ -1,0 +1,15 @@
+{% extends "buildings/view/_layout.html" %}
+
+{% block tab_content %}
+
+<h5 class="mb-3">Assets</h5>
+
+{% if building.assets %}
+    {% with assets=building.assets %}
+        {% include "assets/asset_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No assets found.</p>
+{% endif %}
+
+{% endblock tab_content %}

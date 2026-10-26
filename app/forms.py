@@ -4,8 +4,15 @@ from wtforms import StringField, EmailField, BooleanField, DateField, DecimalFie
 from wtforms.validators import DataRequired, InputRequired, Email, Length, Optional, NumberRange, ValidationError
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, uk_today
 
+def strip(value):
+    return value.strip() if value else value
+
+# the building and zone selects: an id as a string, or '' for none (rather than 'None')
+def optional_id(value):
+    return str(value) if value else ''
+
 class SiteForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired(), Length(max=120)])
+    name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
     address_line_one = StringField('Address Line 1', validators=[Optional(), Length(max=255)])
     address_line_two = StringField('Address Line 2', validators=[Optional(), Length(max=255)])
     town_city = StringField('Town/City', validators=[Optional(), Length(max=255)])
@@ -13,17 +20,43 @@ class SiteForm(FlaskForm):
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
 
 class JobForm(FlaskForm):
-    summary = StringField('Summary', validators=[DataRequired(), Length(max=120)])
+    description = StringField('Description', validators=[DataRequired(), Length(max=120)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
     due_by = DateField('Due By', validators=[Optional()])
     site_id = SelectField('Site', validators=[DataRequired()])
+    # optional, and dependent: choices are set by set_location_choices, and check_location makes
+    # sure the building is in the site and the zone in the building
+    building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
+    zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
 
 class JobCloseForm(FlaskForm):
     closed_at = DateField('Closed On', default=uk_today, validators=[DataRequired()])
 
+    # raised_on is job.raised_on: a job can't be closed before it was raised
+    def __init__(self, raised_on, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.raised_on = raised_on
+
     def validate_closed_at(self, field):
         if field.data and field.data > uk_today():
             raise ValidationError("The closed date can't be in the future.")
+        if field.data and field.data < self.raised_on:
+            raise ValidationError(f"The closed date can't be before the job was raised ({self.raised_on:%d-%m-%Y}).")
+
+# sets a job schedule's next due date after its job is closed. latest is the close date plus the
+# schedule's frequency (or today, if that's already passed)
+class JobScheduleNextDueForm(FlaskForm):
+    next_due_by = DateField('Next Due By', validators=[DataRequired()])
+
+    def __init__(self, latest, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.latest = latest
+
+    def validate_next_due_by(self, field):
+        if field.data and field.data < uk_today():
+            raise ValidationError("The next due date can't be in the past.")
+        if field.data and field.data > self.latest:
+            raise ValidationError("You can't make the period to the next jobs due date longer than the frequency period of the schedule")
 
 class AssetForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=50)])
@@ -38,21 +71,37 @@ class AssetForm(FlaskForm):
     estimated_replacement_cost = DecimalField('Estimated Replacement Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
     
     site_id = SelectField('Site', validators=[DataRequired()])
+    # optional, and dependent: choices are set by set_location_choices, and check_location makes
+    # sure the building is in the site and the zone in the building
+    building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
+    zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
 
 class JobScheduleForm(FlaskForm):
-    summary = StringField('Summary', validators=[DataRequired(), Length(max=120)])
+    description = StringField('Description', validators=[DataRequired(), Length(max=120)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
     next_due_by = DateField('Next Due By', validators=[DataRequired()])
     frequency = SelectField('Frequency', choices=[('', '--- Select Frequency ---')] + FREQUENCIES, validators=[DataRequired()])
     notice_days = IntegerField('Notice Days', description='How many days ahead of due date the job is created', validators=[InputRequired(), NumberRange(min=0, max=365)])
     statutory_compliance = BooleanField('Statutory Compliance')
+    is_active = BooleanField('Active', default=True, description="Inactive schedules don't raise any jobs")
     site_id = SelectField('Site', validators=[DataRequired()])
+    # optional, and dependent: choices are set by set_location_choices, and check_location makes
+    # sure the building is in the site and the zone in the building
+    building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
+    zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
 
     # a job is raised at most one gap ahead, so the schedule never has two jobs waiting to come due
     def validate_notice_days(self, field):
         min_days = FREQUENCY_MIN_DAYS.get(self.frequency.data)
         if field.data is not None and min_days is not None and field.data > min_days:
             raise ValidationError(f"Notice can't be longer than the time between jobs ({min_days} days for {FREQUENCY_LABELS[self.frequency.data].lower()}).")
+
+# the site (or building, for a zone) comes from the page it's created from, and never changes
+class BuildingForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
+
+class ZoneForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
 
 class SupplierForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=120)])

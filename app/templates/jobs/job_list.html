@@ -1,3 +1,4 @@
+{% from "_location_fields.html" import location_text %}
 
 
 {% from "_table_tools.html" import table_tools with context %}
@@ -9,8 +10,10 @@
     <table class="table table-hover align-middle text-nowrap" data-columns="jobs">
     <thead>
       <tr>
-        <th scope="col" data-col="summary" data-col-fixed>Summary</th>
+        <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="site">Site</th>
+        <th scope="col" data-col="building">Building</th>
+        <th scope="col" data-col="zone">Zone</th>
         <th scope="col" data-col="due_by">Due By</th>
         <th scope="col" data-col="source">Source</th>
         <th scope="col" data-col="status">Status</th>
@@ -21,8 +24,10 @@
     <tbody>
       {% for job in jobs %}
       <tr class="position-relative">
-        <td><a href="{{url_for('jobs.view', id=job.id)}}" class="stretched-link text-reset text-decoration-none">{{job.summary}}</a></td>
+        <td><a href="{{url_for('jobs.view', id=job.id)}}" class="stretched-link text-reset text-decoration-none">{{job.description}}</a></td>
         <td>{{job.site.name}}</td>
+        <td>{{ job.building.name if job.building else '-' }}</td>
+        <td>{{ job.zone.name if job.zone else '-' }}</td>
         <td>{{job.due_by | date}}</td>
         <td>{{job.source_label}}</td>
         <td>{% include "jobs/_status_badge.html" %}</td>
@@ -43,8 +48,8 @@
     <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-body">
-          <h5 class="card-title mb-3"><a href="{{url_for('jobs.view', id=job.id)}}" class="stretched-link text-reset text-decoration-none">{{job.summary}}</a></h5>
-          <p class="card-text"><strong>Site:</strong> {{job.site.name}}</p>
+          <h5 class="card-title mb-3"><a href="{{url_for('jobs.view', id=job.id)}}" class="stretched-link text-reset text-decoration-none">{{job.description}}</a></h5>
+          <p class="card-text"><strong>Location:</strong> {{ location_text(job) }}</p>
           <p class="card-text">
             <strong>Due by:</strong> {{job.due_by | date}}
           </p>

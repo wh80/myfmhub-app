@@ -1,0 +1,18 @@
+{% extends "buildings/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Site</div>
+    <div class="fw-semibold">
+      {% if can('sites.view') %}<a href="{{ url_for('sites.view', id=building.site.id) }}">{{ building.site.name }}</a>{% else %}{{ building.site.name }}{% endif %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Zones</div>
+    <div class="fw-semibold">{{ building.zones|length }}</div>
+  </div>
+</div>
+
+{% endblock tab_content %}

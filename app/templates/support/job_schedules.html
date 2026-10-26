@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block body %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('support.index') }}">Support</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Job Schedules</li>
+  </ol>
+</nav>
+
+<h1 class="mb-4">Job Schedules</h1>
+
+<p>
+  A job schedule is planned maintenance that repeats, such as an annual boiler service or a monthly
+  emergency lighting test. The schedule raises a job each time the work is due. Each job is a
+  planned job, with the schedule's description, work required, site, building and zone, statutory
+  compliance and linked assets. See <a href="{{ url_for('support.locations') }}">Sites, Buildings and Zones</a>
+  for how locations work.
+</p>
+
+<h4 class="mt-4">Setting up a schedule</h4>
+<p>When you create a job schedule you give it:</p>
+<ul>
+  <li><strong>Next Due By</strong>: the date the next job is due.</li>
+  <li><strong>Frequency</strong>: how often the work repeats.</li>
+  <li>
+    <strong>Notice Days</strong>: how many days before the due date the job is raised, so there's time
+    to arrange the work. This can be from 0 to 365, and no longer than the shortest gap between two jobs
+    for the frequency. For example, a weekly schedule can have at most 7 days' notice.
+  </li>
+</ul>
+<p>
+  The <strong>Next Job Creation</strong> date is worked out for you: the next due date minus the notice
+  days. You can't set it directly.
+</p>
+
+<h4 class="mt-4">Frequencies</h4>
+<ul>
+  {% for key, label in frequencies %}
+  <li>{{ label }}</li>
+  {% endfor %}
+</ul>
+<p>
+  Daily and weekly frequencies move on by an exact number of days. Monthly and yearly frequencies move
+  on by calendar months, so a date on the 31st becomes the last day of a shorter month (for example
+  31 January plus one month is 28 February, or 29 February in a leap year).
+</p>
+
+<h4 class="mt-4">How jobs are raised</h4>
+<p>
+  Every day, MyFmHub checks all job schedules. A schedule whose Next Job Creation date is today, or has
+  already passed, has a new job raised, due on the schedule's Next Due By date.
+</p>
+<p>
+  The Next Job Creation date can already be in the past when you save a schedule, if the due date is
+  closer than the notice days. The job is then raised the next time schedules are checked.
+</p>
+<p>
+  A schedule only has one job open at a time. While that job is open, the schedule's Next Due By date
+  stays the same and its Next Job Creation shows <strong>Pending current job closure</strong>. No more
+  jobs are raised from it until the job is closed.
+</p>
+
+<h4 class="mt-4">Closing a job from a schedule</h4>
+<p>Closing a planned job takes two steps, and the job is only closed once both are done:</p>
+<ol>
+  <li>
+    Enter the date the job was closed. It can't be in the future, or before the date the job was raised.
+    This applies to every job, not just planned ones.
+  </li>
+  <li>
+    Set when the next job is due. MyFmHub suggests the close date plus the schedule's frequency, and you
+    can bring this date forward if needed. When you confirm, the job is closed and the schedule's
+    Next Due By and Next Job Creation dates are set.
+  </li>
+</ol>
+<p>The next due date:</p>
+<ul>
+  <li>
+    can't be later than the suggested date, because the gap to the next job would then be longer than
+    the schedule's frequency
+  </li>
+  <li>can't be in the past</li>
+  <li>
+    can only be today if the suggested date has already passed, for example when a weekly job is closed
+    with a close date a month ago
+  </li>
+</ul>
+<p>
+  If you leave the page before confirming, nothing is saved and the job stays open. Once the job is
+  closed you can change the schedule's dates by editing the schedule.
+</p>
+
+<h4 class="mt-4" id="editing">Editing a schedule</h4>
+<p>
+  A job schedule can't be edited while it has an open job. Close the job first, then edit the schedule.
+</p>
+<p>
+  This makes sure a schedule never has more than one open job. Editing the dates while a job is open
+  could raise a second job for the same schedule, and the jobs would no longer follow each other in
+  sequence: each job's close date sets when the next one is due, so two jobs open at once would break
+  that chain.
+</p>
+
+<h4 class="mt-4" id="active">Active and inactive schedules</h4>
+<p>
+  Every schedule is <strong>Active</strong> unless you untick Active when creating or editing it. An
+  inactive schedule stays set up with all its details, but it doesn't raise any jobs: the daily check
+  skips it, and its Next Job Creation shows <strong>Inactive</strong>. You can use this to set up a
+  schedule before the work starts, or to pause one.
+</p>
+<p>
+  To make an inactive schedule active again, edit it and tick Active. Its Next Due By date must be in
+  the future (tomorrow or later) when you do, so it doesn't immediately raise a job that's already due.
+  Next Job Creation is then worked out from the new date in the usual way.
+</p>
+<p>
+  Making a schedule inactive is an edit, so it can't be done while the schedule has an open job. Close
+  the job first.
+</p>
+
+<h4 class="mt-4" id="planned-jobs">Rules for planned jobs</h4>
+<p>
+  A job raised from a schedule is a planned job. Each one's close date sets when the next is due, so
+  these rules keep the jobs in sequence:
+</p>
+<ul>
+  <li>
+    <strong>The due date can't be changed.</strong> It comes from the schedule. You can still edit
+    the job's other details.
+  </li>
+  <li>
+    <strong>An open planned job can't be deleted.</strong> The schedule is waiting for that job to
+    close before it raises the next one, so deleting it would stop the schedule. Close it instead.
+    Once it's closed it can be deleted.
+  </li>
+  <li>
+    <strong>A closed planned job can't be reopened.</strong> Closing it set the schedule's next due
+    date, so reopening it would leave the schedule with two open jobs. If more work is needed,
+    create a new job.
+  </li>
+</ul>
+
+<h4 class="mt-4" id="deleting">Deleting a schedule</h4>
+<p>
+  A job schedule can only be deleted if it has never raised a job. Once it has, it's kept so its jobs
+  stay linked to it and the history of the sequence isn't lost. Deleting a site still deletes
+  everything at that site, including its schedules and their jobs.
+</p>
+
+<h4 class="mt-4">Example</h4>
+<p>
+  A monthly schedule is next due on 1 December with 7 notice days, so its Next Job Creation date is
+  24 November.
+</p>
+<ul>
+  <li>On 24 November a job is raised, due 1 December. The schedule's Next Job Creation shows Pending current job closure.</li>
+  <li>The job is closed with a close date of 28 November. MyFmHub suggests 28 December as the next due date.</li>
+  <li>
+    You accept 28 December. The job is closed, and the schedule is next due on 28 December, with its
+    next job raised on 21 December.
+  </li>
+</ul>
+{% endblock body %}

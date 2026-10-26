@@ -4,6 +4,8 @@ from app.models import User, UserGroup, UserGroupPermission
 # the resources and actions groups can be given. Keys are '<resource>.<action>', for example 'jobs.delete'
 RESOURCES = [
     ('sites', 'Sites'),
+    ('buildings', 'Buildings'),
+    ('zones', 'Zones'),
     ('assets', 'Assets'),
     ('jobs', 'Jobs'),
     ('job_schedules', 'Job Schedules'),
@@ -18,6 +20,8 @@ EXTRA_PERMISSIONS = [
     # import any type of record, whatever else the group allows. Undoing an import also needs
     # delete on that type (checked in imports.undo)
     ('imports.manage', 'Import data'),
+    # download every record of the types the group can view, as a zip of CSVs
+    ('exports.manage', 'Export data'),
 ]
 GRANTABLE = {f'{resource}.{action}' for resource, _ in RESOURCES for action, _ in ACTIONS} | {key for key, _ in EXTRA_PERMISSIONS}
 
@@ -48,16 +52,21 @@ def _resource(blueprint, view=(), edit=()):
 # blueprint that isn't listed here is refused, so a new route has to be added before it works.
 # Related tabs and downloads need view, and linking or unlinking needs edit on the record you're on
 ENDPOINT_PERMISSIONS = {
-    **_resource('sites', view=['export', 'assets', 'jobs', 'job_schedules']),
+    **_resource('sites', view=['export', 'buildings', 'assets', 'jobs', 'job_schedules']),
+    **_resource('buildings', view=['zones', 'assets', 'job_schedules']),
+    **_resource('zones'),
     **_resource('assets', view=['export', 'jobs', 'job_schedules'], edit=['link_jobs', 'unlink_jobs', 'link_job_schedules', 'unlink_job_schedules']),
     **_resource('jobs', view=['export', 'assets'], edit=['link_assets', 'unlink_assets']),
     'jobs.close': 'jobs.close',
     'jobs.reopen': 'jobs.reopen',
+    # part of closing a planned job, so it needs close rather than job_schedules.edit
+    'jobs.update_schedule': 'jobs.close',
     **_resource('job_schedules', view=['export', 'jobs', 'assets'], edit=['link_assets', 'unlink_assets']),
     **_resource('suppliers', view=['export']),
     **_resource('people', view=['export'], edit=['resend_invite']),
     **{f'user_groups.{name}': 'user_groups.manage' for name in ['index', 'create', 'view', 'edit', 'delete']},
     **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'view', 'undo']},
+    'exports.index': 'exports.manage',
 }
 
 
