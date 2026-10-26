@@ -1,7 +1,8 @@
-{# expects users, session_counts, revoke_user_endpoint and show_organisation #}
+{# expects users, session_counts, revoke_user_endpoint and show_organisation. A user is a login, and can be
+   a person in several organisations, each with its own name, user group and can_login #}
 {% macro user_action(user) %}
   {% if session_counts.get(user.id, 0) %}
-    <form method="POST" action="{{ url_for(revoke_user_endpoint, id=user.id) }}" class="d-inline" onsubmit="return confirm('Sign {{ user.email }} out everywhere?');">
+    <form method="POST" action="{{ url_for(revoke_user_endpoint, id=user.id) }}" class="d-inline" onsubmit="return confirm('Sign {{ user.email }} out everywhere, in every organisation?');">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="next" value="{{ request.full_path }}">
       <button type="submit" class="btn btn-sm btn-outline-danger">Revoke sessions</button>
@@ -10,8 +11,13 @@
 {% endmacro %}
 
 {% macro user_status(user) %}
-  {% if user.organisation.suspended_at %}<span class="badge text-bg-danger">Organisation suspended</span>{% elif not user.can_login %}<span class="badge text-bg-secondary">No login</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}
+  {% if user.is_platform_admin %}<span class="badge text-bg-primary">Platform admin</span>{% endif %}
+  {% if user.signin_people() %}<span class="badge text-bg-success">Active</span>{% elif user.people|selectattr('can_login')|list %}<span class="badge text-bg-danger" title="Their organisations are suspended or unverified">Organisation unavailable</span>{% elif user.people %}<span class="badge text-bg-secondary">No login</span>{% endif %}
 {% endmacro %}
+
+{% macro user_name(user) %}{% set person = user.people|first %}{{ person.first_name ~ ' ' ~ person.last_name if person else '-' }}{% endmacro %}
+
+{% macro user_organisations(user) %}{{ user.people|map(attribute='organisation.name')|sort|join(', ') or '-' }}{% endmacro %}
 
 {% from "_table_tools.html" import table_tools with context %}
 {{ table_tools('users') }}
@@ -24,8 +30,7 @@
       <tr>
         <th scope="col" data-col="name" data-col-fixed>Name</th>
         <th scope="col" data-col="email">Email</th>
-        {% if show_organisation %}<th scope="col" data-col="organisation">Organisation</th>{% endif %}
-        <th scope="col" data-col="user_group">User Group</th>
+        {% if show_organisation %}<th scope="col" data-col="organisation">Organisations</th>{% endif %}
         <th scope="col" data-col="status">Status</th>
         <th scope="col" data-col="active_sessions">Active sessions</th>
         <th scope="col"></th>
@@ -34,10 +39,9 @@
     <tbody>
       {% for user in users %}
       <tr>
-        <td>{% if user.person %}{{ user.person.first_name }} {{ user.person.last_name }}{% else %}-{% endif %}</td>
+        <td>{{ user_name(user) }}</td>
         <td>{{ user.email }}</td>
-        {% if show_organisation %}<td>{{ user.organisation.name }}</td>{% endif %}
-        <td>{{ user.user_group.name if user.user_group else "-" }}</td>
+        {% if show_organisation %}<td>{{ user_organisations(user) }}</td>{% endif %}
         <td>{{ user_status(user) }}</td>
         <td>{{ session_counts.get(user.id, 0) }}</td>
         <td class="text-end">{{ user_action(user) }}</td>
@@ -55,13 +59,12 @@
       <div class="card shadow-sm">
         <div class="card-body">
           <h5 class="card-title mb-3">
-            {% if user.person %}{{ user.person.first_name }} {{ user.person.last_name }}{% else %}{{ user.email }}{% endif %}
+            {{ user.email }}
             {{ user_status(user) }}
           </h5>
           <p class="card-text">
-            <strong>Email:</strong> {{ user.email }}<br>
-            {% if show_organisation %}<strong>Organisation:</strong> {{ user.organisation.name }}<br>{% endif %}
-            <strong>User Group:</strong> {{ user.user_group.name if user.user_group else "-" }}<br>
+            <strong>Name:</strong> {{ user_name(user) }}<br>
+            {% if show_organisation %}<strong>Organisations:</strong> {{ user_organisations(user) }}<br>{% endif %}
             <strong>Active sessions:</strong> {{ session_counts.get(user.id, 0) }}
           </p>
           {{ user_action(user) }}

@@ -12,7 +12,7 @@ exports_bp.before_request(require_permission)
 
 @exports_bp.route('/', methods=['GET', 'POST'])
 def index():
-    export_types = [export_type for export_type in EXPORT_TYPES.values() if can(g.user, export_type.permission)]
+    export_types = [export_type for export_type in EXPORT_TYPES.values() if can(g.person, export_type.permission)]
     error = None
 
     if request.method == 'POST':

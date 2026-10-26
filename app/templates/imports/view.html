@@ -22,14 +22,14 @@
   </div>
   <div class="col-md-4">
     <div class="text-muted small">Imported By</div>
-    <div class="fw-semibold">{{ import_event.user.email if import_event.user else '-' }}</div>
+    <div class="fw-semibold">{{ import_event.person.first_name ~ ' ' ~ import_event.person.last_name if import_event.person else '-' }}</div>
   </div>
 </div>
 
 {% if import_event.undone_at %}
 <div class="alert alert-secondary">
   <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
-  Undone {{ import_event.undone_at | datetime }}{% if import_event.undone_by %} by {{ import_event.undone_by.email }}{% endif %}. The imported records were deleted.
+  Undone {{ import_event.undone_at | datetime }}{% if import_event.undone_by %} by {{ import_event.undone_by.first_name }} {{ import_event.undone_by.last_name }}{% endif %}. The imported records were deleted.
 </div>
 {% endif %}
 

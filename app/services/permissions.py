@@ -1,5 +1,5 @@
 from app import db
-from app.models import User, UserGroup, UserGroupPermission
+from app.models import Person, UserGroup, UserGroupPermission
 
 # the resources and actions groups can be given. Keys are '<resource>.<action>', for example 'jobs.delete'
 RESOURCES = [
@@ -70,12 +70,13 @@ ENDPOINT_PERMISSIONS = {
 }
 
 
-def can(user, permission):
-    if user is None or user.user_group is None:
+def can(person, permission):
+    """person is the signed-in user's person in the organisation they're working in (g.person)."""
+    if person is None or person.user_group is None:
         return False
-    if user.user_group.is_admin:
+    if person.user_group.is_admin:
         return True
-    return permission in user.user_group.permission_keys
+    return permission in person.user_group.permission_keys
 
 
 def clean_permissions(keys):
@@ -103,15 +104,15 @@ def create_default_groups(organisation):
     return admin, team
 
 
-def other_active_admins(user):
-    """How many other users in the organisation are admins who can log in. Must stay above 0."""
+def other_active_admins(person):
+    """How many other people in the person's organisation are admins who can log in. Must stay above 0."""
     return (
-        User.query.join(UserGroup, User.user_group_id == UserGroup.id)
+        Person.query.join(UserGroup, Person.user_group_id == UserGroup.id)
         .filter(
-            User.organisation_id == user.organisation_id,
+            Person.organisation_id == person.organisation_id,
             UserGroup.is_admin.is_(True),
-            User.can_login.is_(True),
-            User.id != user.id,
+            Person.can_login.is_(True),
+            Person.id != person.id,
         )
         .count()
     )

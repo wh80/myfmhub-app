@@ -42,20 +42,34 @@ def safe_next_url(url):
     return None
 
 
-def require_login():
+def require_user():
     """Send anyone without a valid session to the login page, remembering where they were going.
-
-    Used as a blueprint before_request hook, and by login_required."""
+    For the few pages that don't need an organisation, like Switch organisation."""
     if g.user is None:
         flash('Please sign in to continue.', 'warning')
         next_url = request.full_path.rstrip('?') if request.method == 'GET' else None
         return redirect(url_for('auth.login', next=next_url))
 
 
+def require_login():
+    """Like require_user, and the session must be working in an organisation (g.person): anyone who
+    hasn't chosen one yet goes to Switch organisation, and a platform admin with none goes to /admin.
+
+    Used as a blueprint before_request hook, and by login_required."""
+    response = require_user()
+    if response:
+        return response
+    if g.person is None:
+        if g.user.signin_people():
+            next_url = request.full_path.rstrip('?') if request.method == 'GET' else None
+            return redirect(url_for('auth.switch_organisation', next=next_url))
+        return redirect(url_for('admin.index'))
+
+
 def require_platform_admin():
     """before_request hook for /admin. Anyone who isn't a platform admin gets a 404, so the area stays hidden."""
     if g.user is None:
-        return require_login()
+        return require_user()
     if not g.user.is_platform_admin:
         abort(404)
 
@@ -64,7 +78,7 @@ def require_permission():
     """before_request hook, registered after require_login. Looks up the permission the endpoint needs in
     ENDPOINT_PERMISSIONS and refuses (403) if the user's group doesn't have it, or if the endpoint isn't listed."""
     permission = ENDPOINT_PERMISSIONS.get(request.endpoint)
-    if permission is None or not can(g.user, permission):
+    if permission is None or not can(g.person, permission):
         abort(403)
 
 
@@ -75,13 +89,20 @@ def login_required(view):
     return wrapped
 
 
+def user_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        return require_user() or view(*args, **kwargs)
+    return wrapped
+
+
 def org_query(model):
-    """Query for a model, limited to the signed-in user's organisation."""
-    return model.query.filter_by(organisation_id=g.user.organisation_id)
+    """Query for a model, limited to the organisation the session is working in."""
+    return model.query.filter_by(organisation_id=g.person.organisation_id)
 
 
 def org_get_or_404(model, id):
-    """Fetch one record from the signed-in user's organisation, or 404 (including when it belongs to another organisation)."""
+    """Fetch one record from the session's organisation, or 404 (including when it belongs to another organisation)."""
     return org_query(model).filter_by(id=id).first_or_404()
 
 

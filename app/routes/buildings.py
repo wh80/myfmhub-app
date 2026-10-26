@@ -45,7 +45,7 @@ def create():
         building = Building(
             name=form.name.data,
             site_id=site.id,
-            organisation_id=g.user.organisation_id,
+            organisation_id=g.person.organisation_id,
         )
         db.session.add(building)
         db.session.commit()

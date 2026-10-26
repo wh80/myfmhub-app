@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from flask import current_app, render_template, url_for, request
 
 from app import db
-from app.models import OTP, User, UserSession
+from app.models import OTP, Person, UserSession
 from app.services.email import send_email
 
 OTP_EXPIRY_MINUTES = 15
@@ -19,6 +19,17 @@ SESSION_TOUCH_MINUTES = 5
 AUTH_COOKIE_NAME = 'auth_session'
 NO_LOGIN_MESSAGE = "This account doesn't have sign-in access. Ask an admin in your organisation to turn it on."
 ORGANISATION_SUSPENDED_MESSAGE = "Your organisation's account is suspended."
+
+
+def signin_refusal(user, otp=None):
+    """Why the user can't sign in, or None if they can: a platform admin always can, anyone else needs an
+    organisation to go to (see Person.can_sign_in). Returns ORGANISATION_SUSPENDED_MESSAGE when every
+    organisation that would let them in is suspended, so the routes can show the suspended page."""
+    if user.is_platform_admin or user.signin_people(otp):
+        return None
+    if any(person.can_login and person.organisation.suspended_at for person in user.people):
+        return ORGANISATION_SUSPENDED_MESSAGE
+    return NO_LOGIN_MESSAGE
 
 
 def hash_otp(code):
@@ -45,8 +56,9 @@ def check_otp_rate_limit(user):
     return None
 
 
-def create_and_send_otp(email, first_name, welcome=False, invited_by=None):
-    user = User.query.filter_by(email=email.lower()).one()
+def create_otp(user, person=None):
+    """Save a new code for the user and return (otp, code). person is the organisation it's for, if any
+    (registration or an invite), and signing in with the code goes there. Commits."""
     now = datetime.now(timezone.utc)
 
     # only the newest code is valid, so expire any unused ones. Old codes are kept for a day
@@ -57,11 +69,19 @@ def create_and_send_otp(email, first_name, welcome=False, invited_by=None):
     code = f'{secrets.randbelow(1000000):06d}'
     otp = OTP(
         user=user,
+        person=person,
         code_hash=hash_otp(code),
         expires_at=now + timedelta(minutes=OTP_EXPIRY_MINUTES),
     )
     db.session.add(otp)
     db.session.commit()
+    return otp, code
+
+
+def send_otp_email(otp, code, welcome=False, invited_by=None):
+    """Email a code from create_otp. welcome is for registration, invited_by (a name) for people."""
+    user, person = otp.user, otp.person
+    first_name = person.first_name if person else next((p.first_name for p in user.people), '')
 
     html = render_template(
         'emails/auth/send_otp.html',
@@ -71,17 +91,21 @@ def create_and_send_otp(email, first_name, welcome=False, invited_by=None):
         expiry_minutes=OTP_EXPIRY_MINUTES,
         welcome=welcome,
         invited_by=invited_by,
-        organisation_name=user.organisation.name,
+        organisation_name=person.organisation.name if person else None,
         login_url=url_for('auth.login', _external=True),
     )
-    if invited_by:
-        subject = f'{invited_by} added you to MyFmHub'
+    if invited_by and person:
+        subject = f'{invited_by} added you to {person.organisation.name} on MyFmHub'
     elif welcome:
         subject = 'Welcome to MyFmHub'
     else:
         subject = 'Your MyFmHub sign-in code'
     send_email(user.email, subject, html)
 
+
+def create_and_send_otp(user, person=None, welcome=False, invited_by=None):
+    otp, code = create_otp(user, person)
+    send_otp_email(otp, code, welcome=welcome, invited_by=invited_by)
     return otp
 
 
@@ -89,10 +113,9 @@ def verify_otp(otp, code):
     """Check a submitted code. Returns an error message, or None if the code is valid (the OTP is then used up)."""
     now = datetime.now(timezone.utc)
 
-    if otp.user.organisation.suspended_at:
-        return ORGANISATION_SUSPENDED_MESSAGE
-    if not otp.user.can_login:
-        return NO_LOGIN_MESSAGE
+    refusal = signin_refusal(otp.user, otp)
+    if refusal:
+        return refusal
     if otp.used_at:
         return 'This code has already been used.'
     if as_utc(otp.expires_at) < now:
@@ -119,12 +142,42 @@ def hash_token(token):
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def create_session(user):
-    """Save a new session for the user and return the raw token for the cookie."""
+def choose_person(user, otp=None):
+    """The organisation (as the user's person there) a new session starts in, or None for the user to
+    choose on the Switch organisation page (or a platform admin with no organisation to go to). In order:
+    the one the code was sent for, the last one they used, or their only one. Verifies an organisation
+    registered with otp. Commits."""
+    people = user.signin_people(otp)
+    person = None
+    if otp is not None and otp.person in people:
+        person = otp.person
+    else:
+        person = next((p for p in people if p.organisation_id == user.last_organisation_id), None)
+        if person is None and len(people) == 1:
+            person = people[0]
+
+    if person is not None:
+        if person.organisation.verified_at is None:
+            person.organisation.verified_at = datetime.now(timezone.utc)
+        user.last_organisation_id = person.organisation_id
+    db.session.commit()
+    return person
+
+
+def switch_person(user_session, person):
+    """Move a session to another of its user's organisations. The caller checks person.can_sign_in()."""
+    user_session.person = person
+    user_session.user.last_organisation_id = person.organisation_id
+    db.session.commit()
+
+
+def create_session(user, person=None):
+    """Save a new session for the user, working in person's organisation, and return the raw token for the cookie."""
     token = secrets.token_urlsafe(32)
     now = datetime.now(timezone.utc)
     user_session = UserSession(
         user=user,
+        person=person,
         token_hash=hash_token(token),
         expires_at=now + timedelta(days=SESSION_EXPIRY_DAYS),
         last_seen_at=now,
@@ -149,14 +202,24 @@ def set_session_cookie(response, token):
 
 
 def get_active_session(token):
-    """Return the UserSession for a token, or None if it's missing, expired or revoked, the user can't log in or their organisation is suspended."""
+    """Return the UserSession for a token, or None if it's missing, expired or revoked, or the user has
+    nowhere left to sign in to. If the session's organisation won't let them in any more (login turned off,
+    suspended), it's taken out of it, so they choose another or are signed out."""
     if not token:
         return None
 
     now = datetime.now(timezone.utc)
     user_session = UserSession.query.filter_by(token_hash=hash_token(token), revoked_at=None).first()
-    if (not user_session or as_utc(user_session.expires_at) < now
-            or not user_session.user.can_login or user_session.user.organisation.suspended_at):
+    if not user_session or as_utc(user_session.expires_at) < now:
+        return None
+
+    # revoking normally handles this (revoke_person_sessions), so this is a backstop
+    person = user_session.person
+    if person is not None and (person.user_id != user_session.user_id or not person.can_sign_in()):
+        user_session.person = None
+        db.session.commit()
+
+    if signin_refusal(user_session.user):
         return None
 
     if not user_session.last_seen_at or as_utc(user_session.last_seen_at) < now - timedelta(minutes=SESSION_TOUCH_MINUTES):
@@ -193,6 +256,7 @@ def revoke_session(user_session):
 
 
 def revoke_user_sessions(user):
+    """Sign the user out everywhere, in every organisation. Only /admin does this."""
     count = active_sessions().filter(UserSession.user_id == user.id).update(
         {'revoked_at': datetime.now(timezone.utc)}, synchronize_session=False
     )
@@ -200,9 +264,20 @@ def revoke_user_sessions(user):
     return count
 
 
+def revoke_person_sessions(person):
+    """End the user's sessions working in this person's organisation, leaving their other organisations alone.
+    Commits, so call it before deleting the person (their sessions' person_id would go to NULL)."""
+    count = active_sessions().filter(UserSession.person_id == person.id).update(
+        {'revoked_at': datetime.now(timezone.utc)}, synchronize_session=False
+    )
+    db.session.commit()
+    return count
+
+
 def revoke_organisation_sessions(organisation):
-    user_ids = db.select(User.id).where(User.organisation_id == organisation.id)
-    count = active_sessions().filter(UserSession.user_id.in_(user_ids)).update(
+    """End every session working in the organisation."""
+    person_ids = db.select(Person.id).where(Person.organisation_id == organisation.id)
+    count = active_sessions().filter(UserSession.person_id.in_(person_ids)).update(
         {'revoked_at': datetime.now(timezone.utc)}, synchronize_session=False
     )
     db.session.commit()
@@ -217,7 +292,7 @@ def revoke_all_sessions():
 
 
 def suspend_organisation(organisation):
-    """Stop everyone in the organisation signing in and end their sessions."""
+    """Stop everyone signing in to the organisation and end the sessions working in it. Their other organisations aren't affected."""
     organisation.suspended_at = datetime.now(timezone.utc)
     db.session.commit()
     return revoke_organisation_sessions(organisation)

@@ -46,7 +46,7 @@
         <td><a href="{{ url_for('imports.view', id=import_event.id) }}">{{ import_event.created_at | datetime }}</a></td>
         <td>{{ import_type.label if import_type else import_event.import_type }}</td>
         <td>{{ import_event.filename }}</td>
-        <td>{{ import_event.user.email if import_event.user else '-' }}</td>
+        <td>{{ import_event.person.first_name ~ ' ' ~ import_event.person.last_name if import_event.person else '-' }}</td>
         <td>{{ import_event.rows_imported }}</td>
         <td>{% if import_event.errors %}<span class="badge text-bg-warning">{{ import_event.errors | length }}</span>{% else %}0{% endif %}</td>
         <td class="text-end">

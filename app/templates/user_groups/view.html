@@ -26,13 +26,11 @@
     <h5 class="mt-4">People</h5>
     {% if members %}
     <ul class="list-group">
-      {% for user in members %}
+      {% for person in members %}
       <li class="list-group-item position-relative">
-        {% if user.person %}
-        <a href="{{ url_for('people.view', id=user.person.id) }}" class="stretched-link text-reset text-decoration-none">{{ user.person.first_name }} {{ user.person.last_name }}</a>
-        {% else %}{{ user.email }}{% endif %}
-        <span class="text-muted small ms-2">{{ user.email }}</span>
-        {% if not user.can_login %}<span class="badge text-bg-secondary ms-2">No login</span>{% endif %}
+        <a href="{{ url_for('people.view', id=person.id) }}" class="stretched-link text-reset text-decoration-none">{{ person.first_name }} {{ person.last_name }}</a>
+        <span class="text-muted small ms-2">{{ person.email }}</span>
+        {% if not person.can_login %}<span class="badge text-bg-secondary ms-2">No login</span>{% endif %}
       </li>
       {% endfor %}
     </ul>

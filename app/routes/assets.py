@@ -115,7 +115,7 @@ def create():
             site_id=form.site_id.data,
             building_id=parse_uuid(form.building_id.data),
             zone_id=parse_uuid(form.zone_id.data),
-            organisation_id=g.user.organisation_id,
+            organisation_id=g.person.organisation_id,
         )
         db.session.add(asset)
         db.session.commit()

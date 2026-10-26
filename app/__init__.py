@@ -75,10 +75,10 @@ def create_app():
     app.jinja_env.filters['date'] = lambda value: value.strftime('%d-%m-%Y') if value else '-'
     app.jinja_env.filters['currency'] = lambda value: f'£{value:,.2f}' if value is not None else '-'
 
-    # templates check permissions with can('jobs.edit') for the signed-in user
+    # templates check permissions with can('jobs.edit') for the signed-in user in the session's organisation
     from flask import g
     from app.services.permissions import can, RESOURCES, ACTIONS, EXTRA_PERMISSIONS
-    app.jinja_env.globals['can'] = lambda permission: can(g.get('user'), permission)
+    app.jinja_env.globals['can'] = lambda permission: can(g.get('person'), permission)
     app.jinja_env.globals['PERMISSION_RESOURCES'] = RESOURCES
     app.jinja_env.globals['PERMISSION_ACTIONS'] = ACTIONS
     app.jinja_env.globals['PERMISSION_EXTRAS'] = EXTRA_PERMISSIONS

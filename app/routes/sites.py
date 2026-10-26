@@ -68,7 +68,7 @@ def create():
             town_city=form.town_city.data,
             post_code=form.post_code.data,
             telephone=form.telephone.data,
-            organisation_id=g.user.organisation_id,
+            organisation_id=g.person.organisation_id,
         )
         db.session.add(site)
         db.session.commit()

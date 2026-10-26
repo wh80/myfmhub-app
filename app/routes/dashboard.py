@@ -11,7 +11,7 @@ dashboard_bp = Blueprint('dashboard', __name__, url_prefix="/dashboard")
 @login_required
 def index():
     # the job cards need jobs.view. Each count matches the filtered /jobs list its card links to
-    if not can(g.user, 'jobs.view'):
+    if not can(g.person, 'jobs.view'):
         return render_template('dashboard/index.html', counts=None)
 
     today = uk_today()

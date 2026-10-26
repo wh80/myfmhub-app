@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% block body %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('support.index') }}">Support</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Authentication</li>
+  </ol>
+</nav>
+
+<h1 class="mb-2">Authentication</h1>
+<p class="text-muted mb-4">
+  For MyFmHub platform admins only. This guide explains how logins, organisations, people, sign-in and
+  sessions fit together, so you can answer customers' questions and sort out sign-in problems.
+</p>
+
+<h4 class="mt-4">Logins and people</h4>
+<p>
+  MyFmHub keeps two separate things:
+</p>
+<ul>
+  <li>
+    A <strong>login</strong> is an email address that can sign in. There's only ever one login for an email,
+    however many organisations it's in.
+  </li>
+  <li>
+    A <strong>person</strong> is someone in one organisation, as listed on its People page. A person always
+    has a login, and that login can have a person in several organisations.
+  </li>
+</ul>
+<p>
+  For example, a contractor who works for two customers has one login, bob@contractor.com, and a person
+  in each customer's organisation. Each customer controls its own person record, and nothing either of
+  them does changes what Bob can do in the other one.
+</p>
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th scope="col">On the login (shared)</th>
+        <th scope="col">On the person (one per organisation)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          Email address<br>
+          When the email was first verified<br>
+          Sign-in codes and sessions<br>
+          Platform admin access<br>
+          The organisation last worked in
+        </td>
+        <td>
+          First and last name, job title, mobile<br>
+          <strong>Can log in</strong><br>
+          <strong>User group</strong>, which decides what they can see and do<br>
+          The email, which always matches the login's
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p>
+  There are no passwords. Everyone signs in with a code emailed to them.
+</p>
+
+<h4 class="mt-4">Signing in</h4>
+<ol>
+  <li>They enter their email on the sign-in page and we email them a 6-digit code.</li>
+  <li>They enter the code, or click the link in the email to get to the code page.</li>
+  <li>MyFmHub picks the organisation to open (see below) and signs them in.</li>
+</ol>
+<p>Codes have these limits:</p>
+<ul>
+  <li>A code lasts {{ code_minutes }} minutes and can only be used once. Asking for a new code cancels the old one.</li>
+  <li>After {{ code_attempts }} wrong attempts a code stops working, and they need a new one.</li>
+  <li>
+    One new code a minute, and {{ codes_per_hour }} an hour, per login. This includes sign-in emails sent
+    when someone is added to an organisation, so an invite can be refused if they've just asked for a code.
+  </li>
+  <li>
+    The code page has a <strong>Send a new code</strong> button for when an email doesn't arrive or a
+    code has run out.
+  </li>
+</ul>
+<p>
+  If the email isn't a login at all, the sign-in page says it couldn't find an account. That does tell
+  someone whether an email has an account, which is a known trade-off.
+</p>
+
+<h5 class="mt-3">Which organisation opens</h5>
+<p>
+  A login can only go into an organisation where its person has <strong>Can log in</strong> turned on, and the
+  organisation isn't suspended and has been verified (see Registering). Of those, MyFmHub opens:
+</p>
+<ol>
+  <li>the organisation the code was sent for, when it came from an invite or a registration</li>
+  <li>otherwise the organisation they last worked in</li>
+  <li>otherwise their only organisation</li>
+  <li>
+    otherwise, when they're in several and none of the above applies, a page asking them to choose
+  </li>
+</ol>
+
+<h4 class="mt-4">Switching organisation</h4>
+<p>
+  Someone who can sign in to more than one organisation sees <strong>Switch organisation</strong> in the
+  account menu (the person icon, top right). It lists their organisations by name. Choosing one takes them
+  to its dashboard, because records belong to one organisation and the page they were on may not exist in
+  the other. The account menu always shows which organisation they're working in.
+</p>
+<p>
+  Each signed-in device works in one organisation at a time, so someone can have one organisation open on
+  their laptop and another on their phone. Next time they sign in, MyFmHub opens the one they used last.
+</p>
+
+<h4 class="mt-4">Registering an organisation</h4>
+<p>
+  Anyone can register a new organisation from the registration page. They become its first person, in
+  the Admin group with Can log in on.
+</p>
+<ul>
+  <li>
+    An email that's already a login can register too. The new organisation is added to that login, so
+    someone can run several organisations with one email.
+  </li>
+  <li>
+    Because anyone can type any email, a new organisation starts <strong>unverified</strong>. It isn't
+    offered at sign-in or in Switch organisation until someone enters the code that was emailed when it was
+    registered. That stops a stranger adding junk organisations to someone else's login.
+  </li>
+  <li>
+    If the code email doesn't arrive, <strong>Send a new code</strong> on the code page sends another code
+    for the same organisation, so it can still be verified. Signing in normally from the sign-in page
+    doesn't verify it.
+  </li>
+  <li>
+    Unverified organisations show an <strong>Unverified</strong> badge under Admin › Organisations. They
+    aren't deleted automatically.
+  </li>
+</ul>
+
+<h4 class="mt-4">Adding people</h4>
+<ul>
+  <li>
+    An organisation adds people on its People page, or imports them. If the email is already a login
+    elsewhere, the new person is linked to that same login. The organisation isn't told the email is in
+    use elsewhere: adding it looks exactly the same as adding a brand new email.
+  </li>
+  <li>The same email can't be in one organisation twice.</li>
+  <li>
+    With <strong>Can log in</strong> on, MyFmHub emails them a code saying who added them to which
+    organisation. That code opens the organisation that sent it. With Can log in off, nobody is emailed:
+    the person is just a record, for example a contact.
+  </li>
+  <li>
+    Turning Can log in on later sends the same email, and <strong>Resend sign-in email</strong> on their
+    record sends another.
+  </li>
+  <li>Imported people never have Can log in on, so imports never email anyone.</li>
+</ul>
+
+<h4 class="mt-4">Changing someone's email</h4>
+<p>
+  Changing a person's email never changes the login, because the login may be used by other
+  organisations. Instead the person moves to the login for the new email, which is created if it doesn't
+  exist yet. Their sessions in that organisation end, as they signed in with the old email, and if Can log in
+  is on they're emailed a code at the new address.
+</p>
+<p>
+  This protects people who are in more than one organisation: one organisation can't change Bob's email
+  to an address it controls and then sign in as Bob somewhere else. If the old login isn't used by anyone
+  any more, it's deleted. Someone who changes their own email is signed out and signs in again with the new one.
+</p>
+
+<h4 class="mt-4">Removing access</h4>
+<ul>
+  <li>
+    <strong>Turning off Can log in</strong> stops them signing in to that organisation and ends their
+    sessions working in it. Their other organisations aren't affected. If it was their only organisation,
+    they can't sign in at all and are told to ask an admin.
+  </li>
+  <li>
+    <strong>Deleting a person</strong> removes them from that organisation and ends their sessions there.
+    Their login is deleted too only if they aren't in any other organisation.
+  </li>
+  <li>
+    Nobody can turn off their own Can log in or delete themselves, and every organisation must keep at least
+    one admin who can log in.
+  </li>
+</ul>
+
+<h4 class="mt-4">User groups and admins</h4>
+<p>
+  User groups belong to each organisation, so the same login can be an admin in one organisation and have
+  view-only access in another. The Admin group always has full access, including user groups, everyone's
+  sessions and organisation settings. Only admins can put someone in the Admin group, or edit or delete an admin.
+</p>
+
+<h4 class="mt-4">Sessions</h4>
+<p>
+  Each sign-in on a device is a session. It lasts {{ session_days }} days unless they sign out or it's revoked.
+</p>
+<ul>
+  <li>
+    Everyone can see their own sessions under <strong>Your sessions</strong> in the account menu, across all
+    their organisations, and revoke any of them, for example on a lost phone.
+  </li>
+  <li>
+    Organisation admins see <strong>Sessions</strong> instead: every session working in their organisation,
+    plus their own. They don't see someone's sessions in other organisations, because the devices and IP
+    addresses there are none of their business.
+  </li>
+  <li>
+    Revoking a session signs that device out. It doesn't stop them signing in again: to do that, turn off
+    Can log in on their person record.
+  </li>
+</ul>
+
+<h4 class="mt-4">Suspending an organisation</h4>
+<p>
+  Under Admin › Organisations a platform admin can suspend an organisation, for example for unpaid bills.
+  Nobody can sign in to it, and every session working in it ends. People who are in other organisations can
+  still use those. Someone who can only get into suspended organisations sees a page saying their
+  organisation's account is suspended, with the support email address. <strong>Reinstate</strong> undoes it.
+  You can't suspend the organisation you're working in.
+</p>
+
+<h4 class="mt-4">Platform admins</h4>
+<ul>
+  <li>
+    Platform admin access is given on the server with <code>flask make-platform-admin &lt;email&gt;</code>,
+    and taken away with <code>--remove</code>. It can't be given from inside the app.
+  </li>
+  <li>
+    The email doesn't need to be in any organisation: a new email gets a login with no organisation, which
+    signs in straight to Admin. Removing access from a login with no organisation deletes it.
+  </li>
+  <li>
+    A platform admin can also be a person in organisations, like anyone else. Admin is in the account menu
+    whichever organisation they're in.
+  </li>
+  <li>
+    Admin › Users lists every login with its organisations. <strong>Revoke sessions</strong> there signs the
+    login out everywhere, in every organisation. Admin › Sessions can revoke one session, every session in an
+    organisation, or every session everywhere, for example after a security incident.
+  </li>
+</ul>
+
+<h4 class="mt-4">When someone can't sign in</h4>
+<p>Check these in order:</p>
+<ol>
+  <li>
+    <strong>Is it the right email?</strong> Search for it under Admin › Users. If it isn't there, there's no
+    login: their organisation needs to add them.
+  </li>
+  <li>
+    <strong>Is Can log in on?</strong> Admin › Users shows "No login" when none of their people can log in.
+    Their organisation's admin turns it on from the person record.
+  </li>
+  <li>
+    <strong>Is the organisation suspended or unverified?</strong> "Organisation unavailable" in Admin › Users
+    means they can log in somewhere, but every such organisation is suspended or still unverified.
+  </li>
+  <li>
+    <strong>Is the code being refused?</strong> It may have run out, been used, been replaced by a newer
+    code or had too many wrong attempts. <strong>Send a new code</strong> fixes all of these.
+  </li>
+  <li>
+    <strong>Too many codes?</strong> They may have to wait a minute, or up to an hour after
+    {{ codes_per_hour }} codes.
+  </li>
+  <li>
+    <strong>Can't see an organisation they expect?</strong> Check that it's verified, not suspended, and that
+    their person there has Can log in on.
+  </li>
+</ol>
+{% endblock body %}

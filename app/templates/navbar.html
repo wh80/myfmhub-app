@@ -66,12 +66,20 @@
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li>
                             <h6 class="dropdown-header">
-                                {% if g.user.person %}{{ g.user.person.first_name }} {{ g.user.person.last_name }}<br>{% endif %}
+                                {% if g.person %}{{ g.person.first_name }} {{ g.person.last_name }}<br>{% endif %}
                                 <span class="fw-normal">{{ g.user.email }}</span>
+                                {% if g.organisation %}<br><span class="fw-normal">{{ g.organisation.name }}</span>{% endif %}
                             </h6>
                         </li>
                         <li><hr class="dropdown-divider"></li>
+                        {# shown when there's another organisation to go to #}
+                        {% set signin_people = g.user.signin_people() %}
+                        {% if signin_people|length > (1 if g.person else 0) %}
+                        <li><a class="dropdown-item" href="{{ url_for('auth.switch_organisation') }}">Switch organisation</a></li>
+                        {% endif %}
+                        {% if g.person %}
                         <li><a class="dropdown-item" href="{{ url_for('auth.sessions') }}">{{ 'Sessions' if can('sessions.manage') else 'Your sessions' }}</a></li>
+                        {% endif %}
                         {% if can('user_groups.manage') %}
                         <li><a class="dropdown-item" href="{{ url_for('user_groups.index') }}">User groups</a></li>
                         {% endif %}

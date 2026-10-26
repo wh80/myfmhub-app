@@ -24,7 +24,7 @@
       This will permanently delete the <strong>{{ remaining }} {{ 'record' if remaining == 1 else 'records' }}</strong>
       still left from this import, including any changes made to them since.
       {% if import_type.key == 'assets' %}They'll be unlinked from any jobs and job schedules.{% endif %}
-      {% if import_type.key == 'people' %}Their user accounts are deleted too.{% endif %}
+      {% if import_type.key == 'people' %}Their logins are deleted too, unless they're in another organisation.{% endif %}
       The import stays in the history, marked as undone.
     </p>
     {% else %}

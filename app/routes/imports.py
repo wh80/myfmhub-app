@@ -42,7 +42,7 @@ def upload(slug):
         # read one byte past the limit, so read_csv can tell the file is too big without reading it all
         rows, problems = read_csv(import_type, upload.read(MAX_BYTES + 1))
         if not problems:
-            import_event = run_import(import_type, upload.filename or 'upload.csv', rows, g.user)
+            import_event = run_import(import_type, upload.filename or 'upload.csv', rows, g.person)
             return redirect(url_for('imports.view', id=import_event.id))
 
     return render_template(
@@ -78,20 +78,20 @@ def undo(id):
     import_type = IMPORT_TYPES.get(import_event.import_type)
     if import_type is None:
         abort(404)
-    if not can(g.user, import_type.delete_permission):
+    if not can(g.person, import_type.delete_permission):
         abort(403)
 
     if import_event.undone_at:
         flash('This import has already been undone.', 'warning')
         return redirect(url_for('imports.view', id=import_event.id))
 
-    blockers = undo_blockers(import_type, import_event, g.user)
+    blockers = undo_blockers(import_type, import_event, g.person)
 
     if request.method == 'POST':
         if blockers:
             flash("This import can't be undone yet.", 'warning')
             return redirect(url_for('imports.undo', id=import_event.id))
-        count = undo_import(import_type, import_event, g.user)
+        count = undo_import(import_type, import_event, g.person)
         flash(f"Import undone. {count} {'record' if count == 1 else 'records'} deleted.", 'success')
         return redirect(url_for('imports.view', id=import_event.id))
 

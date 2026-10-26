@@ -1,4 +1,7 @@
-{# expects user_sessions, revoke_endpoint and show_organisation #}
+{# expects user_sessions, revoke_endpoint and show_organisation. A session works in one organisation, as the
+   user's person there, or none while they choose (or a platform admin outside any organisation) #}
+{% macro session_name(user_session) %}{% if user_session.person %}{{ user_session.person.first_name }} {{ user_session.person.last_name }}{% else %}{{ user_session.user.email }}{% endif %}{% endmacro %}
+{% macro session_organisation(user_session) %}{{ user_session.person.organisation.name if user_session.person else "None chosen" }}{% endmacro %}
 {% from "_table_tools.html" import table_tools with context %}
 {{ table_tools('sessions') }}
 
@@ -21,10 +24,10 @@
       {% for user_session in user_sessions %}
       <tr>
         <td>
-          {% if user_session.user.person %}{{ user_session.user.person.first_name }} {{ user_session.user.person.last_name }}<br>{% endif %}
+          {% if user_session.person %}{{ session_name(user_session) }}<br>{% endif %}
           <span class="text-muted small">{{ user_session.user.email }}</span>
         </td>
-        {% if show_organisation %}<td>{{ user_session.user.organisation.name }}</td>{% endif %}
+        {% if show_organisation %}<td>{{ session_organisation(user_session) }}</td>{% endif %}
         <td class="text-truncate" style="max-width: 16rem;" title="{{ user_session.user_agent or '' }}">{{ user_session.user_agent or "-" }}</td>
         <td>{{ user_session.ip_address or "-" }}</td>
         <td>{{ user_session.created_at | datetime }}</td>
@@ -51,12 +54,12 @@
       <div class="card shadow-sm">
         <div class="card-body">
           <h5 class="card-title mb-3">
-            {% if user_session.user.person %}{{ user_session.user.person.first_name }} {{ user_session.user.person.last_name }}{% else %}{{ user_session.user.email }}{% endif %}
+            {{ session_name(user_session) }}
             {% if user_session.id == g.user_session.id %}<span class="badge text-bg-success ms-1">This device</span>{% endif %}
           </h5>
           <p class="card-text">
             <strong>Email:</strong> {{ user_session.user.email }}<br>
-            {% if show_organisation %}<strong>Organisation:</strong> {{ user_session.user.organisation.name }}<br>{% endif %}
+            {% if show_organisation %}<strong>Organisation:</strong> {{ session_organisation(user_session) }}<br>{% endif %}
             <strong>Device:</strong> {{ user_session.user_agent or "-" }}<br>
             <strong>IP address:</strong> {{ user_session.ip_address or "-" }}<br>
             <strong>Signed in:</strong> {{ user_session.created_at | datetime }}<br>

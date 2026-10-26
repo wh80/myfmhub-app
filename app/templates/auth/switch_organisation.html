@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block body %}
+<h3>{{ 'Switch organisation' if g.person else 'Choose an organisation' }}</h3>
+<p class="text-muted">
+  {% if g.person %}You're working in {{ g.organisation.name }}. {% endif %}You can sign in to {{ people|length }} organisation{{ 's' if people|length != 1 }} with {{ g.user.email }}.
+  Each organisation decides what you can see and do in it.
+</p>
+
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.person_id.label(class="form-label") }}
+        {{ form.person_id(class="form-select" ~ (" is-invalid" if form.person_id.errors else "")) }}
+        {% if form.person_id.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.person_id.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Continue</button>
+    {% if g.person %}<a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Back</a>{% endif %}
+</form>
+{% endblock body %}

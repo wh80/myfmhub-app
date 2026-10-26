@@ -3,7 +3,7 @@
 {% block body %}
 {% macro organisation_actions(organisation) %}
   <a href="{{ url_for('admin.sessions', organisation_id=organisation.id) }}" class="btn btn-sm btn-outline-secondary">Sessions</a>
-  {% if organisation.id == g.user.organisation_id %}
+  {% if g.person and organisation.id == g.person.organisation_id %}
     <span class="text-muted small ms-1">Yours</span>
   {% elif organisation.suspended_at %}
     <form method="POST" action="{{ url_for('admin.reinstate_organisation_route', id=organisation.id) }}" class="d-inline">
@@ -21,7 +21,7 @@
 {% endmacro %}
 
 {% macro organisation_status(organisation) %}
-  {% if organisation.suspended_at %}<span class="badge text-bg-danger">Suspended</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}
+  {% if organisation.suspended_at %}<span class="badge text-bg-danger">Suspended</span>{% elif not organisation.verified_at %}<span class="badge text-bg-secondary" title="Nobody has entered the code sent when it was registered">Unverified</span>{% else %}<span class="badge text-bg-success">Active</span>{% endif %}
 {% endmacro %}
 
 {% include 'admin/_tabs.html' %}
@@ -53,7 +53,7 @@
       <tr>
         <th scope="col" data-col="name" data-col-fixed>Name</th>
         <th scope="col" data-col="registered">Registered</th>
-        <th scope="col" data-col="users">Users</th>
+        <th scope="col" data-col="users">People</th>
         <th scope="col" data-col="active_sessions">Active sessions</th>
         <th scope="col" data-col="status">Status</th>
         <th scope="col"></th>
@@ -84,7 +84,7 @@
           <h5 class="card-title mb-3">{{ organisation.name }} {{ organisation_status(organisation) }}</h5>
           <p class="card-text">
             <strong>Registered:</strong> {{ organisation.created_at | datetime }}<br>
-            <strong>Users:</strong> {{ user_counts.get(organisation.id, 0) }}<br>
+            <strong>People:</strong> {{ user_counts.get(organisation.id, 0) }}<br>
             <strong>Active sessions:</strong> {{ session_counts.get(organisation.id, 0) }}
           </p>
           {{ organisation_actions(organisation) }}

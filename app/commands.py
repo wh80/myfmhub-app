@@ -10,14 +10,30 @@ from app.services.jobs import create_scheduled_jobs
 @click.option('--remove', is_flag=True, help='Remove platform admin instead of granting it.')
 @with_appcontext
 def make_platform_admin(email, remove):
-    """Give a user access to /admin (or take it away with --remove)."""
-    user = User.query.filter_by(email=email.strip().lower()).first()
-    if not user:
-        raise click.ClickException(f'No user with email {email}.')
+    """Give an email access to /admin (or take it away with --remove).
 
-    user.is_platform_admin = not remove
+    A new email gets a user with no organisation: they sign in at /login and go straight to /admin."""
+    email = email.strip().lower()
+    user = User.query.filter_by(email=email).first()
+
+    if remove:
+        if not user or not user.is_platform_admin:
+            raise click.ClickException(f'{email} is not a platform admin.')
+        if user.people:
+            user.is_platform_admin = False
+        else:
+            # a user with no people only exists to be a platform admin
+            db.session.delete(user)
+        db.session.commit()
+        click.echo(f'{email} is no longer a platform admin.')
+        return
+
+    if not user:
+        user = User(email=email)
+        db.session.add(user)
+    user.is_platform_admin = True
     db.session.commit()
-    click.echo(f"{user.email} is {'no longer' if remove else 'now'} a platform admin.")
+    click.echo(f'{email} is now a platform admin.')
 
 
 @click.command('create-jobs-for-job-schedules')

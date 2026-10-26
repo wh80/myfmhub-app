@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import Asset, Building, ImportEvent, JobSchedule, Person, Site, Supplier, User, UserGroup, Zone
+from app.services.people import delete_person
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date
 
 # CSV imports. Each import type lists its columns; the header row must use the column keys.
@@ -79,23 +80,24 @@ class ImportType:
 class Lookups:
     """Names the rows refer to, loaded once per import, plus values already used earlier in the file."""
 
-    def __init__(self, user):
-        self.user = user
+    def __init__(self, person):
+        # the signed-in user's person in the organisation being imported into
+        self.person = person
         self.sites = {}
-        for site in Site.query.filter_by(organisation_id=user.organisation_id):
+        for site in Site.query.filter_by(organisation_id=person.organisation_id):
             self.sites.setdefault(site.name.strip().lower(), []).append(site)
         self.user_groups = {
             user_group.name.strip().lower(): user_group
-            for user_group in UserGroup.query.filter_by(organisation_id=user.organisation_id)
+            for user_group in UserGroup.query.filter_by(organisation_id=person.organisation_id)
         }
         # by (site id, lower-case name) and (building id, lower-case name). Names are unique there
         self.buildings = {
             (building.site_id, building.name.strip().lower()): building
-            for building in Building.query.filter_by(organisation_id=user.organisation_id)
+            for building in Building.query.filter_by(organisation_id=person.organisation_id)
         }
         self.zones = {
             (zone.building_id, zone.name.strip().lower()): zone
-            for zone in Zone.query.filter_by(organisation_id=user.organisation_id)
+            for zone in Zone.query.filter_by(organisation_id=person.organisation_id)
         }
         self.seen = {}
 
@@ -177,7 +179,7 @@ def parse_value(column, raw, lookups):
         user_group = lookups.user_groups.get(raw.lower())
         if user_group is None:
             raise RowError(f"There's no user group called '{raw}'")
-        if user_group.is_admin and not lookups.user.is_org_admin:
+        if user_group.is_admin and not lookups.person.is_org_admin:
             raise RowError('Only admins can put people in the Admin group')
         return user_group
 
@@ -262,7 +264,7 @@ def create_supplier(values, lookups):
 
 
 def create_asset(values, lookups):
-    organisation_id = lookups.user.organisation_id
+    organisation_id = lookups.person.organisation_id
     for key, column, label in [
         ('asset_number', Asset.asset_number, 'Asset number'),
         ('serial_number', Asset.serial_number, 'Serial number'),
@@ -318,22 +320,31 @@ def create_person(values, lookups):
     email = values['email']
     if not lookups.first_in_file('email', email):
         raise RowError(f"Email '{email}' is used by an earlier row in the file")
-    # emails are unique across every organisation, as on the person form
-    if User.query.filter(User.email == email).first():
-        raise RowError(f"A user with email '{email}' already exists")
+    # one person per email in an organisation, as on the person form
+    if Person.query.filter(Person.organisation_id == lookups.person.organisation_id, Person.email == email).first():
+        raise RowError(f"Someone with email '{email}' is already in your organisation")
 
-    # imported people can't log in until someone turns it on, so nobody is emailed by an import
+    # an email with a login elsewhere (another organisation) shares it, like the person form. Imported
+    # people can't log in until someone turns it on, so nobody is emailed by an import
+    user = User.query.filter(User.email == email).first()
+    records = []
+    if user is None:
+        user = User(email=email)
+        records.append(user)
     user_group = values['user_group']
-    user = User(email=email, can_login=False, user_group_id=user_group.id if user_group else None)
     person = Person(
         first_name=values['first_name'],
         last_name=values['last_name'],
         email=email,
         job_title=values['job_title'],
         mobile=values['mobile'],
-        user=user,
+        can_login=False,
+        user_group_id=user_group.id if user_group else None,
+        user_id=user.id,
     )
-    return [user, person]
+    if user.id is None:
+        person.user = user
+    return records + [person]
 
 
 def text(key, max_length, required=False, notes=''):
@@ -470,18 +481,19 @@ def read_csv(import_type, data):
     return rows, []
 
 
-def run_import(import_type, filename, rows, user):
-    """Save every row that's valid, and record the import with the errors for the rest. Commits."""
+def run_import(import_type, filename, rows, person):
+    """Save every row that's valid, and record the import with the errors for the rest. person is the
+    signed-in user's person in the organisation. Commits."""
     import_event = ImportEvent(
         import_type=import_type.key,
         filename=filename[:255],
-        organisation_id=user.organisation_id,
-        user_id=user.id,
+        organisation_id=person.organisation_id,
+        person_id=person.id,
     )
     db.session.add(import_event)
     db.session.flush()
 
-    lookups = Lookups(user)
+    lookups = Lookups(person)
     imported = 0
     errors = []
     for row_number, cells in rows:
@@ -502,7 +514,9 @@ def run_import(import_type, filename, rows, user):
             # Records link to sites and groups by id, so nothing joins the session before this
             with db.session.begin_nested():
                 for record in records:
-                    record.organisation_id = user.organisation_id
+                    # a new User (for a person) belongs to no organisation
+                    if hasattr(record, 'organisation_id'):
+                        record.organisation_id = person.organisation_id
                     if hasattr(record, 'import_event_id'):
                         record.import_event_id = import_event.id
                     db.session.add(record)
@@ -534,7 +548,7 @@ def remaining_records(import_type, import_event):
     return import_type.model.query.filter_by(import_event_id=import_event.id).all()
 
 
-def undo_blockers(import_type, import_event, user):
+def undo_blockers(import_type, import_event, person):
     """Reasons the import can't be undone, so deleting its records never takes anything else with it.
     Empty means it can be."""
     model = import_type.model
@@ -568,28 +582,28 @@ def undo_blockers(import_type, import_event, user):
             blockers.append(f'{count} of the imported job schedules have had jobs raised from them.')
 
     if model is Person:
-        people = query.join(User, Person.user_id == User.id)
-        count = people.filter(User.can_login.is_(True)).count()
+        count = query.filter(Person.can_login.is_(True)).count()
         if count:
             blockers.append(f'{count} of the imported people can now log in. '
                             'Turn off "Can log in" on their records first.')
         # the same rule as the people pages: only admins can delete an admin
-        if not user.is_org_admin and people.join(UserGroup, User.user_group_id == UserGroup.id).filter(UserGroup.is_admin.is_(True)).count():
+        if not person.is_org_admin and query.join(UserGroup, Person.user_group_id == UserGroup.id).filter(UserGroup.is_admin.is_(True)).count():
             blockers.append('Only admins can undo an import that put people in the Admin group.')
 
     return blockers
 
 
-def undo_import(import_type, import_event, user):
+def undo_import(import_type, import_event, person):
     """Delete the import's remaining records and mark it undone. Commits. Returns how many were deleted."""
     records = remaining_records(import_type, import_event)
     for record in records:
-        # like the people delete route, a person goes with their user (and its sessions and codes)
-        if isinstance(record, Person) and record.user:
-            db.session.delete(record.user)
-        db.session.delete(record)
+        # like the people delete route, a person's user goes too unless it's in another organisation
+        if isinstance(record, Person):
+            delete_person(record)
+        else:
+            db.session.delete(record)
 
     import_event.undone_at = datetime.now(timezone.utc)
-    import_event.undone_by_id = user.id
+    import_event.undone_by_id = person.id
     db.session.commit()
     return len(records)

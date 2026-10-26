@@ -53,7 +53,7 @@ def create():
         zone = Zone(
             name=form.name.data,
             building_id=building.id,
-            organisation_id=g.user.organisation_id,
+            organisation_id=g.person.organisation_id,
         )
         db.session.add(zone)
         db.session.commit()

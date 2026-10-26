@@ -11,11 +11,14 @@ Logging In To Use Seeded Data
     Login using selected users email - OTP code will show in the console
     NB: Comment out Resend KEY in .env to avoid sending emails to seeded users
 
+    Seeding again without --clear adds another organisation. Up to two people who can log in to an
+    existing organisation are added to it too, so Switch organisation can be tried
+
 
 """
 import argparse
 import random
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from app import create_app
@@ -107,22 +110,46 @@ def clear():
 
 
 def seed(count):
-    organisation = Organisation(name=f'{random.choice(PLACE_NAMES)} Facilities Ltd')
+    # verified, as if whoever registered it had entered their first code
+    organisation = Organisation(name=f'{random.choice(PLACE_NAMES)} Facilities Ltd', verified_at=datetime.now(timezone.utc))
     admin_group, team_group = create_default_groups(organisation)
 
-    # every person has a user, but only some can log in
+    # people who can log in to other organisations, to add to this one too
+    users = {user.email: user for user in User.query.all()}
+    shared = [user for user in users.values() if user.signin_people()]
+    shared = random.sample(shared, min(2, len(shared)))
+
+    # every person has a user, but only some can log in. An email already seeded in another
+    # organisation gets the same user, like adding them on the person form
     people = []
+    used = set()
     for i in range(10):
         first_name, last_name = random.choice(FIRST_NAMES), random.choice(LAST_NAMES)
         email = f'{first_name}.{last_name}{i + 1}@example.com'.lower()
+        if email in used or email in {user.email for user in shared}:
+            continue
+        used.add(email)
         people.append(Person(
             first_name=first_name,
             last_name=last_name,
             email=email,
             job_title=random.choice(JOB_TITLES),
             mobile=random.choice([None, f'07{random.randint(100, 999)} {random.randint(100000, 999999)}']),
+            can_login=i < 5,
+            user_group=admin_group if i == 0 else team_group,
             organisation=organisation,
-            user=User(email=email, user_group=admin_group if i == 0 else team_group, can_login=i < 5, organisation=organisation),
+            user=users.get(email) or User(email=email),
+        ))
+    for user in shared:
+        existing = user.signin_people()[0]
+        people.append(Person(
+            first_name=existing.first_name,
+            last_name=existing.last_name,
+            email=user.email,
+            can_login=True,
+            user_group=team_group,
+            organisation=organisation,
+            user=user,
         ))
 
     # site names are unique in the organisation. Past 100 sites they get a number
@@ -216,12 +243,18 @@ def seed(count):
         # inactive schedules raise nothing, so only active ones have jobs
         if random.random() < 0.33:
             job_schedule = random.choice([job_schedule for job_schedule in job_schedules if job_schedule.is_active])
+            status = random.choice(JOB_STATUSES)[0]
+            # a schedule has at most one job that isn't closed, and waits on it like raise_job() leaves it
+            if job_schedule.next_job_creation_date is None:
+                status = 'closed'
+            elif status != 'closed':
+                job_schedule.next_job_creation_date = None
             jobs.append(Job(
                 description=job_schedule.description,
                 work_required=job_schedule.work_required,
                 due_by=days_from_today(-30, 90),
                 statutory_compliance=job_schedule.statutory_compliance,
-                status=random.choice(JOB_STATUSES)[0],
+                status=status,
                 source='planned',
                 site=job_schedule.site,
                 building=job_schedule.building,
@@ -257,7 +290,9 @@ def seed(count):
     db.session.commit()
 
     links = sum(len(asset.jobs) + len(asset.job_schedules) for asset in assets)
-    print(f"Created organisation '{organisation.name}' with {len(people)} people ({sum(1 for person in people if person.user.can_login)} can log in).")
+    print(f"Created organisation '{organisation.name}' with {len(people)} people ({sum(1 for person in people if person.can_login)} can log in).")
+    for user in shared:
+        print(f'{user.email} is in another organisation too, so can switch between them.')
     print(f'Created {count} each of sites, suppliers, assets, job schedules and jobs, plus {links} asset links.')
     print(f'Created {len(buildings)} buildings and {len(zones)} zones.')
 

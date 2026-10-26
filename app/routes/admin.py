@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
-from app.models import Organisation, User, UserSession
+from app.models import Organisation, Person, User, UserSession
 from app.routes.helpers import require_platform_admin, parse_uuid, back_to, revoke_and_redirect, signed_out_or_back
 from app.services.auth import (
     active_sessions, active_session_counts, revoke_user_sessions, revoke_organisation_sessions, revoke_all_sessions,
@@ -31,16 +31,16 @@ def organisations():
 
     ids = [organisation.id for organisation in pagination.items]
     user_counts = dict(
-        db.session.query(User.organisation_id, db.func.count(User.id))
-        .filter(User.organisation_id.in_(ids))
-        .group_by(User.organisation_id)
+        db.session.query(Person.organisation_id, db.func.count(Person.id))
+        .filter(Person.organisation_id.in_(ids))
+        .group_by(Person.organisation_id)
         .all()
     ) if ids else {}
     session_counts = dict(
-        active_sessions().join(User)
-        .filter(User.organisation_id.in_(ids))
-        .with_entities(User.organisation_id, db.func.count(UserSession.id))
-        .group_by(User.organisation_id)
+        active_sessions().join(Person, UserSession.person_id == Person.id)
+        .filter(Person.organisation_id.in_(ids))
+        .with_entities(Person.organisation_id, db.func.count(UserSession.id))
+        .group_by(Person.organisation_id)
         .all()
     ) if ids else {}
 
@@ -57,7 +57,7 @@ def organisations():
 def suspend_organisation_route(id):
     organisation = Organisation.query.get_or_404(id)
 
-    if organisation.id == g.user.organisation_id:
+    if g.person and organisation.id == g.person.organisation_id:
         flash("You can't suspend your own organisation.", 'warning')
     elif organisation.suspended_at:
         flash(f"'{organisation.name}' is already suspended.", 'warning')
@@ -88,13 +88,14 @@ def sessions():
     organisation_id = request.args.get('organisation_id', '').strip()
     page = request.args.get('page', 1, type=int)
 
-    query = active_sessions().join(User)
+    # a session works in one organisation, or none while its user chooses (or a platform admin)
+    query = active_sessions().join(User, UserSession.user_id == User.id).outerjoin(Person, UserSession.person_id == Person.id)
 
     if search:
         query = query.filter(User.email.ilike(f'%{search}%'))
 
     if parse_uuid(organisation_id):
-        query = query.filter(User.organisation_id == parse_uuid(organisation_id))
+        query = query.filter(Person.organisation_id == parse_uuid(organisation_id))
 
     pagination = query.order_by(UserSession.last_seen_at.desc(), UserSession.id).paginate(
         page=page, per_page=25, error_out=False
@@ -132,8 +133,9 @@ def users():
     if search:
         query = query.filter(User.email.ilike(f'%{search}%'))
 
+    # users in the organisation, which they may share with others
     if parse_uuid(organisation_id):
-        query = query.filter(User.organisation_id == parse_uuid(organisation_id))
+        query = query.filter(User.people.any(Person.organisation_id == parse_uuid(organisation_id)))
 
     pagination = query.order_by(User.email, User.id).paginate(
         page=page, per_page=25, error_out=False

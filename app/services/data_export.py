@@ -4,7 +4,7 @@ import zipfile
 from collections import namedtuple
 
 from app.extensions import db
-from app.models import Asset, Building, Job, JobSchedule, Person, Site, Supplier, User, Zone
+from app.models import Asset, Building, Job, JobSchedule, Person, Site, Supplier, Zone
 from app.services.exports import csv_value
 
 # the "Export data" page: an organisation downloads all of its records as a zip of CSVs, one per type.
@@ -118,7 +118,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         *ADDRESS_COLUMNS,
         *TIMESTAMP_COLUMNS,
     ], lambda: []),
-    # the person record plus the two settings the organisation controls on it. Nothing else from the user
+    # the person record, including the two settings the organisation controls on it. Nothing from the user (login)
     ExportType('people', 'People', Person, 'people.view', [
         ('ID', lambda person: person.id),
         ('First Name', lambda person: person.first_name),
@@ -126,10 +126,10 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Email', lambda person: person.email),
         ('Job Title', lambda person: person.job_title),
         ('Mobile', lambda person: person.mobile),
-        ('User Group', lambda person: person.user.user_group.name if person.user and person.user.user_group else None),
-        ('Can Log In', lambda person: bool(person.user and person.user.can_login)),
+        ('User Group', lambda person: person.user_group.name if person.user_group else None),
+        ('Can Log In', lambda person: person.can_login),
         *TIMESTAMP_COLUMNS,
-    ], lambda: [db.joinedload(Person.user).joinedload(User.user_group)]),
+    ], lambda: [db.joinedload(Person.user_group)]),
 ]}
 
 

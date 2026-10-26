@@ -1,8 +1,8 @@
-"""init
+"""initial migrate
 
-Revision ID: c285ec4b54d3
+Revision ID: 84d28a18e154
 Revises: 
-Create Date: 2026-10-23 14:47:57.987212
+Create Date: 2026-10-26 16:44:01.624615
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'c285ec4b54d3'
+revision = '84d28a18e154'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -24,7 +24,35 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('suspended_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('verified_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('import_event',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('import_type', sa.String(length=30), nullable=False),
+    sa.Column('filename', sa.String(length=255), nullable=False),
+    sa.Column('rows_imported', sa.Integer(), nullable=False),
+    sa.Column('errors', sa.JSON(), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('person_id', sa.UUID(), nullable=True),
+    sa.Column('undone_at', sa.DateTime(), nullable=True),
+    sa.Column('undone_by_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('user',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('email_verified_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('is_platform_admin', sa.Boolean(), nullable=False),
+    sa.Column('last_organisation_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['last_organisation_id'], ['organisation.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('email')
     )
     op.create_table('user_group',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -37,71 +65,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('organisation_id', 'name')
     )
-    op.create_table('user',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('email', sa.String(length=255), nullable=False),
-    sa.Column('user_group_id', sa.UUID(), nullable=True),
-    sa.Column('email_verified_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('is_platform_admin', sa.Boolean(), nullable=False),
-    sa.Column('can_login', sa.Boolean(), nullable=False),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['user_group_id'], ['user_group.id'], ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('email')
-    )
-    op.create_table('user_group_permission',
-    sa.Column('user_group_id', sa.UUID(), nullable=False),
-    sa.Column('permission', sa.String(length=50), nullable=False),
-    sa.ForeignKeyConstraint(['user_group_id'], ['user_group.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('user_group_id', 'permission')
-    )
-    op.create_table('import_event',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('import_type', sa.String(length=30), nullable=False),
-    sa.Column('filename', sa.String(length=255), nullable=False),
-    sa.Column('rows_imported', sa.Integer(), nullable=False),
-    sa.Column('errors', sa.JSON(), nullable=False),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('user_id', sa.UUID(), nullable=True),
-    sa.Column('undone_at', sa.DateTime(), nullable=True),
-    sa.Column('undone_by_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['undone_by_id'], ['user.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('otp',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('code_hash', sa.String(length=64), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('attempts', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('user_session',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('token_hash', sa.String(length=64), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('user_agent', sa.String(length=255), nullable=True),
-    sa.Column('ip_address', sa.String(length=45), nullable=True),
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('token_hash')
-    )
     op.create_table('person',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -111,15 +74,22 @@ def upgrade():
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('job_title', sa.String(length=100), nullable=True),
     sa.Column('mobile', sa.String(length=100), nullable=True),
+    sa.Column('can_login', sa.Boolean(), nullable=False),
     sa.Column('organisation_id', sa.UUID(), nullable=False),
     sa.Column('import_event_id', sa.UUID(), nullable=True),
-    sa.Column('user_id', sa.UUID(), nullable=True),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('user_group_id', sa.UUID(), nullable=True),
     sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_group_id'], ['user_group.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('user_id')
+    sa.UniqueConstraint('organisation_id', 'user_id')
     )
+    # person and import_event refer to each other, so these are added once both exist (use_alter in the model)
+    with op.batch_alter_table('import_event', schema=None) as batch_op:
+        batch_op.create_foreign_key('fk_import_event_person_id', 'person', ['person_id'], ['id'], ondelete='SET NULL')
+        batch_op.create_foreign_key('fk_import_event_undone_by_id', 'person', ['undone_by_id'], ['id'], ondelete='SET NULL')
     op.create_table('site',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -137,34 +107,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('organisation_id', 'name')
     )
-    op.create_table('building',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('import_event_id', sa.UUID(), nullable=True),
-    sa.Column('site_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('site_id', 'name')
-    )
-    op.create_table('zone',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('import_event_id', sa.UUID(), nullable=True),
-    sa.Column('building_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('building_id', 'name')
-    )
     op.create_table('supplier',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -180,6 +122,71 @@ def upgrade():
     sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('user_group_permission',
+    sa.Column('user_group_id', sa.UUID(), nullable=False),
+    sa.Column('permission', sa.String(length=50), nullable=False),
+    sa.ForeignKeyConstraint(['user_group_id'], ['user_group.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('user_group_id', 'permission')
+    )
+    op.create_table('building',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('import_event_id', sa.UUID(), nullable=True),
+    sa.Column('site_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('site_id', 'name')
+    )
+    op.create_table('otp',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('code_hash', sa.String(length=64), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('attempts', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('person_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('user_session',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('token_hash', sa.String(length=64), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('user_agent', sa.String(length=255), nullable=True),
+    sa.Column('ip_address', sa.String(length=45), nullable=True),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('person_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('token_hash')
+    )
+    op.create_table('zone',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('import_event_id', sa.UUID(), nullable=True),
+    sa.Column('building_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('building_id', 'name')
     )
     op.create_table('asset',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -200,9 +207,9 @@ def upgrade():
     sa.Column('site_id', sa.UUID(), nullable=False),
     sa.Column('building_id', sa.UUID(), nullable=True),
     sa.Column('zone_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
     sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
@@ -226,9 +233,9 @@ def upgrade():
     sa.Column('site_id', sa.UUID(), nullable=False),
     sa.Column('building_id', sa.UUID(), nullable=True),
     sa.Column('zone_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
     sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
@@ -251,13 +258,16 @@ def upgrade():
     sa.Column('job_schedule_id', sa.UUID(), nullable=True),
     sa.CheckConstraint("source IN ('planned', 'reactive', 'remedial')", name='ck_job_source'),
     sa.CheckConstraint("status IN ('new', 'open', 'closed')", name='ck_job_status'),
+    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
     sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('job', schema=None) as batch_op:
+        batch_op.create_index('uq_job_open_per_schedule', ['job_schedule_id'], unique=True, postgresql_where=sa.text("status != 'closed'"), sqlite_where=sa.text("status != 'closed'"))
+
     op.create_table('job_schedule_assets',
     sa.Column('job_schedule_id', sa.UUID(), nullable=False),
     sa.Column('asset_id', sa.UUID(), nullable=False),
@@ -279,19 +289,25 @@ def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('job_assets')
     op.drop_table('job_schedule_assets')
+    with op.batch_alter_table('job', schema=None) as batch_op:
+        batch_op.drop_index('uq_job_open_per_schedule', postgresql_where=sa.text("status != 'closed'"), sqlite_where=sa.text("status != 'closed'"))
+
     op.drop_table('job')
     op.drop_table('job_schedule')
     op.drop_table('asset')
-    op.drop_table('supplier')
     op.drop_table('zone')
-    op.drop_table('building')
-    op.drop_table('site')
-    op.drop_table('person')
     op.drop_table('user_session')
     op.drop_table('otp')
-    op.drop_table('import_event')
+    op.drop_table('building')
     op.drop_table('user_group_permission')
-    op.drop_table('user')
+    op.drop_table('supplier')
+    op.drop_table('site')
+    with op.batch_alter_table('import_event', schema=None) as batch_op:
+        batch_op.drop_constraint('fk_import_event_undone_by_id', type_='foreignkey')
+        batch_op.drop_constraint('fk_import_event_person_id', type_='foreignkey')
+    op.drop_table('person')
     op.drop_table('user_group')
+    op.drop_table('user')
+    op.drop_table('import_event')
     op.drop_table('organisation')
     # ### end Alembic commands ###

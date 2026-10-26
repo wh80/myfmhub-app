@@ -13,5 +13,11 @@
     <div class="fw-semibold">Job Schedules</div>
     <div class="small text-muted">How planned maintenance schedules raise jobs, and how their dates are worked out.</div>
   </a>
+  {% if g.user.is_platform_admin %}
+  <a href="{{ url_for('support.authentication') }}" class="list-group-item list-group-item-action">
+    <div class="fw-semibold">Authentication <span class="badge text-bg-primary ms-1">Platform admins</span></div>
+    <div class="small text-muted">How logins, organisations, people, sign-in and sessions fit together.</div>
+  </a>
+  {% endif %}
 </div>
 {% endblock body %}

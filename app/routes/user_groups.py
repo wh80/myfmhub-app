@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import UserGroupForm
-from app.models import UserGroup, User
+from app.models import UserGroup, Person
 from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404
 from app.services.permissions import NEW_GROUP_PERMISSIONS, clean_permissions, set_permissions
 user_groups_bp = Blueprint('user_groups', __name__, url_prefix="/user-groups")
@@ -33,9 +33,9 @@ def index():
 
     ids = [user_group.id for user_group in pagination.items]
     member_counts = dict(
-        db.session.query(User.user_group_id, db.func.count(User.id))
-        .filter(User.user_group_id.in_(ids))
-        .group_by(User.user_group_id)
+        db.session.query(Person.user_group_id, db.func.count(Person.id))
+        .filter(Person.user_group_id.in_(ids))
+        .group_by(Person.user_group_id)
         .all()
     ) if ids else {}
 
@@ -61,7 +61,7 @@ def create():
 
         user_group = UserGroup(
             name=name,
-            organisation_id=g.user.organisation_id,
+            organisation_id=g.person.organisation_id,
         )
         set_permissions(user_group, granted)
         db.session.add(user_group)
@@ -74,7 +74,7 @@ def create():
 @user_groups_bp.route('/<uuid:id>', methods=['GET'])
 def view(id):
     user_group = org_get_or_404(UserGroup, id)
-    members = sorted(user_group.users, key=lambda user: (user.person.last_name, user.person.first_name) if user.person else ('', user.email))
+    members = sorted(user_group.people, key=lambda person: (person.last_name, person.first_name))
 
     return render_template('user_groups/view.html', user_group=user_group, members=members)
 
@@ -113,8 +113,8 @@ def delete(id):
         flash("The Admin group can't be deleted.", 'warning')
         return redirect(url_for('user_groups.view', id=user_group.id))
 
-    if user_group.users:
-        flash(f"Move the {len(user_group.users)} people in '{user_group.name}' to another group before deleting it.", 'warning')
+    if user_group.people:
+        flash(f"Move the {len(user_group.people)} people in '{user_group.name}' to another group before deleting it.", 'warning')
         return redirect(url_for('user_groups.view', id=user_group.id))
 
     if request.method =="POST":

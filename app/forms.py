@@ -120,6 +120,10 @@ class RegisterForm(FlaskForm):
 class OTPForm(FlaskForm):
     code = StringField('Code', validators=[DataRequired(), Length(min=6, max=6)], filters=[lambda value: value.strip() if value else value])
 
+class SwitchOrganisationForm(FlaskForm):
+    # the user's person in each organisation they can sign in to, labelled with the organisation's name
+    person_id = SelectField('Organisation', validators=[DataRequired()])
+
 class LoginForm(FlaskForm):
     email = EmailField('Email', validators=[DataRequired(), Email(), Length(max=255)], filters=[lambda value: value.strip() if value else value])
 
