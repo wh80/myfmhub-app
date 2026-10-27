@@ -10,7 +10,7 @@
         <th scope="col"></th>
         <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="site">Site</th>
-        <th scope="col" data-col="next_due_by">Next Due By</th>
+        <th scope="col" data-col="next_due">Next Due</th>
         <th scope="col" data-col="frequency">Frequency</th>
         <th scope="col" data-col="next_job_creation">Next Job Creation</th>
       </tr>
@@ -33,7 +33,7 @@
           >
         </td>
         <td>{{job_schedule.site.name}}</td>
-        <td>{{job_schedule.next_due_by | date}}</td>
+        <td>{{job_schedule.next_due | date}}</td>
         <td>{{job_schedule.frequency_label}}</td>
         <td>{{ job_schedule.next_job_creation_label }}</td>
       </tr>
@@ -65,7 +65,7 @@
           </div>
           <p class="card-text"><strong>Site:</strong> {{job_schedule.site.name}}</p>
           <p class="card-text">
-            <strong>Next due by:</strong> {{job_schedule.next_due_by | date}}
+            <strong>Next due:</strong> {{job_schedule.next_due | date}}
           </p>
           <p class="card-text">
             <strong>Frequency:</strong> {{job_schedule.frequency_label}}

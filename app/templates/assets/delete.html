@@ -1,4 +1,5 @@
-{% extends 'base.html' %} {% block body %}
+{% extends 'base.html' %}
+{% set title = 'Delete Asset: ' ~ asset.description %} {% block body %}
 
 <div class="card shadow-sm">
   <div class="card-header d-flex justify-content-between align-items-center">
@@ -8,8 +9,13 @@
   <div class="card-body">
     <p class="mb-4">
       Are you sure you want to delete <strong>{{asset.description}}</strong>? Deleting
-      this asset will remove it from any associated jobs or job schedules. 
+      this asset will remove it from any associated jobs or job schedules.
     </p>
+    {% if asset.sub_assets %}
+    <div class="alert alert-warning">
+      It has {{ asset.sub_assets|length }} sub-asset{{ 's' if asset.sub_assets|length != 1 }}. They won't be deleted: they'll become top-level assets.
+    </div>
+    {% endif %}
 
     <form method="post" id="delete-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

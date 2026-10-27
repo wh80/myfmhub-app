@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% set title = 'Confirm Delete Files' %}
+
+{% block body %}
+
+<div class="card shadow-sm border-danger">
+  <div class="card-header text-bg-danger">
+    <h4 class="mb-0"><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>Confirm Delete</h4>
+  </div>
+
+  <div class="card-body">
+    <div class="alert alert-danger">
+      You're about to permanently delete {{ files|length }} file{{ 's' if files|length != 1 }}. Each one is removed from storage
+      and from every record it's linked to. This can't be undone.
+    </div>
+
+    <ul class="list-group mb-4">
+      {% for file, links in files %}
+      <li class="list-group-item">
+        <div class="fw-semibold">{{ file.description }} <span class="text-muted fw-normal small">{{ file.filename }}</span></div>
+        {% if links %}
+        <div class="small mt-1">Currently linked to:</div>
+        <ul class="small mb-0">
+          {% for parent, records in links %}
+          <li>
+            {{ parent.plural }}:
+            {# names only for the types this user group can see #}
+            {% if can(parent.key ~ '.view') %}
+              {% for record in records %}<a href="{{ url_for(parent.key ~ '.view', id=record.id) }}">{{ parent.name(record) }}</a>{{ ', ' if not loop.last }}{% endfor %}
+            {% else %}
+              {{ records|length }}
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="small text-muted mt-1">Not linked to any records.</div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+
+    <form method="post" action="{{ url_for('files.delete') }}" id="confirm-delete-files">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input type="hidden" name="confirmed" value="1" />
+      <input type="hidden" name="next" value="{{ next_url }}" />
+      {% for file, links in files %}
+      <input type="hidden" name="file_ids" value="{{ file.id }}" />
+      {% endfor %}
+    </form>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-danger" form="confirm-delete-files">Confirm Delete</button>
+      <a href="{{ next_url }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

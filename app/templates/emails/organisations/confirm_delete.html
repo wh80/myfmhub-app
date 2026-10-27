@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirm deleting your organisation</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #212529;">
+    <p>Hi {{ first_name }},</p>
+    <p>We've received a request to delete <strong>{{ organisation_name }}</strong> from MyFmHub.</p>
+    <p style="color: #b02a37; font-weight: bold;">Warning: this is permanent and can't be undone. Every site, building, zone, asset, job, job schedule, supplier and person in {{ organisation_name }} will be deleted, and we can't recover them afterwards.</p>
+    <p>If you're sure, <a href="{{ confirm_url }}">click here to confirm the deletion</a>. You'll be asked to confirm one last time.</p>
+    <p>The link expires in {{ expiry_hours }} hour{{ 's' if expiry_hours != 1 }}, and only works when you're signed in to {{ organisation_name }}.</p>
+    <p>If you didn't ask for this, don't click the link. Nothing will be deleted.</p>
+</body>
+</html>

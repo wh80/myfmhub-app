@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% set title = 'Export Data' %}
 {% block body %}
 <h1 class="mb-4">Export Data</h1>
 
@@ -27,5 +28,63 @@
 </form>
 {% else %}
 <p>Your user group can't view any of the data that can be exported.</p>
+{% endif %}
+
+{% if show_files_export %}
+<hr class="my-4" />
+<h5>Download all files</h5>
+<p class="text-muted">
+  A zip of every file your organisation has uploaded ({{ file_count }} file{{ 's' if file_count != 1 }}, {{ storage_used }}),
+  with a manifest.csv listing each file and what it's linked to. It can be large, so we prepare it in the background
+  and email you a download link when it's ready. The link works for {{ keep_days }} days.
+</p>
+
+{% if active_export %}
+<div class="alert alert-info">
+  A zip requested {{ active_export.created_at | datetime }}{% if active_export.person %} by {{ active_export.person.first_name }} {{ active_export.person.last_name }}{% endif %}
+  is being prepared. We'll email {{ active_export.email }} when it's ready.
+</div>
+{% else %}
+<form method="POST" action="{{ url_for('exports.request_files') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  <button type="submit" class="btn btn-primary" {% if not file_count %}disabled{% endif %}>
+    <i class="bi bi-envelope" aria-hidden="true"></i> Email me a zip of all files
+  </button>
+</form>
+{% endif %}
+
+{% if recent_exports %}
+<h6 class="mt-4">Recent files exports</h6>
+<div class="table-responsive">
+  <table class="table align-middle text-nowrap">
+    <thead>
+      <tr>
+        <th scope="col">Requested (UTC)</th>
+        <th scope="col">By</th>
+        <th scope="col">Status</th>
+        <th scope="col">Files</th>
+        <th scope="col">Size</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for export in recent_exports %}
+      <tr>
+        <td>{{ export.created_at | datetime }}</td>
+        <td>{{ (export.person.first_name ~ ' ' ~ export.person.last_name) if export.person else export.email }}</td>
+        <td>{{ export.status_label }}</td>
+        <td>{{ export.file_count if export.file_count is not none else '-' }}</td>
+        <td>{{ export.size_mb | filesize }}</td>
+        <td class="text-end">
+          {% if export.status == 'ready' %}
+          <a href="{{ url_for('exports.download_files', id=export.id) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-download"></i> Download</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}

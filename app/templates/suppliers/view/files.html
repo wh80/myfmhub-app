@@ -1,0 +1,9 @@
+{% extends "suppliers/view/_layout.html" %}
+
+{% block tab_content %}
+
+{% with record=supplier, resource='suppliers' %}
+    {% include "files/_files_tab.html" %}
+{% endwith %}
+
+{% endblock tab_content %}

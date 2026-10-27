@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
-from app.forms import AssetForm
-from app.models import Asset, Site, Job, JobSchedule
-from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location
+from app.forms import AssetForm, AssetAssignForm
+from app.models import Asset, Site, Job, JobSchedule, Person
+from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab
 from app.services.exports import export_response
 assets_bp = Blueprint('assets', __name__, url_prefix="/assets")
 assets_bp.before_request(require_login)
@@ -97,9 +97,18 @@ def export(file_format):
 
 @assets_bp.route('/create', methods=['GET', 'POST'])
 def create():
+    # ?parent_id= creates a sub-asset, from the parent's Sub-Assets tab. It starts at the parent's location
+    parent = None
+    if request.args.get('parent_id'):
+        parent = org_get_or_404(Asset, parse_uuid(request.args['parent_id']))
+
     form = AssetForm()
     set_location_choices(form)
-    
+    if parent and request.method == 'GET':
+        form.site_id.data = str(parent.site_id)
+        form.building_id.data = str(parent.building_id or '')
+        form.zone_id.data = str(parent.zone_id or '')
+
     if form.validate_on_submit() and check_location(form) and check_unique(form):
         asset = Asset(
             description=form.description.data,
@@ -115,14 +124,17 @@ def create():
             site_id=form.site_id.data,
             building_id=parse_uuid(form.building_id.data),
             zone_id=parse_uuid(form.zone_id.data),
+            parent=parent,
             organisation_id=g.person.organisation_id,
         )
         db.session.add(asset)
         db.session.commit()
         flash(f"Asset '{asset.description}' created successfully!", 'success')
+        if parent:
+            return redirect(url_for('assets.sub_assets', id=parent.id))
         return redirect(url_for('assets.index'))
 
-    return render_template('assets/create.html', form=form)
+    return render_template('assets/create.html', form=form, parent=parent)
 
 @assets_bp.route('/<uuid:id>', methods=['GET'])
 def view(id):
@@ -171,7 +183,31 @@ def delete(id):
 
     return render_template('assets/delete.html', asset=asset)
 
+# assign the asset to a person in the organisation, or to nobody. WTForms refuses anyone not in the choices
+@assets_bp.route('/<uuid:id>/assign', methods=['GET', 'POST'])
+def assign(id):
+    asset = org_get_or_404(Asset, id)
+    form = AssetAssignForm(data={'assigned_to_id': asset.assigned_to_id})
+    people = org_query(Person).order_by(Person.first_name, Person.last_name, Person.id).all()
+    form.assigned_to_id.choices = [('', '--- Unassigned ---')] + [(str(person.id), f'{person.first_name} {person.last_name} ({person.email})') for person in people]
+
+    if form.validate_on_submit():
+        asset.assigned_to_id = parse_uuid(form.assigned_to_id.data)
+        db.session.commit()
+        if asset.assigned_to:
+            flash(f"Asset '{asset.description}' assigned to {asset.assigned_to.first_name} {asset.assigned_to.last_name}.", 'success')
+        else:
+            flash(f"Asset '{asset.description}' is no longer assigned to anyone.", 'success')
+        return redirect(url_for('assets.view', id=asset.id))
+
+    return render_template('assets/assign.html', asset=asset, form=form)
+
 ### RELATED DATA ###
+
+@assets_bp.route("/<uuid:id>/sub-assets")
+def sub_assets(id):
+    asset = org_get_or_404(Asset, id)
+    return render_template("assets/view/sub_assets.html", asset=asset, active_tab="sub_assets")
 
 @assets_bp.route("/<uuid:id>/jobs")
 def jobs(id):
@@ -276,3 +312,7 @@ def unlink_job_schedules(id):
 
     job_schedules = sorted(asset.job_schedules, key=lambda job_schedule: job_schedule.description)
     return render_template("assets/view/job_schedules_unlink.html", asset=asset, job_schedules=job_schedules)
+
+@assets_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(Asset, id, "assets/view/files.html", "asset")

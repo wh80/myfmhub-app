@@ -10,7 +10,7 @@
         <th scope="col"></th>
         <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="site">Site</th>
-        <th scope="col" data-col="due_by">Due By</th>
+        <th scope="col" data-col="due">Due</th>
         <th scope="col" data-col="source">Source</th>
         <th scope="col" data-col="status">Status</th>
         <th scope="col" data-col="closed_on">Closed On</th>
@@ -34,7 +34,7 @@
           >
         </td>
         <td>{{job.site.name}}</td>
-        <td>{{job.due_by | date}}</td>
+        <td>{{job.due | date}}</td>
         <td>{{job.source_label}}</td>
         <td>{% include "jobs/_status_badge.html" %}</td>
         <td>{{job.closed_at | date}}</td>
@@ -67,7 +67,7 @@
           </div>
           <p class="card-text"><strong>Site:</strong> {{job.site.name}}</p>
           <p class="card-text">
-            <strong>Due by:</strong> {{job.due_by | date}}
+            <strong>Due:</strong> {{job.due | date}}
           </p>
           <p class="card-text"><strong>Source:</strong> {{job.source_label}}</p>
           <p class="card-text"><strong>Status:</strong> {% include "jobs/_status_badge.html" %}</p>

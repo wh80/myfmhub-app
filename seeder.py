@@ -140,6 +140,9 @@ def seed(count):
             organisation=organisation,
             user=users.get(email) or User(email=email),
         ))
+    # the first person is the admin, as if they'd registered it
+    organisation.terms_accepted_at = organisation.verified_at
+    organisation.terms_accepted_by = people[0]
     for user in shared:
         existing = user.signin_people()[0]
         people.append(Person(
@@ -217,17 +220,17 @@ def seed(count):
     job_schedules = []
     for _ in range(count):
         description, work_required, statutory_compliance = random.choice(JOB_SCHEDULES)
-        next_due_by = days_from_today(1, 365)
+        next_due = days_from_today(1, 365)
         # notice shorter than the gap between jobs
         frequency = random.choice(FREQUENCIES)[0]
         notice_days = {'daily': 0, 'weekly': random.randint(0, 3)}.get(frequency, random.choice([7, 14, 21, 28]))
         job_schedules.append(JobSchedule(
             description=description,
             work_required=work_required,
-            next_due_by=next_due_by,
+            next_due=next_due,
             frequency=frequency,
             notice_days=notice_days,
-            next_job_creation_date=job_creation_date(next_due_by, notice_days),
+            next_job_creation_date=job_creation_date(next_due, notice_days),
             statutory_compliance=statutory_compliance,
             is_active=random.random() > 0.1,
             site=pick_site(),
@@ -252,7 +255,7 @@ def seed(count):
             jobs.append(Job(
                 description=job_schedule.description,
                 work_required=job_schedule.work_required,
-                due_by=days_from_today(-30, 90),
+                due=days_from_today(-30, 90),
                 statutory_compliance=job_schedule.statutory_compliance,
                 status=status,
                 source='planned',
@@ -268,7 +271,7 @@ def seed(count):
             jobs.append(place(Job(
                 description=description,
                 work_required=work_required,
-                due_by=random.choice([None, days_from_today(-30, 60)]),
+                due=random.choice([None, days_from_today(-30, 60)]),
                 status=random.choice(JOB_STATUSES)[0],
                 source=random.choice(['reactive', 'remedial']),
                 site=site,

@@ -1,0 +1,9 @@
+{% extends "people/view/_layout.html" %}
+
+{% block tab_content %}
+
+{% with record=person, resource='people' %}
+    {% include "files/_files_tab.html" %}
+{% endwith %}
+
+{% endblock tab_content %}

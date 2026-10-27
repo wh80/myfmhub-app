@@ -15,6 +15,16 @@
         </a>
         {% endif %}
 
+        {% if can('job_schedules.create') %}
+        <a
+            href="{{ url_for('job_schedules.create', copy_from=job_schedule.id) }}"
+            class="btn btn-secondary btn-sm"
+            title="Create a new job schedule with the same scheduling details, for another site"
+        >
+            Copy
+        </a>
+        {% endif %}
+
         {% if can('job_schedules.delete') and job_schedule.jobs %}
         <button type="button" class="btn btn-danger btn-sm" disabled title="A schedule that has raised jobs can't be deleted">
             Delete
@@ -28,4 +38,4 @@
         </a>
         {% endif %}
     </div>
-</div>
+</div>

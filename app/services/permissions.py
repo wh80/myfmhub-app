@@ -11,6 +11,7 @@ RESOURCES = [
     ('job_schedules', 'Job Schedules'),
     ('suppliers', 'Suppliers'),
     ('people', 'People'),
+    ('files', 'Files'),
 ]
 ACTIONS = [('view', 'View'), ('create', 'Create'), ('edit', 'Edit'), ('delete', 'Delete')]
 # grantable permissions outside the resource × action grid, listed under it on the user group pages
@@ -23,11 +24,13 @@ EXTRA_PERMISSIONS = [
     # download every record of the types the group can view, as a zip of CSVs
     ('exports.manage', 'Export data'),
 ]
-GRANTABLE = {f'{resource}.{action}' for resource, _ in RESOURCES for action, _ in ACTIONS} | {key for key, _ in EXTRA_PERMISSIONS}
+# files can't be edited (only uploaded, linked and deleted), so files.edit isn't offered
+NOT_GRANTABLE = {'files.edit'}
+GRANTABLE = ({f'{resource}.{action}' for resource, _ in RESOURCES for action, _ in ACTIONS} - NOT_GRANTABLE) | {key for key, _ in EXTRA_PERMISSIONS}
 
 # only the Admin group has these. They're never stored on a group or shown in the grid
 ADMIN_ONLY = {
-    'organisation.manage',  # update or delete the organisation (no routes yet)
+    'organisation.manage',  # My Organisation, including deleting it
     'sessions.manage',      # see and revoke everyone's sessions
     'user_groups.manage',   # create groups, change their permissions
 }
@@ -55,18 +58,31 @@ ENDPOINT_PERMISSIONS = {
     **_resource('sites', view=['export', 'buildings', 'assets', 'jobs', 'job_schedules']),
     **_resource('buildings', view=['zones', 'assets', 'job_schedules']),
     **_resource('zones'),
-    **_resource('assets', view=['export', 'jobs', 'job_schedules'], edit=['link_jobs', 'unlink_jobs', 'link_job_schedules', 'unlink_job_schedules']),
+    **_resource('assets', view=['export', 'sub_assets', 'jobs', 'job_schedules'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_job_schedules', 'unlink_job_schedules']),
     **_resource('jobs', view=['export', 'assets'], edit=['link_assets', 'unlink_assets']),
     'jobs.close': 'jobs.close',
     'jobs.reopen': 'jobs.reopen',
     # part of closing a planned job, so it needs close rather than job_schedules.edit
     'jobs.update_schedule': 'jobs.close',
-    **_resource('job_schedules', view=['export', 'jobs', 'assets'], edit=['link_assets', 'unlink_assets']),
+    **_resource('job_schedules', view=['export', 'created', 'jobs', 'assets'], edit=['link_assets', 'unlink_assets']),
     **_resource('suppliers', view=['export']),
-    **_resource('people', view=['export'], edit=['resend_invite']),
+    **_resource('people', view=['export', 'assets'], edit=['resend_invite']),
     **{f'user_groups.{name}': 'user_groups.manage' for name in ['index', 'create', 'view', 'edit', 'delete']},
     **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'view', 'undo']},
     'exports.index': 'exports.manage',
+    # Download all files: these also check files.view
+    'exports.request_files': 'exports.manage',
+    'exports.download_files': 'exports.manage',
+    **{f'my_organisation.{name}': 'organisation.manage' for name in ['view', 'delete', 'delete_requested', 'confirm_delete']},
+    # each record's Files tab needs view on the record, and its route checks files.view too
+    **{f'{resource}.files': f'{resource}.view' for resource in ['sites', 'buildings', 'zones', 'assets', 'jobs', 'job_schedules', 'people', 'suppliers']},
+    # files.create, link and unlink also check edit on the record the file is added to or removed from
+    'files.index': 'files.view',
+    'files.view': 'files.view',
+    'files.create': 'files.create',
+    'files.link': 'files.view',
+    'files.unlink': 'files.view',
+    'files.delete': 'files.delete',
 }
 
 

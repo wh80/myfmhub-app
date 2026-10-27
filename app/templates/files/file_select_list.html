@@ -1,0 +1,31 @@
+{# files with a checkbox each (field file_ids), for the link, remove and delete pages #}
+<div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap">
+    <thead>
+      <tr>
+        <th scope="col" style="width: 1%"></th>
+        <th scope="col">Description</th>
+        <th scope="col">File</th>
+        <th scope="col">Expires</th>
+        <th scope="col">Size</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for file in files %}
+      <tr>
+        <td><input class="form-check-input" type="checkbox" name="file_ids" value="{{ file.id }}" id="file-{{ file.id }}" /></td>
+        <td><label class="form-check-label" for="file-{{ file.id }}">{{ file.description }}</label></td>
+        <td>{{ file.filename }}</td>
+        <td>{{ file.expires | date }}{% if file.is_expired %} <span class="badge text-bg-danger">Expired</span>{% endif %}</td>
+        <td>{{ file.size_mb | filesize }}</td>
+        <td class="text-end">
+          <a href="{{ url_for('files.view', id=file.id) }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-eye"></i> View
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

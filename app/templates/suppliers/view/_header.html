@@ -1,0 +1,22 @@
+<div class="card-header d-flex justify-content-between align-items-center">
+  <h4 class="mb-0">Supplier: {{supplier.name}}</h4>
+
+  <div class="d-flex gap-2">
+    {% if can('suppliers.edit') %}
+    <a
+      href="{{url_for('suppliers.edit', id=supplier.id)}}"
+      class="btn btn-primary btn-sm"
+    >
+      Edit
+    </a>
+    {% endif %}
+    {% if can('suppliers.delete') %}
+    <a
+      href="{{url_for('suppliers.delete', id=supplier.id)}}"
+      class="btn btn-danger btn-sm"
+    >
+      Delete
+    </a>
+    {% endif %}
+  </div>
+</div>

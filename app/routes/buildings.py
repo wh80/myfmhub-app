@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import BuildingForm
 from app.models import Building, Site
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab
 buildings_bp = Blueprint('buildings', __name__, url_prefix="/buildings")
 buildings_bp.before_request(require_login)
 buildings_bp.before_request(require_permission)
@@ -102,3 +102,7 @@ def assets(id):
 def job_schedules(id):
     building = org_get_or_404(Building, id)
     return render_template("buildings/view/job_schedules.html", building=building, active_tab="job_schedules")
+
+@buildings_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(Building, id, "buildings/view/files.html", "building")

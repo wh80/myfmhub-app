@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% set title = 'Person: ' ~ person.first_name ~ ' ' ~ person.last_name %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+
+  {% include "people/view/_header.html" %}
+
+  <div class="card-body">
+
+    {% include "people/view/_tabs.html" %}
+
+    {% block tab_content %}{% endblock tab_content %}
+
+  </div>
+</div>
+
+{% endblock body %}

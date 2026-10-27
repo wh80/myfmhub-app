@@ -1,5 +1,5 @@
 {% extends "job_schedules/view/_layout.html" %}
-{% from "_location_fields.html" import location_text %}
+{% from "_location_fields.html" import location_lines %}
 
 {% block tab_content %}
 
@@ -8,7 +8,7 @@
 <div class="alert alert-info">
   This schedule has an open job,
   {% if can('jobs.view') %}<a href="{{ url_for('jobs.view', id=open_job.id) }}">{{ open_job.description }}</a>{% else %}{{ open_job.description }}{% endif %},
-  due {{ open_job.due_by | date }}. The schedule can't be edited until that job is closed.
+  due {{ open_job.due | date }}. The schedule can't be edited until that job is closed.
   <a href="{{ url_for('support.job_schedules') }}#editing">Why?</a>
 </div>
 {% endif %}
@@ -16,7 +16,7 @@
 <div class="row mb-4">
   <div class="col-md-8">
     <h6 class="text-muted">Location</h6>
-    <p class="mb-0">{{ location_text(job_schedule, links=True) }}</p>
+    {{ location_lines(job_schedule) }}
   </div>
 </div>
 
@@ -31,9 +31,9 @@
     </div>
   </div>
   <div class="col-md-6">
-    <div class="text-muted small">Next Due By</div>
+    <div class="text-muted small">Next Due</div>
     <div class="fw-semibold">
-      <p>{{job_schedule.next_due_by | date}}</p>
+      <p>{{job_schedule.next_due | date}}</p>
 
     </div>
   </div>

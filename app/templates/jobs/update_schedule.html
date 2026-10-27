@@ -1,4 +1,5 @@
-{% extends 'base.html' %} {% block body %}
+{% extends 'base.html' %}
+{% set title = 'Close Job: ' ~ job.description %} {% block body %}
 
 <div class="card shadow-sm">
   <div class="card-header d-flex justify-content-between align-items-center">
@@ -36,11 +37,11 @@
       {{ form.hidden_tag() }}
 
       <div class="mb-3">
-        {{ form.next_due_by.label(class="form-label") }} {{
-        form.next_due_by(class="form-control" ~ (" is-invalid" if
-        form.next_due_by.errors else "")) }} {% if form.next_due_by.errors %}
+        {{ form.next_due.label(class="form-label") }} {{
+        form.next_due(class="form-control" ~ (" is-invalid" if
+        form.next_due.errors else "")) }} {% if form.next_due.errors %}
         <div class="invalid-feedback d-block">
-          {% for error in form.next_due_by.errors %}
+          {% for error in form.next_due.errors %}
           <div>{{ error }}</div>
           {% endfor %}
         </div>

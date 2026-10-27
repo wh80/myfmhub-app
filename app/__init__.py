@@ -30,7 +30,7 @@ def create_app():
     from app.routes.assets import assets_bp
     from app.routes.job_schedules import job_schedules_bp
     from app.routes.suppliers import suppliers_bp
-    from app.routes.organisations import organisations_bp, register
+    from app.routes.organisations import organisations_bp, register, terms
     from app.routes.auth import auth_bp, login
     from app.routes.dashboard import dashboard_bp, root
     from app.routes.admin import admin_bp
@@ -41,6 +41,8 @@ def create_app():
     from app.routes.support import support_bp
     from app.routes.buildings import buildings_bp
     from app.routes.zones import zones_bp
+    from app.routes.my_organisation import my_organisation_bp
+    from app.routes.files import files_bp
 
     app.register_blueprint(sites_bp)
     app.register_blueprint(jobs_bp)
@@ -58,12 +60,15 @@ def create_app():
     app.register_blueprint(support_bp)
     app.register_blueprint(buildings_bp)
     app.register_blueprint(zones_bp)
+    app.register_blueprint(my_organisation_bp)
+    app.register_blueprint(files_bp)
 
     # / goes to the dashboard (which sends signed-out visitors to /login)
     app.add_url_rule('/', endpoint='dashboard.root', view_func=root)
 
-    # registration and login live at the root /register and /login urls rather than under their blueprints
+    # registration, terms and login live at the root /register, /terms and /login urls rather than under their blueprints
     app.add_url_rule('/register', endpoint='organisations.register', view_func=register, methods=['GET', 'POST'])
+    app.add_url_rule('/terms', endpoint='organisations.terms', view_func=terms)
     app.add_url_rule('/login', endpoint='auth.login', view_func=login, methods=['GET', 'POST'])
 
     from app.commands import make_platform_admin, create_jobs_for_job_schedules
@@ -74,18 +79,29 @@ def create_app():
     app.jinja_env.filters['datetime'] = lambda value: value.strftime('%d-%m-%Y %H:%M') if value else '-'
     app.jinja_env.filters['date'] = lambda value: value.strftime('%d-%m-%Y') if value else '-'
     app.jinja_env.filters['currency'] = lambda value: f'£{value:,.2f}' if value is not None else '-'
+    from app.services.files import size_text
+    app.jinja_env.filters['filesize'] = size_text
 
     # templates check permissions with can('jobs.edit') for the signed-in user in the session's organisation
     from flask import g
-    from app.services.permissions import can, RESOURCES, ACTIONS, EXTRA_PERMISSIONS
+    from app.services.permissions import can, RESOURCES, ACTIONS, EXTRA_PERMISSIONS, NOT_GRANTABLE
     app.jinja_env.globals['can'] = lambda permission: can(g.get('person'), permission)
     app.jinja_env.globals['PERMISSION_RESOURCES'] = RESOURCES
     app.jinja_env.globals['PERMISSION_ACTIONS'] = ACTIONS
     app.jinja_env.globals['PERMISSION_EXTRAS'] = EXTRA_PERMISSIONS
+    app.jinja_env.globals['PERMISSION_NOT_GRANTABLE'] = NOT_GRANTABLE
 
     @app.errorhandler(403)
     def forbidden(error):
         return render_template('errors/403.html'), 403
+
+    # a request bigger than MAX_CONTENT_LENGTH, in practice a file upload: back to the form with a message
+    @app.errorhandler(413)
+    def too_large(error):
+        from flask import flash, redirect, request
+        from app.services.files import MAX_FILE_MB
+        flash(f'That file is too big. Files can be up to {MAX_FILE_MB} MB.', 'warning')
+        return redirect(request.full_path.rstrip('?'))
 
     @app.errorhandler(404)
     def not_found(error):

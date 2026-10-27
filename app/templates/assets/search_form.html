@@ -1,5 +1,7 @@
 {% from "_location_fields.html" import location_filters %}
 <form method="get" class="mb-4">
+  {# the search box shows on its own. Advanced opens the other filters, and starts open when one is set #}
+  {% set advanced_open = site_id or building_id or zone_id %}
   <div class="row g-2">
     <div class="col-md-6">
       <label for="search" class="form-label">Search</label>
@@ -13,15 +15,29 @@
       />
     </div>
 
-    {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
-
-    <div class="col-md-2 d-flex align-items-end">
-      <button type="submit" class="btn btn-primary w-100">
+    <div class="col-md-auto d-flex align-items-end gap-2">
+      <button type="submit" class="btn btn-primary">
         <i class="bi bi-search"></i> Search
       </button>
-      <a href="{{url_for('assets.index')}}" class="btn btn-secondary w-100">
+      <a href="{{url_for('assets.index')}}" class="btn btn-secondary">
         <i class="bi bi-x-circle"></i> Cancel
       </a>
+      <button
+        type="button"
+        class="btn btn-link text-decoration-none{{ '' if advanced_open else ' collapsed' }}"
+        data-bs-toggle="collapse"
+        data-bs-target="#advanced-filters"
+        aria-expanded="{{ 'true' if advanced_open else 'false' }}"
+        aria-controls="advanced-filters"
+      >
+        <i class="bi bi-sliders"></i> Advanced
+      </button>
     </div>
   </div>
-</form>
+
+  <div class="collapse{{ ' show' if advanced_open }}" id="advanced-filters">
+    <div class="row g-2 mt-1">
+      {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
+    </div>
+  </div>
+</form>

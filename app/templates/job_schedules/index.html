@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% set title = 'Job Schedules' %}
 {% from "_location_fields.html" import location_filters %}
 {% from "pagination.html" import pagination_nav %}
 {% block body %}
@@ -12,8 +13,10 @@
 </div>
 
 <form method="get" class="mb-4">
+  {# the search box shows on its own. Advanced opens the other filters, and starts open when one is set #}
+  {% set advanced_open = site_id or building_id or zone_id or next_due_from or next_due_to or active or statutory %}
   <div class="row g-2">
-    <div class="col-md-4">
+    <div class="col-md-6">
       <label for="search" class="form-label">Search</label>
       <input
         type="text"
@@ -25,48 +28,62 @@
       />
     </div>
 
-    {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
-
-    <div class="col-md-2">
-      <label for="next_due_from" class="form-label">Next due from</label>
-      <input type="date" id="next_due_from" name="next_due_from" value="{{ next_due_from.isoformat() if next_due_from else '' }}" class="form-control" />
-    </div>
-
-    <div class="col-md-2">
-      <label for="next_due_to" class="form-label">Next due to</label>
-      <input type="date" id="next_due_to" name="next_due_to" value="{{ next_due_to.isoformat() if next_due_to else '' }}" class="form-control" />
-    </div>
-
-    <div class="col-md-2">
-      <label for="active" class="form-label">Active</label>
-      <select name="active" id="active" class="form-select">
-        <option value="" {% if not active %}selected{% endif %}>All</option>
-        <option value="yes" {% if active == 'yes' %}selected{% endif %}>Active</option>
-        <option value="no" {% if active == 'no' %}selected{% endif %}>Inactive</option>
-      </select>
-    </div>
-
-    <div class="col-md-2 d-flex align-items-end">
-      <div class="form-check mb-2">
-        <input
-          type="checkbox"
-          id="statutory"
-          name="statutory"
-          value="1"
-          class="form-check-input"
-          {% if statutory %}checked{% endif %}
-        />
-        <label for="statutory" class="form-check-label">Statutory only</label>
-      </div>
-    </div>
-
-    <div class="col-md-2 d-flex align-items-end">
-      <button type="submit" class="btn btn-primary w-100">
+    <div class="col-md-auto d-flex align-items-end gap-2">
+      <button type="submit" class="btn btn-primary">
         <i class="bi bi-search"></i> Search
       </button>
-      <a href="{{url_for('job_schedules.index')}}" class="btn btn-secondary w-100">
+      <a href="{{url_for('job_schedules.index')}}" class="btn btn-secondary">
         <i class="bi bi-x-circle"></i> Cancel
       </a>
+      <button
+        type="button"
+        class="btn btn-link text-decoration-none{{ '' if advanced_open else ' collapsed' }}"
+        data-bs-toggle="collapse"
+        data-bs-target="#advanced-filters"
+        aria-expanded="{{ 'true' if advanced_open else 'false' }}"
+        aria-controls="advanced-filters"
+      >
+        <i class="bi bi-sliders"></i> Advanced
+      </button>
+    </div>
+  </div>
+
+  <div class="collapse{{ ' show' if advanced_open }}" id="advanced-filters">
+    <div class="row g-2 mt-1">
+      {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
+
+      <div class="col-md-2">
+        <label for="next_due_from" class="form-label">Next due from</label>
+        <input type="date" id="next_due_from" name="next_due_from" value="{{ next_due_from.isoformat() if next_due_from else '' }}" class="form-control" />
+      </div>
+
+      <div class="col-md-2">
+        <label for="next_due_to" class="form-label">Next due to</label>
+        <input type="date" id="next_due_to" name="next_due_to" value="{{ next_due_to.isoformat() if next_due_to else '' }}" class="form-control" />
+      </div>
+
+      <div class="col-md-2">
+        <label for="active" class="form-label">Active</label>
+        <select name="active" id="active" class="form-select">
+          <option value="" {% if not active %}selected{% endif %}>All</option>
+          <option value="yes" {% if active == 'yes' %}selected{% endif %}>Active</option>
+          <option value="no" {% if active == 'no' %}selected{% endif %}>Inactive</option>
+        </select>
+      </div>
+
+      <div class="col-md-2 d-flex align-items-end">
+        <div class="form-check mb-2">
+          <input
+            type="checkbox"
+            id="statutory"
+            name="statutory"
+            value="1"
+            class="form-check-input"
+            {% if statutory %}checked{% endif %}
+          />
+          <label for="statutory" class="form-check-label">Statutory only</label>
+        </div>
+      </div>
     </div>
   </div>
 </form>

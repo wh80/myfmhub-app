@@ -55,10 +55,21 @@
     </div>
 {% endmacro %}
 
-{# "Site › Building › Zone" for a record. With links, each part links to its page if the user can view it #}
-{% macro location_text(record, links=False) -%}
-  {%- if links and can('sites.view') %}<a href="{{ url_for('sites.view', id=record.site.id) }}">{{ record.site.name }}</a>{% else %}{{ record.site.name }}{% endif %}
-  {%- if record.building %} &rsaquo; {% if links and can('buildings.view') %}<a href="{{ url_for('buildings.view', id=record.building.id) }}">{{ record.building.name }}</a>{% else %}{{ record.building.name }}{% endif %}
-    {%- if record.zone %} &rsaquo; {% if links and can('zones.view') %}<a href="{{ url_for('zones.view', id=record.zone.id) }}">{{ record.zone.name }}</a>{% else %}{{ record.zone.name }}{% endif %}{% endif %}
+{# "Site › Building › Zone" for a record, for list cards #}
+{% macro location_text(record) -%}
+  {{ record.site.name }}
+  {%- if record.building %} &rsaquo; {{ record.building.name }}
+    {%- if record.zone %} &rsaquo; {{ record.zone.name }}{% endif %}
   {%- endif %}
 {%- endmacro %}
+
+{# Site, Building and Zone on separate lines for an overview, each linking to its page if the user can view it #}
+{% macro location_link(endpoint, item, permission) -%}
+  {%- if not item %}-{% elif can(permission) %}<a href="{{ url_for(endpoint, id=item.id) }}">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}
+{%- endmacro %}
+
+{% macro location_lines(record) %}
+<p class="mb-1"><strong>Site:</strong> {{ location_link('sites.view', record.site, 'sites.view') }}</p>
+<p class="mb-1"><strong>Building:</strong> {{ location_link('buildings.view', record.building, 'buildings.view') }}</p>
+<p class="mb-0"><strong>Zone:</strong> {{ location_link('zones.view', record.zone, 'zones.view') }}</p>
+{% endmacro %}

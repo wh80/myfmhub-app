@@ -12,8 +12,8 @@ FREQUENCIES = [
     ('weekly', 'Every Week'),
     ('six_weekly', 'Every 6 Weeks'),
     ('monthly', 'Every Month'),
-    ('three_monthly', 'Every Three Months'),
-    ('six_monthly', 'Every Six Months'),
+    ('three_monthly', 'Every 3 Months'),
+    ('six_monthly', 'Every 6 Months'),
     ('yearly', 'Every Year'),
     ('two_yearly', 'Every 2 Years'),
     ('three_yearly', 'Every 3 Years'),
@@ -38,11 +38,11 @@ FREQUENCY_MIN_DAYS = {
 
 
 # the job is raised notice_days before it's due. This can be in the past when the due date is close
-def job_creation_date(next_due_by, notice_days):
-    return next_due_by - timedelta(days=notice_days)
+def job_creation_date(next_due, notice_days):
+    return next_due - timedelta(days=notice_days)
 
 
-# how far each frequency moves next_due_by on. Months and years are calendar steps, not a fixed number of days
+# how far each frequency moves next_due on. Months and years are calendar steps, not a fixed number of days
 FREQUENCY_DAYS = {
     'daily': 1,
     'weekly': 7,
@@ -79,7 +79,7 @@ def add_months(value, months):
     return value.replace(year=year, month=month, day=day)
 
 
-def next_due_date(due_by, frequency):
+def next_due_date(due, frequency):
     if frequency in FREQUENCY_DAYS:
-        return due_by + timedelta(days=FREQUENCY_DAYS[frequency])
-    return add_months(due_by, FREQUENCY_MONTHS[frequency])
+        return due + timedelta(days=FREQUENCY_DAYS[frequency])
+    return add_months(due, FREQUENCY_MONTHS[frequency])

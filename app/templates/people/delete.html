@@ -1,4 +1,5 @@
-{% extends 'base.html' %} {% block body %}
+{% extends 'base.html' %}
+{% set title = 'Delete Person: ' ~ person.first_name ~ ' ' ~ person.last_name %} {% block body %}
 
 <div class="card shadow-sm">
   <div class="card-header d-flex justify-content-between align-items-center">

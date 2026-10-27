@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import ZoneForm
 from app.models import Zone, Building, Site
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab
 zones_bp = Blueprint('zones', __name__, url_prefix="/zones")
 zones_bp.before_request(require_login)
 zones_bp.before_request(require_permission)
@@ -65,7 +65,7 @@ def create():
 @zones_bp.route('/<uuid:id>', methods=['GET'])
 def view(id):
     zone = org_get_or_404(Zone, id)
-    return render_template('zones/view.html', zone=zone)
+    return render_template('zones/view/overview.html', zone=zone, active_tab="overview")
 
 @zones_bp.route('/<uuid:id>/edit', methods=['GET', 'POST'])
 def edit(id):
@@ -93,3 +93,9 @@ def delete(id):
         return redirect(url_for('buildings.zones', id=building_id))
 
     return render_template('zones/delete.html', zone=zone)
+
+### RELATED DATA ###
+
+@zones_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(Zone, id, "zones/view/files.html", "zone")

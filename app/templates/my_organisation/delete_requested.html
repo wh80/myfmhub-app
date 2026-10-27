@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% set title = 'Delete Request Received' %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Delete Request Received</h4>
+  </div>
+
+  <div class="card-body">
+    <p>Your delete request has been received. Please check your email ({{ g.user.email }}) for a final confirmation link.</p>
+    <p class="text-muted">The link expires in {{ expiry_hours }} hour{{ 's' if expiry_hours != 1 }}. Nothing has been deleted yet.</p>
+    <a href="{{ url_for('my_organisation.view') }}" class="btn btn-secondary">Back to My Organisation</a>
+  </div>
+</div>
+
+{% endblock body %}

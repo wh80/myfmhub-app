@@ -1,6 +1,12 @@
 {% extends 'base.html' %}
+{% set title = 'Create Sub-Asset' if parent else 'Create Asset' %}
 {% from "_location_fields.html" import location_fields %} {% block body %}
-<h3>Create Asset</h3>
+<h3>{{ 'Create Sub-Asset' if parent else 'Create Asset' }}</h3>
+{% if parent %}
+<p class="text-muted">
+  Part of <a href="{{ url_for('assets.view', id=parent.id) }}">{{ parent.description }}</a>. It starts at the same location, which you can change.
+</p>
+{% endif %}
 
 <form method="POST">
   {{ form.hidden_tag() }}

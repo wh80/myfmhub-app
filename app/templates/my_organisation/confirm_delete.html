@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% set title = 'Confirm Delete Account' %}
+
+{% block body %}
+
+<div class="card shadow-sm border-danger">
+  <div class="card-header text-bg-danger">
+    <h4 class="mb-0"><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>Final Warning</h4>
+  </div>
+
+  <div class="card-body">
+    <p>
+      You're about to permanently delete <strong>{{ organisation.name }}</strong> and all of its data.
+      <strong>This cannot be undone</strong>, and MyFmHub can't recover it for you afterwards.
+    </p>
+
+    <ul>
+      {% for key, label, count in items %}
+      <li>{{ label }}: {{ count }}</li>
+      {% endfor %}
+    </ul>
+
+    <p>You'll be signed out once it's deleted.</p>
+
+    <form method="post" id="confirm-delete-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    </form>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-danger" form="confirm-delete-form">Confirm Deletion</button>
+      {# closes the tab the email link opened. If the browser won't allow it, goes back to My Organisation #}
+      <button type="button" class="btn btn-secondary" data-close-window="{{ url_for('my_organisation.view') }}">Cancel</button>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

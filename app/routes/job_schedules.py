@@ -2,8 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import JobScheduleForm
 from app.models import JobSchedule, Site, Asset
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location
+from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab
 from app.services.exports import export_response
+from app.services.permissions import can
 from app.services.scheduling import job_creation_date, uk_today
 job_schedules_bp = Blueprint('job_schedules', __name__, url_prefix="/job-schedules")
 job_schedules_bp.before_request(require_login)
@@ -15,7 +16,7 @@ JOB_SCHEDULE_COLUMNS = [
     ('site', 'Site', lambda job_schedule: job_schedule.site.name),
     ('building', 'Building', lambda job_schedule: job_schedule.building.name if job_schedule.building else None),
     ('zone', 'Zone', lambda job_schedule: job_schedule.zone.name if job_schedule.zone else None),
-    ('next_due_by', 'Next Due By', lambda job_schedule: job_schedule.next_due_by),
+    ('next_due', 'Next Due', lambda job_schedule: job_schedule.next_due),
     ('frequency', 'Frequency', lambda job_schedule: job_schedule.frequency_label),
     ('next_job_creation', 'Next Job Creation', lambda job_schedule: job_schedule.next_job_creation_label),
     ('statutory', 'Statutory', lambda job_schedule: job_schedule.statutory_compliance),
@@ -25,8 +26,8 @@ JOB_SCHEDULE_COLUMNS = [
 # making an inactive schedule active again needs a next due date in the future, so it doesn't
 # start by raising a job that's already due. Adds the error to the form
 def check_reactivation(form, job_schedule):
-    if not job_schedule.is_active and form.is_active.data and form.next_due_by.data <= uk_today():
-        form.next_due_by.errors.append('To make the schedule active again, the next due date must be in the future.')
+    if not job_schedule.is_active and form.is_active.data and form.next_due.data <= uk_today():
+        form.next_due.errors.append('To make the schedule active again, the next due date must be in the future.')
         return False
     return True
 
@@ -68,10 +69,10 @@ def filtered_job_schedules():
 
     # the range includes both ends
     if next_due_from:
-        query = query.filter(JobSchedule.next_due_by >= next_due_from)
+        query = query.filter(JobSchedule.next_due >= next_due_from)
 
     if next_due_to:
-        query = query.filter(JobSchedule.next_due_by <= next_due_to)
+        query = query.filter(JobSchedule.next_due <= next_due_to)
 
     query, location = filter_location(query, JobSchedule)
 
@@ -105,15 +106,28 @@ def export(file_format):
 def create():
     form = JobScheduleForm()
     set_location_choices(form)
-    
+
+    # Copy (?copy_from=<id>) pre-fills the scheduling fields. Next due, location and linked records
+    # aren't copied (the due date should be chosen, not carried over), and the new schedule has no tie to the old one
+    copy_from = None
+    if request.args.get('copy_from'):
+        copy_from = org_get_or_404(JobSchedule, parse_uuid(request.args['copy_from']))
+        if request.method == 'GET':
+            form.description.data = copy_from.description
+            form.work_required.data = copy_from.work_required
+            form.frequency.data = copy_from.frequency
+            form.notice_days.data = copy_from.notice_days
+            form.statutory_compliance.data = copy_from.statutory_compliance
+            form.is_active.data = copy_from.is_active
+
     if form.validate_on_submit() and check_location(form):
         job_schedule = JobSchedule(
             description=form.description.data,
             work_required=form.work_required.data,
-            next_due_by=form.next_due_by.data,
+            next_due=form.next_due.data,
             frequency=form.frequency.data,
             notice_days=form.notice_days.data,
-            next_job_creation_date=job_creation_date(form.next_due_by.data, form.notice_days.data),
+            next_job_creation_date=job_creation_date(form.next_due.data, form.notice_days.data),
             statutory_compliance=form.statutory_compliance.data,
             is_active=form.is_active.data,
             site_id=form.site_id.data,
@@ -123,10 +137,19 @@ def create():
         )
         db.session.add(job_schedule)
         db.session.commit()
+        # offer to link assets straight away, if the user can (the page says it's saved)
+        if can(g.person, 'job_schedules.edit'):
+            return redirect(url_for('job_schedules.created', id=job_schedule.id))
         flash(f"Job Schedule '{job_schedule.description}' created successfully!", 'success')
         return redirect(url_for('job_schedules.index'))
 
-    return render_template('job_schedules/create.html', form=form)
+    return render_template('job_schedules/create.html', form=form, copy_from=copy_from)
+
+@job_schedules_bp.route('/<uuid:id>/created', methods=['GET'])
+def created(id):
+    job_schedule = org_get_or_404(JobSchedule, id)
+
+    return render_template('job_schedules/created.html', job_schedule=job_schedule)
 
 @job_schedules_bp.route('/<uuid:id>', methods=['GET'])
 def view(id):
@@ -151,11 +174,11 @@ def edit(id):
         
         job_schedule.description=form.description.data
         job_schedule.work_required=form.work_required.data
-        job_schedule.next_due_by=form.next_due_by.data
+        job_schedule.next_due=form.next_due.data
         job_schedule.frequency=form.frequency.data
         job_schedule.notice_days=form.notice_days.data
         # there's no open job (checked above), so this also restarts a schedule whose open job was deleted
-        job_schedule.next_job_creation_date=job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
+        job_schedule.next_job_creation_date=job_creation_date(job_schedule.next_due, job_schedule.notice_days)
         job_schedule.statutory_compliance=form.statutory_compliance.data
         job_schedule.is_active=form.is_active.data
         job_schedule.site_id=form.site_id.data
@@ -244,3 +267,7 @@ def unlink_assets(id):
 
     assets = sorted(job_schedule.assets, key=lambda asset: asset.description)
     return render_template("job_schedules/view/assets_unlink.html", job_schedule=job_schedule, assets=assets)
+
+@job_schedules_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(JobSchedule, id, "job_schedules/view/files.html", "job_schedule")

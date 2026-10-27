@@ -1,0 +1,21 @@
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'overview' %}active{% endif %}"
+            href="{{ url_for('suppliers.view', id=supplier.id) }}"
+        >
+            Overview
+        </a>
+    </li>
+
+    {% if can('files.view') %}
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
+            href="{{ url_for('suppliers.files', id=supplier.id) }}"
+        >
+            Files
+        </a>
+    </li>
+    {% endif %}
+</ul>

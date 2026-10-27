@@ -8,6 +8,15 @@
         </a>
     </li>
 
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'sub_assets' %}active{% endif %}"
+            href="{{ url_for('assets.sub_assets', id=asset.id) }}"
+        >
+            Sub-Assets
+        </a>
+    </li>
+
    
     <li class="nav-item">
         <a
@@ -26,4 +35,15 @@
             Job Schedules
         </a>
     </li>
-</ul>
+
+    {% if can('files.view') %}
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
+            href="{{ url_for('assets.files', id=asset.id) }}"
+        >
+            Files
+        </a>
+    </li>
+    {% endif %}
+</ul>

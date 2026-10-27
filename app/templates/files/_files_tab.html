@@ -1,0 +1,32 @@
+{# a record's Files tab. Include it with record (the site, job...) and resource (its FILE_PARENTS key, e.g. 'sites') #}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Files</h5>
+    {% if can(resource ~ '.edit') %}
+    <div class="d-flex gap-2">
+        <div class="dropdown">
+            <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Add File
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% if can('files.create') %}
+                <li><a class="dropdown-item" href="{{ url_for('files.create', resource=resource, id=record.id) }}">Add New</a></li>
+                {% endif %}
+                <li><a class="dropdown-item" href="{{ url_for('files.link', resource=resource, id=record.id) }}">Link Existing</a></li>
+            </ul>
+        </div>
+        {% if record.files %}
+        <a href="{{ url_for('files.unlink', resource=resource, id=record.id) }}" class="btn btn-outline-danger btn-sm">
+            Remove File
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% if record.files %}
+    {% with files=record.files %}
+        {% include "files/file_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No files found.</p>
+{% endif %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% set title = 'Remove files: ' ~ parent.name(record) %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Remove files from {{ parent.label | lower }}: {{ parent.name(record) }}</h4>
+  </div>
+
+  <div class="card-body">
+    {% set back_url = url_for(parent.key ~ '.files', id=record.id) %}
+    {% if files %}
+      <p>
+        <strong>Unlink File</strong> takes the ticked files off this {{ parent.label | lower }} and keeps them in your organisation's files.
+        {% if can('files.delete') %}<strong>Unlink &amp; Delete File</strong> deletes them completely, from every record they're linked to, after you confirm.{% endif %}
+      </p>
+
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        {# for Unlink & Delete: where to go after deleting, or back here if nothing was ticked #}
+        <input type="hidden" name="next" value="{{ back_url }}" />
+        <input type="hidden" name="back" value="{{ request.path }}" />
+
+        {% include "files/file_select_list.html" %}
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-primary">Unlink File</button>
+          {% if can('files.delete') %}
+          <button type="submit" class="btn btn-danger" formaction="{{ url_for('files.delete') }}">Unlink &amp; Delete File</button>
+          {% endif %}
+          <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-muted">No files are linked to this {{ parent.label | lower }}.</p>
+      <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body %}

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% set title = 'Create Job' %}
 {% from "_location_fields.html" import location_fields %} {% block body %}
 <h3>Create Job</h3>
 
@@ -34,11 +35,11 @@
   {{ location_fields(form) }}
 
   <div class="mb-3">
-    {{ form.due_by.label(class="form-label") }} {{
-    form.due_by(class="form-control" ~ (" is-invalid" if
-    form.due_by.errors else "")) }} {% if form.due_by.errors %}
+    {{ form.due.label(class="form-label") }} {{
+    form.due(class="form-control" ~ (" is-invalid" if
+    form.due.errors else "")) }} {% if form.due.errors %}
     <div class="invalid-feedback d-block">
-      {% for error in form.due_by.errors %}
+      {% for error in form.due.errors %}
       <div>{{ error }}</div>
       {% endfor %}
     </div>

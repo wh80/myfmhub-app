@@ -140,3 +140,16 @@ document.addEventListener("DOMContentLoaded", function () {
     apply();
   });
 });
+
+// Cancel buttons with data-close-window (the final delete confirmation, opened from an email link):
+// close the tab. Browsers only allow that for some tabs, so if it's still open, go to the fallback url
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("[data-close-window]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.close();
+      setTimeout(() => {
+        window.location.href = button.dataset.closeWindow;
+      }, 300);
+    });
+  });
+});

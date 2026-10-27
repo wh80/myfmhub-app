@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import SupplierForm
 from app.models import Supplier
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab
 from app.services.exports import export_response
 suppliers_bp = Blueprint('suppliers', __name__, url_prefix="/suppliers")
 suppliers_bp.before_request(require_login)
@@ -74,7 +74,7 @@ def create():
 def view(id):
     supplier = org_get_or_404(Supplier, id)
 
-    return render_template('suppliers/view.html', supplier=supplier)
+    return render_template('suppliers/view/overview.html', supplier=supplier, active_tab="overview")
 
 @suppliers_bp.route('/<uuid:id>/edit', methods=['GET', 'POST'])
 def edit(id):
@@ -108,3 +108,9 @@ def delete(id):
         return redirect(url_for('suppliers.index'))
 
     return render_template('suppliers/delete.html', supplier=supplier)
+
+### RELATED DATA ###
+
+@suppliers_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(Supplier, id, "suppliers/view/files.html", "supplier")

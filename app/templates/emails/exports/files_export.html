@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your files export</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #212529;">
+    <p>Hi{% if export.person %} {{ export.person.first_name }}{% endif %},</p>
+    {% if export.status == 'ready' %}
+    <p>The zip of all {{ export.organisation.name }}'s files is ready: {{ export.file_count }} file{{ 's' if export.file_count != 1 }}, {{ '%.2f' % export.size_mb }} MB. It includes a manifest.csv listing each file and what it's linked to.</p>
+    <p><a href="{{ download_url }}">Click here to download it</a>. You'll need to be signed in to {{ export.organisation.name }}.</p>
+    <p>The link works for {{ keep_days }} days, after which the zip is deleted. You can always ask for a new one from <a href="{{ exports_url }}">Export data</a>.</p>
+    {% else %}
+    <p>Sorry, we couldn't prepare the zip of {{ export.organisation.name }}'s files. {{ export.error }}</p>
+    <p>You can ask for a new one from <a href="{{ exports_url }}">Export data</a>. If it keeps failing, please contact support.</p>
+    {% endif %}
+</body>
+</html>

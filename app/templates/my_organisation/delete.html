@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% set title = 'Delete Account' %}
+
+{% block body %}
+
+<div class="card shadow-sm border-danger">
+  <div class="card-header text-bg-danger">
+    <h4 class="mb-0"><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>Delete Account</h4>
+  </div>
+
+  <div class="card-body">
+    <div class="alert alert-danger">
+      <strong>Warning</strong> - deleting your account will delete all of {{ g.organisation.name }}'s data.
+      Please tick every box below to confirm you agree to the deletion of this data.
+    </div>
+
+    {% if can('exports.manage') %}
+    <p>
+      <i class="bi bi-download me-1" aria-hidden="true"></i>
+      You can <a href="{{ url_for('exports.index') }}">export your data here</a> before deleting.
+    </p>
+    {% endif %}
+
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+      {% for key, label, count in items %}
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" name="confirm" value="{{ key }}" id="confirm-{{ key }}" {% if key in ticked %}checked{% endif %} />
+        <label class="form-check-label" for="confirm-{{ key }}">{{ label }}: {{ count }} will be deleted</label>
+      </div>
+      {% endfor %}
+      <div class="form-check mb-4">
+        <input class="form-check-input" type="checkbox" name="confirm" value="{{ irreversible[0] }}" id="confirm-{{ irreversible[0] }}" {% if irreversible[0] in ticked %}checked{% endif %} />
+        <label class="form-check-label fw-semibold" for="confirm-{{ irreversible[0] }}">{{ irreversible[1] }}</label>
+      </div>
+
+      <p class="text-muted">We'll email you a link to confirm. Nothing is deleted until you open it and confirm again.</p>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-danger">Request Deletion</button>
+        <a href="{{ url_for('my_organisation.view') }}" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock body %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% set title = 'Link files: ' ~ parent.name(record) %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Link files to {{ parent.label | lower }}: {{ parent.name(record) }}</h4>
+  </div>
+
+  <div class="card-body">
+    <form method="get" class="mb-3">
+      <div class="row g-2">
+        <div class="col-md-6">
+          <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search description or file name ..." aria-label="Search files" />
+        </div>
+        <div class="col-md-auto">
+          <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Search</button>
+        </div>
+      </div>
+    </form>
+
+    {% set back_url = url_for(parent.key ~ '.files', id=record.id) %}
+    {% if files %}
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        {% include "files/file_select_list.html" %}
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-primary">Link Selected</button>
+          <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-muted">{{ 'No unlinked files match your search.' if search else 'There are no other files in your organisation to link.' }}</p>
+      <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body %}

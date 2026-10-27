@@ -1,0 +1,9 @@
+{% extends "job_schedules/view/_layout.html" %}
+
+{% block tab_content %}
+
+{% with record=job_schedule, resource='job_schedules' %}
+    {% include "files/_files_tab.html" %}
+{% endwith %}
+
+{% endblock tab_content %}

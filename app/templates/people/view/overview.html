@@ -1,0 +1,34 @@
+{% extends "people/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Job Title</div>
+    <div class="fw-semibold">{{person.job_title or "-"}}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Email</div>
+    <div class="fw-semibold">{{person.email}}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Mobile</div>
+    <div class="fw-semibold">{{person.mobile or "-"}}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">User Group</div>
+    <div class="fw-semibold">{{ person.user_group.name if person.user_group else "-" }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Can log in</div>
+    <div class="fw-semibold">{% if not person.can_login %}<span class="badge text-bg-secondary">No</span>{% else %}<span class="badge text-bg-success">Yes</span>{% endif %}</div>
+  </div>
+  {% if person.can_login %}
+  <div class="col-md-6">
+    <div class="text-muted small">Email verified</div>
+    <div class="fw-semibold">{{ person.user.email_verified_at | datetime if person.user.email_verified_at else "Not yet" }}</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock tab_content %}

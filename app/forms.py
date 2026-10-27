@@ -1,8 +1,9 @@
 from flask_wtf import FlaskForm
-from flask_wtf.file import FileField, FileRequired, FileAllowed
+from flask_wtf.file import FileField, FileRequired, FileAllowed, FileSize
 from wtforms import StringField, EmailField, BooleanField, DateField, DecimalField, IntegerField, SelectField, TextAreaField, DateTimeField, DateTimeLocalField
 from wtforms.validators import DataRequired, InputRequired, Email, Length, Optional, NumberRange, ValidationError
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, uk_today
+from app.services.files import FILE_TYPES, MAX_FILE_MB
 
 def strip(value):
     return value.strip() if value else value
@@ -22,7 +23,7 @@ class SiteForm(FlaskForm):
 class JobForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=120)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
-    due_by = DateField('Due By', validators=[Optional()])
+    due = DateField('Due', validators=[Optional()])
     site_id = SelectField('Site', validators=[DataRequired()])
     # optional, and dependent: choices are set by set_location_choices, and check_location makes
     # sure the building is in the site and the zone in the building
@@ -46,13 +47,13 @@ class JobCloseForm(FlaskForm):
 # sets a job schedule's next due date after its job is closed. latest is the close date plus the
 # schedule's frequency (or today, if that's already passed)
 class JobScheduleNextDueForm(FlaskForm):
-    next_due_by = DateField('Next Due By', validators=[DataRequired()])
+    next_due = DateField('Next Due', validators=[DataRequired()])
 
     def __init__(self, latest, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.latest = latest
 
-    def validate_next_due_by(self, field):
+    def validate_next_due(self, field):
         if field.data and field.data < uk_today():
             raise ValidationError("The next due date can't be in the past.")
         if field.data and field.data > self.latest:
@@ -79,7 +80,7 @@ class AssetForm(FlaskForm):
 class JobScheduleForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=120)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
-    next_due_by = DateField('Next Due By', validators=[DataRequired()])
+    next_due = DateField('Next Due', validators=[DataRequired()])
     frequency = SelectField('Frequency', choices=[('', '--- Select Frequency ---')] + FREQUENCIES, validators=[DataRequired()])
     notice_days = IntegerField('Notice Days', description='How many days ahead of due date the job is created', validators=[InputRequired(), NumberRange(min=0, max=365)])
     statutory_compliance = BooleanField('Statutory Compliance')
@@ -116,9 +117,14 @@ class RegisterForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired(), Length(max=100)])
     last_name = StringField('Last Name', validators=[DataRequired(), Length(max=100)])
     email = EmailField('Email', validators=[DataRequired(), Email(), Length(max=255)], filters=[lambda value: value.strip() if value else value])
+    accept_terms = BooleanField('I accept the Terms and Conditions', validators=[DataRequired('You must accept the Terms and Conditions to register.')])
 
 class OTPForm(FlaskForm):
     code = StringField('Code', validators=[DataRequired(), Length(min=6, max=6)], filters=[lambda value: value.strip() if value else value])
+
+class AssetAssignForm(FlaskForm):
+    # choices are the people in the organisation, plus '' for unassigned (set in the route)
+    assigned_to_id = SelectField('Assigned To', coerce=optional_id, validators=[Optional()])
 
 class SwitchOrganisationForm(FlaskForm):
     # the user's person in each organisation they can sign in to, labelled with the organisation's name
@@ -143,6 +149,15 @@ class PersonForm(FlaskForm):
 
 class UserGroupForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)])
+
+class FileUploadForm(FlaskForm):
+    file = FileField('File', validators=[
+        FileRequired('Choose a file to upload.'),
+        FileAllowed(sorted(FILE_TYPES), 'Upload a PDF, Word, Excel, text, CSV or image file.'),
+        FileSize(max_size=MAX_FILE_MB * 1024 * 1024, message=f'Files can be up to {MAX_FILE_MB} MB.'),
+    ])
+    description = StringField('Description', validators=[DataRequired(), Length(max=255)], filters=[strip])
+    expires = DateField('Expires', validators=[Optional()])
 
 class ImportForm(FlaskForm):
     file = FileField('CSV file', validators=[FileRequired('Choose a CSV file to upload.'), FileAllowed(['csv'], 'Upload a .csv file.')])

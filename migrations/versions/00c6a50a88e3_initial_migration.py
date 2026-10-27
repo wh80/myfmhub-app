@@ -1,8 +1,8 @@
-"""initial migrate
+"""initial migration
 
-Revision ID: 84d28a18e154
+Revision ID: 00c6a50a88e3
 Revises: 
-Create Date: 2026-10-26 16:44:01.624615
+Create Date: 2026-10-27 12:08:15.110180
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '84d28a18e154'
+revision = '00c6a50a88e3'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -25,7 +25,24 @@ def upgrade():
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('suspended_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('verified_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('terms_accepted_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('terms_accepted_by_id', sa.UUID(), nullable=True),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('file',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=255), nullable=False),
+    sa.Column('expires', sa.Date(), nullable=True),
+    sa.Column('size_mb', sa.Numeric(precision=12, scale=4), nullable=False),
+    sa.Column('filename', sa.String(length=255), nullable=False),
+    sa.Column('content_type', sa.String(length=100), nullable=False),
+    sa.Column('storage_key', sa.String(length=255), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('storage_key')
     )
     op.create_table('import_event',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -86,10 +103,34 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('organisation_id', 'user_id')
     )
-    # person and import_event refer to each other, so these are added once both exist (use_alter in the model)
+    # person refers to organisation and import_event, which refer back to it, so these are added once
+    # all three exist (use_alter in the model). Alembic leaves use_alter keys out of create_table, so
+    # keep these when regenerating
+    with op.batch_alter_table('organisation', schema=None) as batch_op:
+        batch_op.create_foreign_key('fk_organisation_terms_accepted_by_id', 'person', ['terms_accepted_by_id'], ['id'], ondelete='SET NULL')
     with op.batch_alter_table('import_event', schema=None) as batch_op:
         batch_op.create_foreign_key('fk_import_event_person_id', 'person', ['person_id'], ['id'], ondelete='SET NULL')
         batch_op.create_foreign_key('fk_import_event_undone_by_id', 'person', ['undone_by_id'], ['id'], ondelete='SET NULL')
+    op.create_table('file_export',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('status', sa.String(length=20), nullable=False),
+    sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('storage_key', sa.String(length=255), nullable=True),
+    sa.Column('file_count', sa.Integer(), nullable=True),
+    sa.Column('size_mb', sa.Numeric(precision=12, scale=4), nullable=True),
+    sa.Column('error', sa.String(length=255), nullable=True),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('person_id', sa.UUID(), nullable=True),
+    sa.CheckConstraint("status IN ('running', 'ready', 'failed', 'expired')", name='ck_file_export_status'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('site',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -207,6 +248,10 @@ def upgrade():
     sa.Column('site_id', sa.UUID(), nullable=False),
     sa.Column('building_id', sa.UUID(), nullable=True),
     sa.Column('zone_id', sa.UUID(), nullable=True),
+    sa.Column('assigned_to_id', sa.UUID(), nullable=True),
+    sa.Column('parent_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['assigned_to_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['parent_id'], ['asset.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
@@ -222,7 +267,7 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('description', sa.String(length=100), nullable=False),
     sa.Column('work_required', sa.String(length=500), nullable=False),
-    sa.Column('next_due_by', sa.Date(), nullable=False),
+    sa.Column('next_due', sa.Date(), nullable=False),
     sa.Column('statutory_compliance', sa.Boolean(), nullable=False),
     sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False),
     sa.Column('frequency', sa.String(length=20), nullable=False),
@@ -246,7 +291,7 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('description', sa.String(length=100), nullable=False),
     sa.Column('work_required', sa.String(length=500), nullable=False),
-    sa.Column('due_by', sa.Date(), nullable=True),
+    sa.Column('due', sa.Date(), nullable=True),
     sa.Column('statutory_compliance', sa.Boolean(), nullable=False),
     sa.Column('status', sa.String(length=20), server_default='new', nullable=False),
     sa.Column('closed_at', sa.Date(), nullable=True),
@@ -275,6 +320,62 @@ def upgrade():
     sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('job_schedule_id', 'asset_id')
     )
+    op.create_table('site_files',
+    sa.Column('site_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['site_id'], ['site.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('site_id', 'file_id')
+    )
+    op.create_table('building_files',
+    sa.Column('building_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('building_id', 'file_id')
+    )
+    op.create_table('zone_files',
+    sa.Column('zone_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('zone_id', 'file_id')
+    )
+    op.create_table('job_files',
+    sa.Column('job_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['job_id'], ['job.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('job_id', 'file_id')
+    )
+    op.create_table('asset_files',
+    sa.Column('asset_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['asset_id'], ['asset.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('asset_id', 'file_id')
+    )
+    op.create_table('job_schedule_files',
+    sa.Column('job_schedule_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('job_schedule_id', 'file_id')
+    )
+    op.create_table('person_files',
+    sa.Column('person_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('person_id', 'file_id')
+    )
+    op.create_table('supplier_files',
+    sa.Column('supplier_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['supplier_id'], ['supplier.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('supplier_id', 'file_id')
+    )
     op.create_table('job_assets',
     sa.Column('job_id', sa.UUID(), nullable=False),
     sa.Column('asset_id', sa.UUID(), nullable=False),
@@ -287,6 +388,15 @@ def upgrade():
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('file_export')
+    op.drop_table('site_files')
+    op.drop_table('building_files')
+    op.drop_table('zone_files')
+    op.drop_table('job_files')
+    op.drop_table('asset_files')
+    op.drop_table('job_schedule_files')
+    op.drop_table('person_files')
+    op.drop_table('supplier_files')
     op.drop_table('job_assets')
     op.drop_table('job_schedule_assets')
     with op.batch_alter_table('job', schema=None) as batch_op:
@@ -305,9 +415,12 @@ def downgrade():
     with op.batch_alter_table('import_event', schema=None) as batch_op:
         batch_op.drop_constraint('fk_import_event_undone_by_id', type_='foreignkey')
         batch_op.drop_constraint('fk_import_event_person_id', type_='foreignkey')
+    with op.batch_alter_table('organisation', schema=None) as batch_op:
+        batch_op.drop_constraint('fk_organisation_terms_accepted_by_id', type_='foreignkey')
     op.drop_table('person')
     op.drop_table('user_group')
     op.drop_table('user')
     op.drop_table('import_event')
+    op.drop_table('file')
     op.drop_table('organisation')
     # ### end Alembic commands ###

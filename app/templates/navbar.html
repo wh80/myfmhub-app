@@ -59,6 +59,12 @@
                 </li>
                 {% endif %}
 
+                {% if can('files.view') %}
+                <li class="nav-item">
+                     <a class="nav-link active" href="{{url_for('files.index')}}">Files</a>
+                </li>
+                {% endif %}
+
                 <li class="nav-item dropdown">
                     <a class="nav-link active dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account">
                         <i class="bi bi-person-circle fs-5" aria-hidden="true"></i>
@@ -76,6 +82,9 @@
                         {% set signin_people = g.user.signin_people() %}
                         {% if signin_people|length > (1 if g.person else 0) %}
                         <li><a class="dropdown-item" href="{{ url_for('auth.switch_organisation') }}">Switch organisation</a></li>
+                        {% endif %}
+                        {% if can('organisation.manage') %}
+                        <li><a class="dropdown-item" href="{{ url_for('my_organisation.view') }}">My Organisation</a></li>
                         {% endif %}
                         {% if g.person %}
                         <li><a class="dropdown-item" href="{{ url_for('auth.sessions') }}">{{ 'Sessions' if can('sessions.manage') else 'Your sessions' }}</a></li>

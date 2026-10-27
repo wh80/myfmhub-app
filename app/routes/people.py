@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import PersonForm
 from app.models import Person, UserGroup
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab
 from app.services.exports import export_response
 from app.services.auth import check_otp_rate_limit, create_and_send_otp, revoke_person_sessions, clear_session_cookie
 from app.services.permissions import can, other_active_admins
@@ -151,7 +151,7 @@ def create():
 def view(id):
     person = org_get_or_404(Person, id)
 
-    return render_template('people/view.html', person=person)
+    return render_template('people/view/overview.html', person=person, active_tab="overview")
 
 @people_bp.route('/<uuid:id>/edit', methods=['GET', 'POST'])
 def edit(id):
@@ -249,3 +249,17 @@ def delete(id):
         return redirect(url_for('people.index'))
 
     return render_template('people/delete.html', person=person)
+
+### RELATED DATA ###
+
+# the assets assigned to this person. It lists asset details, so it needs assets.view too
+@people_bp.route("/<uuid:id>/assets")
+def assets(id):
+    if not can(g.person, 'assets.view'):
+        abort(403)
+    person = org_get_or_404(Person, id)
+    return render_template("people/view/assets.html", person=person, active_tab="assets")
+
+@people_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(Person, id, "people/view/files.html", "person")

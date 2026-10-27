@@ -9,4 +9,15 @@
         <a class="nav-link {% if active_tab == tab %}active{% endif %}" href="{{ url_for(endpoint, id=building.id) }}">{{ label }}</a>
     </li>
     {% endfor %}
+
+    {% if can('files.view') %}
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
+            href="{{ url_for('buildings.files', id=building.id) }}"
+        >
+            Files
+        </a>
+    </li>
+    {% endif %}
 </ul>

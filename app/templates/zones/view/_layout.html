@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% set title = 'Zone: ' ~ zone.name %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+
+  {% include "zones/view/_header.html" %}
+
+  <div class="card-body">
+
+    {% include "zones/view/_tabs.html" %}
+
+    {% block tab_content %}{% endblock tab_content %}
+
+  </div>
+</div>
+
+{% endblock body %}

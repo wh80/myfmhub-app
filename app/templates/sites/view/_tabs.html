@@ -42,4 +42,15 @@
            Job Schedules
         </a>
     </li>
-</ul>
+
+    {% if can('files.view') %}
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
+            href="{{ url_for('sites.files', id=site.id) }}"
+        >
+            Files
+        </a>
+    </li>
+    {% endif %}
+</ul>

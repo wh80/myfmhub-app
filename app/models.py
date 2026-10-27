@@ -2,7 +2,7 @@ from app.extensions import db
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime, timezone
-from app.services.scheduling import FREQUENCY_LABELS, uk_date
+from app.services.scheduling import FREQUENCY_LABELS, uk_date, uk_today
 
 # a job's lifecycle. The key is stored on Job.status, which is set by the app, never a form
 JOB_STATUSES = [
@@ -32,6 +32,25 @@ job_schedule_assets = db.Table(
     db.Column('asset_id', UUID(as_uuid=True), db.ForeignKey('asset.id', ondelete='CASCADE'), primary_key=True),
 )
 
+
+# files link to any number of these records, and each record to any number of files. Deleting either
+# side removes only the link rows; deleting a file is what removes it from storage (services/files.py)
+def file_link_table(name, column, target):
+    return db.Table(
+        name,
+        db.Column(column, UUID(as_uuid=True), db.ForeignKey(f'{target}.id', ondelete='CASCADE'), primary_key=True),
+        db.Column('file_id', UUID(as_uuid=True), db.ForeignKey('file.id', ondelete='CASCADE'), primary_key=True),
+    )
+
+site_files = file_link_table('site_files', 'site_id', 'site')
+building_files = file_link_table('building_files', 'building_id', 'building')
+zone_files = file_link_table('zone_files', 'zone_id', 'zone')
+job_files = file_link_table('job_files', 'job_id', 'job')
+asset_files = file_link_table('asset_files', 'asset_id', 'asset')
+job_schedule_files = file_link_table('job_schedule_files', 'job_schedule_id', 'job_schedule')
+person_files = file_link_table('person_files', 'person_id', 'person')
+supplier_files = file_link_table('supplier_files', 'supplier_id', 'supplier')
+
 class Organisation(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -43,17 +62,25 @@ class Organisation(db.Model):
     # set when the person who registered it first enters a code. Anyone can register with any email,
     # so until then it isn't offered at sign-in or in Switch organisation (see Person.can_sign_in)
     verified_at = db.Column(db.DateTime(timezone=True))
+    # set at registration, when the registrant ticks the terms and conditions. Person has organisation_id
+    # too, so this foreign key is added after both tables are created (use_alter), and the row is
+    # updated after both are inserted (post_update)
+    terms_accepted_at = db.Column(db.DateTime(timezone=True))
+    terms_accepted_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL', use_alter=True, name='fk_organisation_terms_accepted_by_id'))
+    terms_accepted_by = db.relationship('Person', foreign_keys=[terms_accepted_by_id], post_update=True)
 
-    sites = db.relationship('Site', backref='organisation', lazy=True, cascade='delete')
+    sites =db.relationship('Site', backref='organisation', lazy=True, cascade='delete')
     jobs = db.relationship('Job', backref='organisation', lazy=True, cascade='delete')
     assets = db.relationship('Asset', backref='organisation', lazy=True, cascade='delete')
     job_schedules = db.relationship('JobSchedule', backref='organisation', lazy=True, cascade='delete')
     suppliers = db.relationship('Supplier', backref='organisation', lazy=True, cascade='delete')
     user_groups = db.relationship('UserGroup', backref='organisation', lazy=True, cascade='delete')
-    people = db.relationship('Person', backref='organisation', lazy=True, cascade='delete')
+    people = db.relationship('Person', backref='organisation', lazy=True, cascade='delete', foreign_keys='Person.organisation_id')
     import_events = db.relationship('ImportEvent', backref='organisation', lazy=True, cascade='delete')
     buildings = db.relationship('Building', backref='organisation', lazy=True, cascade='delete')
     zones = db.relationship('Zone', backref='organisation', lazy=True, cascade='delete')
+    files = db.relationship('File', backref='organisation', lazy=True, cascade='delete')
+    file_exports = db.relationship('FileExport', backref='organisation', lazy=True, cascade='delete')
 
 
 class Site(db.Model):
@@ -140,7 +167,7 @@ class Job(db.Model):
 
     description = db.Column(db.String(100), nullable=False)
     work_required = db.Column(db.String(500), nullable=False)
-    due_by = db.Column(db.Date())
+    due = db.Column(db.Date())
     # not on JobForm: copied from the job schedule when a job is raised from one
     statutory_compliance = db.Column(db.Boolean, default=False, nullable=False)
     # not on JobForm: a key from JOB_STATUSES, set programmatically
@@ -222,6 +249,13 @@ class Asset(db.Model):
     # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
     building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
     zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
+    # the person in this organisation the asset is assigned to, set on the Assign page. Cleared if they're deleted
+    assigned_to_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
+    assigned_to = db.relationship('Person', backref=db.backref('assigned_assets', lazy=True, order_by='Asset.description'))
+    # the asset this is part of. Set only when a sub-asset is created from its parent's Sub-Assets tab, and
+    # never changed, so there can't be a loop. Deleting the parent leaves its sub-assets as top-level assets
+    parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('asset.id', ondelete='SET NULL'))
+    parent = db.relationship('Asset', remote_side='Asset.id', backref=db.backref('sub_assets', lazy=True, order_by='Asset.description'))
 
     jobs = db.relationship('Job', secondary=job_assets, backref='assets', lazy=True)
     job_schedules = db.relationship('JobSchedule', secondary=job_schedule_assets, backref='assets', lazy=True)
@@ -241,16 +275,16 @@ class JobSchedule(db.Model):
 
     description = db.Column(db.String(100), nullable=False)
     work_required = db.Column(db.String(500), nullable=False)
-    next_due_by = db.Column(db.Date(), nullable=False)
+    next_due = db.Column(db.Date(), nullable=False)
     statutory_compliance = db.Column(db.Boolean, default=False, nullable=False)
     # an inactive schedule raises no jobs. Making it active again needs a next due date in the future
     is_active = db.Column(db.Boolean, default=True, server_default=db.text('true'), nullable=False)
     # a key from services/scheduling.py FREQUENCIES
     frequency = db.Column(db.String(20), nullable=False)
-    # how many days ahead of next_due_by the job is created
+    # how many days ahead of next_due the job is created
     notice_days = db.Column(db.Integer, nullable=False)
-    # calculated from next_due_by and notice_days, never taken from a form. NULL once a job has been
-    # raised for next_due_by, so the schedule raises nothing more while that job is waiting
+    # calculated from next_due and notice_days, never taken from a form. NULL once a job has been
+    # raised for next_due, so the schedule raises nothing more while that job is waiting
     next_job_creation_date = db.Column(db.Date())
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
@@ -280,7 +314,7 @@ class JobSchedule(db.Model):
     # while there is one, so it can never have two open jobs
     @property
     def open_job(self):
-        return Job.query.filter(Job.job_schedule_id == self.id, Job.status != 'closed').order_by(Job.due_by, Job.id).first()
+        return Job.query.filter(Job.job_schedule_id == self.id, Job.status != 'closed').order_by(Job.due, Job.id).first()
 
 
 class Supplier(db.Model):
@@ -459,3 +493,73 @@ class ImportEvent(db.Model):
 
     person = db.relationship('Person', foreign_keys=[person_id], lazy=True)
     undone_by = db.relationship('Person', foreign_keys=[undone_by_id], lazy=True)
+
+
+class File(db.Model):
+    """An uploaded file, stored in DigitalOcean Spaces under the organisation's id (services/files.py).
+    Files are never updated: they're uploaded, linked and unlinked, and deleted."""
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    description = db.Column(db.String(255), nullable=False)
+    expires = db.Column(db.Date())
+    # in MB, summed for the organisation's Storage Used on My Organisation
+    size_mb = db.Column(db.Numeric(12, 4), nullable=False)
+    # the uploaded file's name (for downloads), its type (from the extension, not the browser) and
+    # where it's stored: '<organisation id>/<file id>.<extension>'
+    filename = db.Column(db.String(255), nullable=False)
+    content_type = db.Column(db.String(100), nullable=False)
+    storage_key = db.Column(db.String(255), nullable=False, unique=True)
+
+    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+
+    # the records it's linked to. Each also has .files
+    sites = db.relationship('Site', secondary=site_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    buildings = db.relationship('Building', secondary=building_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    zones = db.relationship('Zone', secondary=zone_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    jobs = db.relationship('Job', secondary=job_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    assets = db.relationship('Asset', secondary=asset_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    job_schedules = db.relationship('JobSchedule', secondary=job_schedule_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    people = db.relationship('Person', secondary=person_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    suppliers = db.relationship('Supplier', secondary=supplier_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+
+    @property
+    def is_expired(self):
+        return self.expires is not None and self.expires < uk_today()
+
+
+FILE_EXPORT_STATUSES = [('running', 'Preparing'), ('ready', 'Ready'), ('failed', 'Failed'), ('expired', 'Expired')]
+
+
+class FileExport(db.Model):
+    """A request to zip all the organisation's files, from Export data. A thread started by the request
+    (services/file_exports.py) builds the zip, stores it and emails the requester."""
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    # a key from FILE_EXPORT_STATUSES. running -> ready (or failed); ready -> expired once the zip is deleted
+    status = db.Column(db.String(20), default='running', nullable=False)
+    # where to send the email, kept in case the person is deleted while it runs
+    email = db.Column(db.String(255), nullable=False)
+    started_at = db.Column(db.DateTime(timezone=True))
+    finished_at = db.Column(db.DateTime(timezone=True))
+    # when the zip is deleted from storage
+    expires_at = db.Column(db.DateTime(timezone=True))
+    storage_key = db.Column(db.String(255))
+    file_count = db.Column(db.Integer)
+    size_mb = db.Column(db.Numeric(12, 4))
+    error = db.Column(db.String(255))
+
+    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+    person_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
+    person = db.relationship('Person', lazy=True)
+
+    __table_args__ = (
+        db.CheckConstraint(f"status IN ({', '.join(repr(key) for key, _ in FILE_EXPORT_STATUSES)})", name='ck_file_export_status'),
+    )
+
+    @property
+    def status_label(self):
+        return dict(FILE_EXPORT_STATUSES)[self.status]

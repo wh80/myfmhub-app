@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% set title = 'Job Schedule Saved: ' ~ job_schedule.description %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Job Schedule Saved</h4>
+  </div>
+
+  <div class="card-body">
+    <p class="mb-4">
+      Job schedule <strong>{{job_schedule.description}}</strong> saved. Would you like to add assets to this job schedule now?
+    </p>
+
+    <div class="d-flex gap-2">
+      <a href="{{url_for('job_schedules.link_assets', id=job_schedule.id)}}" class="btn btn-primary">Yes</a>
+      <a href="{{url_for('job_schedules.index')}}" class="btn btn-secondary">No</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

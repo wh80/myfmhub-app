@@ -1,0 +1,60 @@
+{# files, for the Files index and every record's Files tab. View opens or downloads the file #}
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('files') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle text-nowrap" data-columns="files">
+      <thead>
+        <tr>
+          <th scope="col" data-col="description" data-col-fixed>Description</th>
+          <th scope="col" data-col="filename">File</th>
+          <th scope="col" data-col="expires">Expires</th>
+          <th scope="col" data-col="size">Size</th>
+          <th scope="col" data-col="uploaded">Uploaded</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for file in files %}
+        <tr>
+          <td>{{ file.description }}</td>
+          <td>{{ file.filename }}</td>
+          <td>{{ file.expires | date }}{% if file.is_expired %} <span class="badge text-bg-danger">Expired</span>{% endif %}</td>
+          <td>{{ file.size_mb | filesize }}</td>
+          <td>{{ file.created_at | datetime }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('files.view', id=file.id) }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+              <i class="bi bi-eye"></i> View
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for file in files %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3">{{ file.description }}</h5>
+          <p class="card-text">
+            <strong>File:</strong> {{ file.filename }}<br />
+            <strong>Expires:</strong> {{ file.expires | date }}{% if file.is_expired %} <span class="badge text-bg-danger">Expired</span>{% endif %}<br />
+            <strong>Size:</strong> {{ file.size_mb | filesize }}
+          </p>
+          <a href="{{ url_for('files.view', id=file.id) }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-eye"></i> View
+          </a>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>

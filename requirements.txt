@@ -21,5 +21,8 @@ reportlab==5.1.0
 # time zone data for zoneinfo (Europe/London); Windows has none built in
 tzdata==2026.5
 
+# file storage: DigitalOcean Spaces speaks the S3 API
+boto3==1.43.119
+
 # production web server (Linux only; locally use run.py)
 gunicorn==26.2.0

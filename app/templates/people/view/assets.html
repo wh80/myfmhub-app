@@ -1,0 +1,15 @@
+{% extends "people/view/_layout.html" %}
+
+{% block tab_content %}
+
+<h5 class="mb-3">Assigned Assets</h5>
+
+{% if person.assigned_assets %}
+    {% with assets=person.assigned_assets %}
+        {% include "assets/asset_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No assets assigned to {{ person.first_name }}. Assign one from the asset's page.</p>
+{% endif %}
+
+{% endblock tab_content %}

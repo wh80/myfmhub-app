@@ -9,6 +9,12 @@
         >
             Edit
         </a>
+        <a
+            href="{{ url_for('assets.assign', id=asset.id) }}"
+            class="btn btn-secondary btn-sm"
+        >
+            Assign
+        </a>
         {% endif %}
 
         {% if can('assets.delete') %}
@@ -20,4 +26,4 @@
         </a>
         {% endif %}
     </div>
-</div>
+</div>

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% set title = 'Sessions' if can('sessions.manage') else 'Your sessions' %}
 {% block body %}
 {% set revoke_endpoint = 'auth.revoke' %}
 {% set show_organisation = True %}

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, url_for, flash, current_app
 from app import db
 from app.forms import RegisterForm
@@ -37,6 +38,9 @@ def register():
             organisation=organisation,
             user=find_or_create_user(email),
         )
+        # the form refuses to register without accept_terms ticked
+        organisation.terms_accepted_at = datetime.now(timezone.utc)
+        organisation.terms_accepted_by = person
         db.session.add_all([organisation, person])
         db.session.commit()
 
@@ -53,3 +57,7 @@ def register():
         return redirect(url_for('auth.validate', id=otp.id))
 
     return render_template('organisations/register.html', form=form)
+
+# served at the root /terms url, see create_app. Public, since it's read before registering
+def terms():
+    return render_template('organisations/terms.html')

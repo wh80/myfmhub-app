@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% set title = 'Add File' ~ (': ' ~ parent.name(record) if record else '') %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Add File{% if record %} to {{ parent.label | lower }}: {{ parent.name(record) }}{% endif %}</h4>
+  </div>
+
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data">
+      {{ form.hidden_tag() }}
+
+      <div class="mb-3">
+        {{ form.file.label(class="form-label") }}
+        {{ form.file(class="form-control" ~ (" is-invalid" if form.file.errors else ""), accept='.' ~ file_types | join(',.')) }}
+        {% if form.file.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.file.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="form-text">PDF, Word, Excel, text, CSV or image files, up to {{ max_file_mb }} MB.</div>
+      </div>
+
+      <div class="mb-3">
+        {{ form.description.label(class="form-label") }}
+        {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else "")) }}
+        {% if form.description.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.description.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.expires.label(class="form-label") }}
+        {{ form.expires(class="form-control" ~ (" is-invalid" if form.expires.errors else "")) }}
+        {% if form.expires.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.expires.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="form-text">Optional, for example when a certificate runs out.</div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Upload</button>
+        <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock body %}

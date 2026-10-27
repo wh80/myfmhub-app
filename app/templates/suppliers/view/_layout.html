@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% set title = 'Supplier: ' ~ supplier.name %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+
+  {% include "suppliers/view/_header.html" %}
+
+  <div class="card-body">
+
+    {% include "suppliers/view/_tabs.html" %}
+
+    {% block tab_content %}{% endblock tab_content %}
+
+  </div>
+</div>
+
+{% endblock body %}

@@ -1,18 +1,35 @@
 {% extends "assets/view/_layout.html" %}
-{% from "_location_fields.html" import location_text %}
+{% from "_location_fields.html" import location_lines %}
 
 {% block tab_content %}
 
 <div class="row mb-4">
   <div class="col-md-8">
     <h6 class="text-muted">Location</h6>
-    <p class="mb-0">{{ location_text(asset, links=True) }}</p>
+    {{ location_lines(asset) }}
   </div>
 </div>
 
 <hr />
 
 <div class="row g-3">
+  {% if asset.parent %}
+  <div class="col-md-6">
+    <div class="text-muted small">Part Of</div>
+    <div class="fw-semibold">
+      <p><a href="{{ url_for('assets.view', id=asset.parent.id) }}">{{ asset.parent.description }}</a></p>
+    </div>
+  </div>
+  {% endif %}
+  <div class="col-md-6">
+    <div class="text-muted small">Assigned To</div>
+    <div class="fw-semibold">
+      <p>
+        {% set person = asset.assigned_to %}
+        {% if not person %}-{% elif can('people.view') %}<a href="{{ url_for('people.view', id=person.id) }}">{{ person.first_name }} {{ person.last_name }}</a>{% else %}{{ person.first_name }} {{ person.last_name }}{% endif %}
+      </p>
+    </div>
+  </div>
   <div class="col-md-6">
     <div class="text-muted small">Asset Number</div>
     <div class="fw-semibold">

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% set title = 'Jobs' %}
 {% from "_location_fields.html" import location_filters %}
 {% from "pagination.html" import pagination_nav %}
 {% block body %}
@@ -12,8 +13,10 @@
 </div>
 
 <form method="get" class="mb-4">
+  {# the search box shows on its own. Advanced opens the other filters, and starts open when one is set #}
+  {% set advanced_open = site_id or building_id or zone_id or status or source or due_from or due_to or closed_from or closed_to or overdue or statutory %}
   <div class="row g-2">
-    <div class="col-md-4">
+    <div class="col-md-6">
       <label for="search" class="form-label">Search</label>
       <input
         type="text"
@@ -25,81 +28,95 @@
       />
     </div>
 
-    {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
-
-    <div class="col-md-2">
-      <label for="status" class="form-label">Status</label>
-      <select name="status" id="status" class="form-select">
-        <option value="" {% if not status %}selected{% endif %}>All statuses</option>
-        <option value="not_closed" {% if status == 'not_closed' %}selected{% endif %}>Not closed</option>
-        {% for key, label in statuses %}
-        <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="col-md-2">
-      <label for="source" class="form-label">Source</label>
-      <select name="source" id="source" class="form-select">
-        <option value="" {% if not source %}selected{% endif %}>All sources</option>
-        {% for key, label in sources %}
-        <option value="{{ key }}" {% if source == key %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="col-md-2">
-      <label for="due_from" class="form-label">Due from</label>
-      <input type="date" id="due_from" name="due_from" value="{{ due_from.isoformat() if due_from else '' }}" class="form-control" />
-    </div>
-
-    <div class="col-md-2">
-      <label for="due_to" class="form-label">Due to</label>
-      <input type="date" id="due_to" name="due_to" value="{{ due_to.isoformat() if due_to else '' }}" class="form-control" />
-    </div>
-
-    <div class="col-md-2">
-      <label for="closed_from" class="form-label">Closed from</label>
-      <input type="date" id="closed_from" name="closed_from" value="{{ closed_from.isoformat() if closed_from else '' }}" class="form-control" />
-    </div>
-
-    <div class="col-md-2">
-      <label for="closed_to" class="form-label">Closed to</label>
-      <input type="date" id="closed_to" name="closed_to" value="{{ closed_to.isoformat() if closed_to else '' }}" class="form-control" />
-    </div>
-
-    <div class="col-md-2 d-flex flex-column justify-content-end">
-      <div class="form-check">
-        <input
-          type="checkbox"
-          id="overdue"
-          name="overdue"
-          value="1"
-          class="form-check-input"
-          {% if overdue %}checked{% endif %}
-        />
-        <label for="overdue" class="form-check-label">Overdue only</label>
-      </div>
-      <div class="form-check mb-2">
-        <input
-          type="checkbox"
-          id="statutory"
-          name="statutory"
-          value="1"
-          class="form-check-input"
-          {% if statutory %}checked{% endif %}
-        />
-        <label for="statutory" class="form-check-label">Statutory only</label>
-      </div>
-    </div>
-
-    <div class="col-md-2 d-flex align-items-end">
-      <button type="submit" class="btn btn-primary w-100">
+    <div class="col-md-auto d-flex align-items-end gap-2">
+      <button type="submit" class="btn btn-primary">
         <i class="bi bi-search"></i> Search
       </button>
-      <a href="{{url_for('jobs.index')}}" class="btn btn-secondary w-100">
+      <a href="{{url_for('jobs.index')}}" class="btn btn-secondary">
         <i class="bi bi-x-circle"></i> Cancel
       </a>
+      <button
+        type="button"
+        class="btn btn-link text-decoration-none{{ '' if advanced_open else ' collapsed' }}"
+        data-bs-toggle="collapse"
+        data-bs-target="#advanced-filters"
+        aria-expanded="{{ 'true' if advanced_open else 'false' }}"
+        aria-controls="advanced-filters"
+      >
+        <i class="bi bi-sliders"></i> Advanced
+      </button>
+    </div>
+  </div>
+
+  <div class="collapse{{ ' show' if advanced_open }}" id="advanced-filters">
+    <div class="row g-2 mt-1">
+      {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
+
+      <div class="col-md-2">
+        <label for="status" class="form-label">Status</label>
+        <select name="status" id="status" class="form-select">
+          <option value="" {% if not status %}selected{% endif %}>All statuses</option>
+          <option value="not_closed" {% if status == 'not_closed' %}selected{% endif %}>Not closed</option>
+          {% for key, label in statuses %}
+          <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label for="source" class="form-label">Source</label>
+        <select name="source" id="source" class="form-select">
+          <option value="" {% if not source %}selected{% endif %}>All sources</option>
+          {% for key, label in sources %}
+          <option value="{{ key }}" {% if source == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label for="due_from" class="form-label">Due from</label>
+        <input type="date" id="due_from" name="due_from" value="{{ due_from.isoformat() if due_from else '' }}" class="form-control" />
+      </div>
+
+      <div class="col-md-2">
+        <label for="due_to" class="form-label">Due to</label>
+        <input type="date" id="due_to" name="due_to" value="{{ due_to.isoformat() if due_to else '' }}" class="form-control" />
+      </div>
+
+      <div class="col-md-2">
+        <label for="closed_from" class="form-label">Closed from</label>
+        <input type="date" id="closed_from" name="closed_from" value="{{ closed_from.isoformat() if closed_from else '' }}" class="form-control" />
+      </div>
+
+      <div class="col-md-2">
+        <label for="closed_to" class="form-label">Closed to</label>
+        <input type="date" id="closed_to" name="closed_to" value="{{ closed_to.isoformat() if closed_to else '' }}" class="form-control" />
+      </div>
+
+      <div class="col-md-2 d-flex flex-column justify-content-end">
+        <div class="form-check">
+          <input
+            type="checkbox"
+            id="overdue"
+            name="overdue"
+            value="1"
+            class="form-check-input"
+            {% if overdue %}checked{% endif %}
+          />
+          <label for="overdue" class="form-check-label">Overdue only</label>
+        </div>
+        <div class="form-check mb-2">
+          <input
+            type="checkbox"
+            id="statutory"
+            name="statutory"
+            value="1"
+            class="form-check-input"
+            {% if statutory %}checked{% endif %}
+          />
+          <label for="statutory" class="form-check-label">Statutory only</label>
+        </div>
+      </div>
     </div>
   </div>
 </form>

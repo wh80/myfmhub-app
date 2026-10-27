@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% set title = 'Delete Files' %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Delete Files</h4>
+  </div>
+
+  <div class="card-body">
+    <form method="get" class="mb-3">
+      <div class="row g-2">
+        <div class="col-md-6">
+          <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search description or file name ..." aria-label="Search files" />
+        </div>
+        <div class="col-md-auto">
+          <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Search</button>
+        </div>
+      </div>
+    </form>
+
+    {% if files %}
+      <p>Tick the files to delete. You'll see what each one is linked to before anything is deleted.</p>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="next" value="{{ url_for('files.index') }}" />
+        <input type="hidden" name="back" value="{{ request.full_path.rstrip('?') }}" />
+
+        {% include "files/file_select_list.html" %}
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-danger">Delete Selected</button>
+          <a href="{{ url_for('files.index') }}" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-muted">{{ 'No files match your search.' if search else 'No files yet.' }}</p>
+      <a href="{{ url_for('files.index') }}" class="btn btn-secondary">Back</a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body %}

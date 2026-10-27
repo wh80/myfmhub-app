@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import SiteForm
 from app.models import Site
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab
 from app.services.exports import export_response
 sites_bp = Blueprint('sites', __name__, url_prefix="/sites")
 sites_bp.before_request(require_login)
@@ -19,6 +19,10 @@ def check_name(form, site=None):
 SITE_COLUMNS = [
     ('name', 'Name', lambda site: site.name),
     ('telephone', 'Telephone', lambda site: site.telephone),
+    ('buildings', 'Buildings', lambda site: len(site.buildings)),
+    ('jobs', 'Jobs', lambda site: len(site.jobs)),
+    ('assets', 'Assets', lambda site: len(site.assets)),
+    ('job_schedules', 'Job Schedules', lambda site: len(site.job_schedules)),
 ]
 
 # the index filters, shared by the page and its downloads
@@ -138,3 +142,7 @@ def jobs(id):
 def job_schedules(id):
     site = org_get_or_404(Site, id)
     return render_template("sites/view/job_schedules.html", site=site, active_tab="job_schedules",)
+
+@sites_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(Site, id, "sites/view/files.html", "site")

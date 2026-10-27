@@ -1,6 +1,13 @@
 {% extends 'base.html' %}
+{% set title = 'Create Job Schedule' %}
 {% from "_location_fields.html" import location_fields %} {% block body %}
 <h3>Create Job Schedule</h3>
+{% if copy_from %}
+<p class="text-muted">
+  Copied from <a href="{{ url_for('job_schedules.view', id=copy_from.id) }}">{{ copy_from.description }}</a>.
+  Choose the next due date, site, building and zone. Assets aren't copied, so link them after saving.
+</p>
+{% endif %}
 
 <form method="POST">
   {{ form.hidden_tag() }}
@@ -34,11 +41,11 @@
   {{ location_fields(form) }}
 
   <div class="mb-3">
-    {{ form.next_due_by.label(class="form-label") }} {{
-    form.next_due_by(class="form-control" ~ (" is-invalid" if
-    form.next_due_by.errors else "")) }} {% if form.next_due_by.errors %}
+    {{ form.next_due.label(class="form-label") }} {{
+    form.next_due(class="form-control" ~ (" is-invalid" if
+    form.next_due.errors else "")) }} {% if form.next_due.errors %}
     <div class="invalid-feedback d-block">
-      {% for error in form.next_due_by.errors %}
+      {% for error in form.next_due.errors %}
       <div>{{ error }}</div>
       {% endfor %}
     </div>

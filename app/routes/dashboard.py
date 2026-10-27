@@ -21,7 +21,7 @@ def index():
 
     counts = {
         'overdue_compliance': jobs.filter(statutory, *overdue_conditions(today)).count(),
-        'compliance_risks': jobs.filter(statutory, Job.due_by >= today, Job.due_by <= week_ahead, Job.status != 'closed').count(),
+        'compliance_risks': jobs.filter(statutory, Job.due >= today, Job.due <= week_ahead, Job.status != 'closed').count(),
         'overdue': jobs.filter(*overdue_conditions(today)).count(),
         'new': jobs.filter(Job.status == 'new').count(),
     }

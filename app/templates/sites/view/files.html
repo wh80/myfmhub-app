@@ -1,0 +1,9 @@
+{% extends "sites/view/_layout.html" %}
+
+{% block tab_content %}
+
+{% with record=site, resource='sites' %}
+    {% include "files/_files_tab.html" %}
+{% endwith %}
+
+{% endblock tab_content %}

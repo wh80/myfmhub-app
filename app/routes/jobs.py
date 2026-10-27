@@ -4,7 +4,7 @@ from app.forms import JobForm, JobCloseForm, JobScheduleNextDueForm
 from app.models import Job, Site, Asset, JOB_STATUSES, JOB_STATUS_LABELS, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.jobs import overdue_conditions
 from app.services.scheduling import job_creation_date, next_due_date, uk_today
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location
+from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab
 from app.services.exports import export_response
 jobs_bp = Blueprint('jobs', __name__, url_prefix="/jobs")
 jobs_bp.before_request(require_login)
@@ -16,7 +16,7 @@ JOB_COLUMNS = [
     ('site', 'Site', lambda job: job.site.name),
     ('building', 'Building', lambda job: job.building.name if job.building else None),
     ('zone', 'Zone', lambda job: job.zone.name if job.zone else None),
-    ('due_by', 'Due By', lambda job: job.due_by),
+    ('due', 'Due', lambda job: job.due),
     ('source', 'Source', lambda job: job.source_label),
     ('status', 'Status', lambda job: job.status_label),
     ('closed_on', 'Closed On', lambda job: job.closed_at),
@@ -69,10 +69,10 @@ def filtered_jobs():
 
     # date ranges include both ends. Jobs with no date drop out once either end is set
     if due_from:
-        query = query.filter(Job.due_by >= due_from)
+        query = query.filter(Job.due >= due_from)
 
     if due_to:
-        query = query.filter(Job.due_by <= due_to)
+        query = query.filter(Job.due <= due_to)
 
     if closed_from:
         query = query.filter(Job.closed_at >= closed_from)
@@ -129,7 +129,7 @@ def create():
         job = Job(
             description=form.description.data,
             work_required=form.work_required.data,
-            due_by=form.due_by.data,
+            due=form.due.data,
             source='reactive',
             site_id=form.site_id.data,
             building_id=parse_uuid(form.building_id.data),
@@ -162,7 +162,7 @@ def edit(id):
         job.work_required=form.work_required.data
         # a planned job is due when its schedule said, so its due date can't be changed
         if job.source != 'planned':
-            job.due_by=form.due_by.data
+            job.due=form.due.data
         job.site_id=form.site_id.data
         job.building_id=parse_uuid(form.building_id.data)
         job.zone_id=parse_uuid(form.zone_id.data)
@@ -235,15 +235,15 @@ def update_schedule(id):
     calculated = next_due_date(closed_at, job_schedule.frequency)
     # a job closed long enough ago can give a date that's already passed. Today is then the only choice
     latest = max(calculated, uk_today())
-    form = JobScheduleNextDueForm(latest=latest, data={'next_due_by': latest})
+    form = JobScheduleNextDueForm(latest=latest, data={'next_due': latest})
 
     if form.validate_on_submit():
         job.status = 'closed'
         job.closed_at = closed_at
-        job_schedule.next_due_by = form.next_due_by.data
-        job_schedule.next_job_creation_date = job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
+        job_schedule.next_due = form.next_due.data
+        job_schedule.next_job_creation_date = job_creation_date(job_schedule.next_due, job_schedule.notice_days)
         db.session.commit()
-        flash(f"Job '{job.description}' closed. Job Schedule '{job_schedule.description}' next due {job_schedule.next_due_by:%d-%m-%Y}.", 'success')
+        flash(f"Job '{job.description}' closed. Job Schedule '{job_schedule.description}' next due {job_schedule.next_due:%d-%m-%Y}.", 'success')
         return redirect(url_for('jobs.view', id=job.id))
 
     return render_template('jobs/update_schedule.html', job=job, job_schedule=job_schedule, closed_at=closed_at, calculated=calculated, form=form)
@@ -320,3 +320,7 @@ def unlink_assets(id):
 
     assets = sorted(job.assets, key=lambda asset: asset.description)
     return render_template("jobs/view/assets_unlink.html", job=job, assets=assets)
+
+@jobs_bp.route("/<uuid:id>/files")
+def files(id):
+    return files_tab(Job, id, "jobs/view/files.html", "job")

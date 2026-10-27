@@ -1,0 +1,9 @@
+{% extends "zones/view/_layout.html" %}
+
+{% block tab_content %}
+
+{% with record=zone, resource='zones' %}
+    {% include "files/_files_tab.html" %}
+{% endwith %}
+
+{% endblock tab_content %}

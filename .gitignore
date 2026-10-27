@@ -17,3 +17,6 @@ __pycache__/
 .idea/
 Thumbs.db
 .DS_Store
+
+# uploaded files (LOCAL_FILE_FOLDER, when no Spaces bucket is set)
+instance/

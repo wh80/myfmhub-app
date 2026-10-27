@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% set title = 'Register' %}
 
 {% block body %}
 <h3>Register</h3>
@@ -48,6 +49,20 @@
         {% if form.email.errors %}
             <div class="invalid-feedback d-block">
                 {% for error in form.email.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3 form-check">
+        {{ form.accept_terms(class="form-check-input" ~ (" is-invalid" if form.accept_terms.errors else "")) }}
+        <label class="form-check-label" for="accept_terms">
+            I accept the <a href="{{ url_for('organisations.terms') }}" target="_blank" rel="noopener">Terms and Conditions</a>
+        </label>
+        {% if form.accept_terms.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.accept_terms.errors %}
                     <div>{{ error }}</div>
                 {% endfor %}
             </div>

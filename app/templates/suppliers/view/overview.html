@@ -1,0 +1,26 @@
+{% extends "suppliers/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h6 class="text-muted">Telephone</h6>
+    <p class="mb-0">{{supplier.telephone or "-"}}</p>
+  </div>
+</div>
+
+<hr />
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Address</div>
+    <div class="fw-semibold">
+      <p>{{supplier.address_line_one}}</p>
+      <p>{{supplier.address_line_two}}</p>
+      <p>{{supplier.town_city}}</p>
+      <p>{{supplier.post_code}}</p>
+    </div>
+  </div>
+</div>
+
+{% endblock tab_content %}

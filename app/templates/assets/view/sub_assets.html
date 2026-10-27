@@ -1,0 +1,22 @@
+{% extends "assets/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Sub-Assets</h5>
+    {% if can('assets.create') %}
+    <a href="{{ url_for('assets.create', parent_id=asset.id) }}" class="btn btn-primary btn-sm">
+        Create Sub-Asset
+    </a>
+    {% endif %}
+</div>
+
+{% if asset.sub_assets %}
+    {% with assets=asset.sub_assets %}
+        {% include "assets/asset_list.html" %}
+    {% endwith %}
+{% else %}
+    <p class="text-muted mb-0">No sub-assets found.</p>
+{% endif %}
+
+{% endblock tab_content %}

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 # past its due date and not closed. A job due today isn't overdue yet. Pass uk_today()
 def overdue_conditions(today):
-    return Job.due_by < today, Job.status != 'closed'
+    return Job.due < today, Job.status != 'closed'
 
 
 # <= rather than ==, so a missed cron run, or a schedule saved with a creation date already
@@ -19,13 +19,13 @@ def due_job_schedules(today):
     return JobSchedule.query.filter(JobSchedule.next_job_creation_date <= today, JobSchedule.is_active.is_(True))
 
 
-# raises one job for the schedule's current due date. next_due_by is left as it is and the creation
+# raises one job for the schedule's current due date. next_due is left as it is and the creation
 # date is cleared, so the schedule raises nothing more until the job is closed
 def raise_job(job_schedule):
     job = Job(
         description=job_schedule.description,
         work_required=job_schedule.work_required,
-        due_by=job_schedule.next_due_by,
+        due=job_schedule.next_due,
         statutory_compliance=job_schedule.statutory_compliance,
         status='new',
         source='planned',
@@ -69,7 +69,7 @@ def create_scheduled_jobs(today=None):
         # one job at a time: raising clears the creation date, so even a schedule that's behind
         # raises nothing more until its job is closed
         try:
-            description = f"'{job_schedule.description}' ({job_schedule.id}) due {job_schedule.next_due_by:%d-%m-%Y}"
+            description = f"'{job_schedule.description}' ({job_schedule.id}) due {job_schedule.next_due:%d-%m-%Y}"
             raise_job(job_schedule)
             db.session.commit()
             created.append(description)

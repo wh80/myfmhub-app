@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% set title = 'My Organisation' %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">My Organisation: {{ organisation.name }}</h4>
+  </div>
+
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="text-muted small">Name</div>
+        <div class="fw-semibold"><p>{{ organisation.name }}</p></div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Registered</div>
+        <div class="fw-semibold"><p>{{ organisation.created_at | datetime }}</p></div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Storage Used</div>
+        <div class="fw-semibold"><p>{{ storage_used }}</p></div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Terms and Conditions Accepted</div>
+        <div class="fw-semibold">
+          <p>
+            {{ organisation.terms_accepted_at | datetime }}
+            {% if organisation.terms_accepted_by %}by {{ organisation.terms_accepted_by.first_name }} {{ organisation.terms_accepted_by.last_name }}{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h5 class="mt-2">Data</h5>
+    <ul class="list-group mb-4">
+      {% for key, label, count in items %}
+      <li class="list-group-item d-flex justify-content-between">
+        <span>{{ label.split(' (')[0] }}</span>
+        <span class="text-muted">{{ count }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <a href="{{ url_for('my_organisation.delete') }}" class="btn btn-danger">
+      <i class="bi bi-trash"></i> Delete Account
+    </a>
+  </div>
+</div>
+
+{% endblock body %}

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% set title = 'Support - Job Schedules' %}
 {% block body %}
 <nav aria-label="breadcrumb">
   <ol class="breadcrumb">
@@ -20,7 +21,7 @@
 <h4 class="mt-4">Setting up a schedule</h4>
 <p>When you create a job schedule you give it:</p>
 <ul>
-  <li><strong>Next Due By</strong>: the date the next job is due.</li>
+  <li><strong>Next Due</strong>: the date the next job is due.</li>
   <li><strong>Frequency</strong>: how often the work repeats.</li>
   <li>
     <strong>Notice Days</strong>: how many days before the due date the job is raised, so there's time
@@ -48,14 +49,14 @@
 <h4 class="mt-4">How jobs are raised</h4>
 <p>
   Every day, MyFmHub checks all job schedules. A schedule whose Next Job Creation date is today, or has
-  already passed, has a new job raised, due on the schedule's Next Due By date.
+  already passed, has a new job raised, due on the schedule's Next Due date.
 </p>
 <p>
   The Next Job Creation date can already be in the past when you save a schedule, if the due date is
   closer than the notice days. The job is then raised the next time schedules are checked.
 </p>
 <p>
-  A schedule only has one job open at a time. While that job is open, the schedule's Next Due By date
+  A schedule only has one job open at a time. While that job is open, the schedule's Next Due date
   stays the same and its Next Job Creation shows <strong>Pending current job closure</strong>. No more
   jobs are raised from it until the job is closed.
 </p>
@@ -70,7 +71,7 @@
   <li>
     Set when the next job is due. MyFmHub suggests the close date plus the schedule's frequency, and you
     can bring this date forward if needed. When you confirm, the job is closed and the schedule's
-    Next Due By and Next Job Creation dates are set.
+    Next Due and Next Job Creation dates are set.
   </li>
 </ol>
 <p>The next due date:</p>
@@ -109,7 +110,7 @@
   schedule before the work starts, or to pause one.
 </p>
 <p>
-  To make an inactive schedule active again, edit it and tick Active. Its Next Due By date must be in
+  To make an inactive schedule active again, edit it and tick Active. Its Next Due date must be in
   the future (tomorrow or later) when you do, so it doesn't immediately raise a job that's already due.
   Next Job Creation is then worked out from the new date in the usual way.
 </p>

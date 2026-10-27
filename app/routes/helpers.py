@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 from functools import wraps
-from flask import request, g, redirect, url_for, flash, abort
+from flask import request, g, redirect, url_for, flash, abort, render_template
 from app import db
 from app.models import Site, Building, Zone
 from app.services.auth import revoke_session, clear_session_cookie
@@ -205,3 +205,12 @@ def signed_out_or_back(message, fallback_url):
 
     flash(message, 'success')
     return back_to(fallback_url)
+
+
+def files_tab(model, id, template, name):
+    """A record's Files tab (templates/files/_files_tab.html). require_permission checks view on the
+    record; the files themselves need files.view too."""
+    if not can(g.person, 'files.view'):
+        abort(403)
+    record = org_get_or_404(model, id)
+    return render_template(template, active_tab='files', **{name: record})
