@@ -12,7 +12,8 @@ my_organisation_bp.before_request(require_permission)
 # Deleting takes three steps: tick every box on the warning page, which emails the admin a link, then
 # confirm on the page that link opens (see services/organisations.py)
 
-# what deleting removes, each with a box to tick on the warning page: (key, label, model)
+# what deleting removes, each with a box to tick on the warning page: (key, label, model). Support tickets
+# aren't listed: they're the platform's records, so they go with the organisation without a box
 DELETE_ITEMS = [
     ('sites', 'Sites', Site),
     ('buildings', 'Buildings', Building),

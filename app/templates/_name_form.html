@@ -6,21 +6,23 @@
 <form method="POST">
     {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-        {{ form.name.label(class="form-label") }}
-        {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
-        {% if form.name.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.name.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+          {{ form.name.label(class="form-label") }}
+          {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
+          {% if form.name.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.name.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    {% if form.building_condition_id %}
-    {{ reference_select(form.building_condition_id) }}
-    {% endif %}
+      {% if form.building_condition_id %}
+      {{ reference_select(form.building_condition_id) }}
+      {% endif %}
+    </div>
 
     <button type="submit" class="btn btn-primary">Save</button>
     <a href="{{ back_url }}" class="btn btn-secondary">Back</a>

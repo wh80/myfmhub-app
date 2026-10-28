@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import ZoneForm
-from app.models import Zone, Building, Site
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab
+from app.models import Zone, Building, Site, Asset, Job, JobSchedule
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab, related, related_page
 zones_bp = Blueprint('zones', __name__, url_prefix="/zones")
 zones_bp.before_request(require_login)
 zones_bp.before_request(require_permission)
@@ -95,6 +95,24 @@ def delete(id):
     return render_template('zones/delete.html', zone=zone)
 
 ### RELATED DATA ###
+
+@zones_bp.route("/<uuid:id>/assets")
+def assets(id):
+    zone = org_get_or_404(Zone, id)
+    pagination, search = related_page(related(zone, Zone.assets, Asset), Asset)
+    return render_template("zones/view/assets.html", zone=zone, assets=pagination.items, pagination=pagination, search=search, active_tab="assets")
+
+@zones_bp.route("/<uuid:id>/jobs")
+def jobs(id):
+    zone = org_get_or_404(Zone, id)
+    pagination, search = related_page(related(zone, Zone.jobs, Job), Job)
+    return render_template("zones/view/jobs.html", zone=zone, jobs=pagination.items, pagination=pagination, search=search, active_tab="jobs")
+
+@zones_bp.route("/<uuid:id>/job-schedules")
+def job_schedules(id):
+    zone = org_get_or_404(Zone, id)
+    pagination, search = related_page(related(zone, Zone.job_schedules, JobSchedule), JobSchedule)
+    return render_template("zones/view/job_schedules.html", zone=zone, job_schedules=pagination.items, pagination=pagination, search=search, active_tab="job_schedules")
 
 @zones_bp.route("/<uuid:id>/files")
 def files(id):

@@ -11,6 +11,7 @@
         <th scope="col" data-col="site">Site</th>
         <th scope="col" data-col="building">Building</th>
         {% endif %}
+        <th scope="col" data-col="jobs">Jobs</th>
         <th scope="col" data-col="assets">Assets</th>
         <th scope="col" data-col="job_schedules">Job Schedules</th>
       </tr>
@@ -23,6 +24,7 @@
         <td>{{ zone.building.site.name }}</td>
         <td>{{ zone.building.name }}</td>
         {% endif %}
+        <td>{{ zone.jobs|length }}</td>
         <td>{{ zone.assets|length }}</td>
         <td>{{ zone.job_schedules|length }}</td>
       </tr>

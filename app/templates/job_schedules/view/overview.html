@@ -70,6 +70,14 @@
     <div class="text-muted small">Job Category</div>
     <div class="fw-semibold">{{ job_schedule.job_category or "-" }}</div>
   </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Estimated Cost</div>
+    <div class="fw-semibold">{{ job_schedule.estimated_cost | currency }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Estimated Duration</div>
+    <div class="fw-semibold">{{ job_schedule.estimated_duration | days }}</div>
+  </div>
 </div>
 
 {% endblock tab_content %}

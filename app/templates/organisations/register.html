@@ -7,66 +7,68 @@
 <form method="POST">
     {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-        {{ form.organisation_name.label(class="form-label") }}
-        {{ form.organisation_name(class="form-control" ~ (" is-invalid" if form.organisation_name.errors else "")) }}
-        {% if form.organisation_name.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.organisation_name.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+          {{ form.organisation_name.label(class="form-label") }}
+          {{ form.organisation_name(class="form-control" ~ (" is-invalid" if form.organisation_name.errors else "")) }}
+          {% if form.organisation_name.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.organisation_name.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3">
-        {{ form.first_name.label(class="form-label") }}
-        {{ form.first_name(class="form-control" ~ (" is-invalid" if form.first_name.errors else "")) }}
-        {% if form.first_name.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.first_name.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+          {{ form.first_name.label(class="form-label") }}
+          {{ form.first_name(class="form-control" ~ (" is-invalid" if form.first_name.errors else "")) }}
+          {% if form.first_name.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.first_name.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3">
-        {{ form.last_name.label(class="form-label") }}
-        {{ form.last_name(class="form-control" ~ (" is-invalid" if form.last_name.errors else "")) }}
-        {% if form.last_name.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.last_name.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+          {{ form.last_name.label(class="form-label") }}
+          {{ form.last_name(class="form-control" ~ (" is-invalid" if form.last_name.errors else "")) }}
+          {% if form.last_name.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.last_name.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3">
-        {{ form.email.label(class="form-label") }}
-        {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else "")) }}
-        {% if form.email.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.email.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else "")) }}
+          {% if form.email.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.email.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3 form-check">
-        {{ form.accept_terms(class="form-check-input" ~ (" is-invalid" if form.accept_terms.errors else "")) }}
-        <label class="form-check-label" for="accept_terms">
-            I accept the <a href="{{ url_for('organisations.terms') }}" target="_blank" rel="noopener">Terms and Conditions</a>
-        </label>
-        {% if form.accept_terms.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.accept_terms.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+      <div class="col-md-6 mb-3 form-check">
+          {{ form.accept_terms(class="form-check-input" ~ (" is-invalid" if form.accept_terms.errors else "")) }}
+          <label class="form-check-label" for="accept_terms">
+              I accept the <a href="{{ url_for('organisations.terms') }}" target="_blank" rel="noopener">Terms and Conditions</a>
+          </label>
+          {% if form.accept_terms.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.accept_terms.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
     </div>
 
     <button type="submit" class="btn btn-primary">Register</button>

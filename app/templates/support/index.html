@@ -1,7 +1,12 @@
 {% extends 'base.html' %}
 {% set title = 'Support' %}
 {% block body %}
-<h1 class="mb-4">Support</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Support</h1>
+  {% if g.person %}
+  <a href="{{ url_for('support.create_ticket') }}" class="btn btn-primary"><i class="bi bi-life-preserver"></i> Create Support Ticket</a>
+  {% endif %}
+</div>
 
 <p class="text-muted">Guides to how MyFmHub works.</p>
 
@@ -21,4 +26,54 @@
   </a>
   {% endif %}
 </div>
+
+{% if g.person %}
+<h5 class="mt-5 mb-3">Your support tickets</h5>
+{% if tickets %}
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th scope="col" class="text-nowrap">Created (UTC)</th>
+          <th scope="col">Description</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ticket in tickets %}
+        <tr>
+          <td class="text-nowrap">{{ ticket.created_at | datetime }}</td>
+          <td>{{ ticket.description | truncate(150) }}</td>
+          <td>{% include "support/_ticket_status_badge.html" %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for ticket in tickets %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="small text-muted">{{ ticket.created_at | datetime }}</span>
+            {% include "support/_ticket_status_badge.html" %}
+          </div>
+          <p class="card-text mb-0">{{ ticket.description | truncate(150) }}</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<p class="text-muted">You haven't raised any support tickets in {{ g.organisation.name }}.</p>
+{% endif %}
+{% endif %}
 {% endblock body %}

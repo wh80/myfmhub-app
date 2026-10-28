@@ -81,6 +81,9 @@ def create_app():
     app.jinja_env.filters['datetime'] = lambda value: value.strftime('%d-%m-%Y %H:%M') if value else '-'
     app.jinja_env.filters['date'] = lambda value: value.strftime('%d-%m-%Y') if value else '-'
     app.jinja_env.filters['currency'] = lambda value: f'£{value:,.2f}' if value is not None else '-'
+    # a number of days, e.g. 0.5 -> '0.5 days', 1 -> '1 day'
+    from decimal import Decimal
+    app.jinja_env.filters['days'] = lambda value: '-' if value is None else f"{Decimal(value).normalize():f} day{'' if value == 1 else 's'}"
     from app.services.files import size_text
     app.jinja_env.filters['filesize'] = size_text
 

@@ -28,7 +28,7 @@ class RowError(Exception):
 @dataclass
 class Column:
     key: str
-    kind: str  # text, date, money, whole_number, yes_no, frequency, site, email, user_group, reference
+    kind: str  # text, date, money, whole_number, days, yes_no, frequency, site, email, user_group, reference
     required: bool = False
     max_length: int = None
     notes: str = ''
@@ -52,6 +52,7 @@ class Column:
             'date': 'Date: dd/mm/yyyy, dd-mm-yyyy or yyyy-mm-dd',
             'money': 'Amount in pounds, e.g. 1250.00 (£ and commas are allowed)',
             'whole_number': 'Whole number',
+            'days': 'Number of days, e.g. 0.5 for half a day',
             'yes_no': f"Yes or No. Blank means {'Yes' if self.blank_means_yes else 'No'}",
             'frequency': 'One of: ' + ', '.join(label for _, label in FREQUENCIES),
             'site': 'The name of an existing site',
@@ -152,6 +153,15 @@ def parse_value(column, raw, lookups):
             raise RowError(f"{column.label} '{raw}' isn't an amount")
         if not value.is_finite() or value < 0 or value > Decimal('9999999999.99'):
             raise RowError(f'{column.label} must be between 0 and 9,999,999,999.99')
+        return value.quantize(Decimal('0.01'))
+
+    if column.kind == 'days':
+        try:
+            value = Decimal(raw.strip())
+        except InvalidOperation:
+            raise RowError(f"{column.label} '{raw}' isn't a number of days")
+        if not value.is_finite() or value < 0 or value > 9999:
+            raise RowError(f'{column.label} must be between 0 and 9,999 days')
         return value.quantize(Decimal('0.01'))
 
     if column.kind == 'whole_number':
@@ -354,6 +364,8 @@ def create_job_schedule(values, lookups):
         statutory_compliance=values['statutory_compliance'],
         is_active=values['active'],
         job_category_id=reference_id(values['job_category']),
+        estimated_cost=values['estimated_cost'],
+        estimated_duration=values['estimated_duration'],
     )]
 
 
@@ -474,6 +486,8 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         Column('statutory_compliance', 'yes_no'),
         Column('active', 'yes_no', blank_means_yes=True, notes="Inactive schedules don't raise any jobs until they're made active"),
         reference('job_category', JobCategory, notes='Optional. Must match one you already have, ignoring capitals. Jobs raised from the schedule get it too'),
+        Column('estimated_cost', 'money', notes='Optional. Jobs raised from the schedule get it too'),
+        Column('estimated_duration', 'days'),
     ], create_job_schedule),
 ]}
 

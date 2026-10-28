@@ -124,6 +124,8 @@ def create():
             form.statutory_compliance.data = copy_from.statutory_compliance
             form.is_active.data = copy_from.is_active
             form.job_category_id.data = str(copy_from.job_category_id) if copy_from.job_category_id else ''
+            form.estimated_cost.data = copy_from.estimated_cost
+            form.estimated_duration.data = copy_from.estimated_duration
 
     if form.validate_on_submit() and check_location(form):
         job_schedule = JobSchedule(
@@ -139,6 +141,8 @@ def create():
             building_id=parse_uuid(form.building_id.data),
             zone_id=parse_uuid(form.zone_id.data),
             job_category_id=parse_uuid(form.job_category_id.data),
+            estimated_cost=form.estimated_cost.data,
+            estimated_duration=form.estimated_duration.data,
             organisation_id=g.person.organisation_id,
         )
         db.session.add(job_schedule)
@@ -192,6 +196,8 @@ def edit(id):
         job_schedule.building_id=parse_uuid(form.building_id.data)
         job_schedule.zone_id=parse_uuid(form.zone_id.data)
         job_schedule.job_category_id=parse_uuid(form.job_category_id.data)
+        job_schedule.estimated_cost=form.estimated_cost.data
+        job_schedule.estimated_duration=form.estimated_duration.data
                 
         db.session.commit()
         flash(f"Job Schedule '{job_schedule.work_required}' updated successfully!", 'success')

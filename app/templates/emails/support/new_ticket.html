@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New support ticket</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #212529;">
+    <p>A new support ticket has been raised on MyFmHub.</p>
+    <p>
+        <strong>From:</strong> {{ person_name }} (<a href="mailto:{{ person_email }}">{{ person_email }}</a>)<br>
+        <strong>Organisation:</strong> {{ organisation_name }}<br>
+        <strong>Raised:</strong> {{ ticket.created_at.strftime('%d-%m-%Y %H:%M') }} (UTC)
+    </p>
+    <p><strong>Description:</strong></p>
+    <p style="white-space: pre-wrap; border-left: 3px solid #dee2e6; padding-left: 12px;">{{ ticket.description }}</p>
+    <p><a href="{{ ticket_url }}">View the ticket in MyFmHub admin</a> (platform admins only).</p>
+</body>
+</html>

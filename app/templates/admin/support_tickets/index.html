@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% set title = 'Admin - Support Tickets' %}
+{% from "pagination.html" import pagination_nav %}
+{% block body %}
+{% include 'admin/_tabs.html' %}
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-4">
+      <label for="search" class="form-label">Search</label>
+      <input type="text" id="search" name="search" value="{{ search }}" class="form-control" placeholder="Description, name or email ..." />
+    </div>
+    <div class="col-md-2">
+      <label for="status" class="form-label">Status</label>
+      <select id="status" name="status" class="form-select">
+        <option value="">All statuses</option>
+        {% for key, label in statuses %}
+        <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="organisation_id" class="form-label">Organisation</label>
+      <select id="organisation_id" name="organisation_id" class="form-select">
+        <option value="">All organisations</option>
+        {% for organisation in organisations %}
+        <option value="{{ organisation.id }}" {% if organisation_id == organisation.id|string %}selected{% endif %}>{{ organisation.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-auto d-flex align-items-end gap-2">
+      <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Search</button>
+      <a href="{{ url_for('admin.support_tickets') }}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Cancel</a>
+    </div>
+  </div>
+</form>
+
+{% if pagination.total %}
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead>
+        <tr>
+          <th scope="col" class="text-nowrap">Created (UTC)</th>
+          <th scope="col">Description</th>
+          <th scope="col">Raised By</th>
+          <th scope="col">Email</th>
+          <th scope="col">Organisation</th>
+          <th scope="col">Notes</th>
+          <th scope="col">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ticket in tickets %}
+        <tr class="position-relative">
+          <td class="text-nowrap"><a href="{{ url_for('admin.support_ticket', id=ticket.id) }}" class="stretched-link text-reset text-decoration-none">{{ ticket.created_at | datetime }}</a></td>
+          <td>{{ ticket.description | truncate(100) }}</td>
+          <td class="text-nowrap">{% if ticket.created_by %}{{ ticket.created_by.first_name }} {{ ticket.created_by.last_name }}{% else %}<span class="text-muted">Person deleted</span>{% endif %}</td>
+          <td class="text-nowrap">{{ ticket.created_by.email if ticket.created_by else '-' }}</td>
+          <td class="text-nowrap">{{ ticket.organisation.name }}</td>
+          <td>{{ ticket.notes | length }}</td>
+          <td>{% include "support/_ticket_status_badge.html" %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for ticket in tickets %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between mb-2">
+            <a href="{{ url_for('admin.support_ticket', id=ticket.id) }}" class="stretched-link text-reset small text-muted">{{ ticket.created_at | datetime }}</a>
+            {% include "support/_ticket_status_badge.html" %}
+          </div>
+          <p class="card-text">{{ ticket.description | truncate(150) }}</p>
+          <p class="card-text small mb-0">{% if ticket.created_by %}{{ ticket.created_by.first_name }} {{ ticket.created_by.last_name }}{% else %}<span class="text-muted">Person deleted</span>{% endif %} &middot; {{ ticket.created_by.email if ticket.created_by else '-' }}<br />{{ ticket.organisation.name }} &middot; {{ ticket.notes | length }} note(s)</p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ pagination_nav(pagination) }}
+{% elif search or status or organisation_id %}
+<p>No support tickets match your search.</p>
+{% else %}
+<p>No support tickets yet.</p>
+{% endif %}
+{% endblock body %}

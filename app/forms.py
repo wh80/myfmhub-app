@@ -21,6 +21,8 @@ class SiteForm(FlaskForm):
     county = StringField('County', validators=[Optional(), Length(max=100)])
     post_code = StringField('Post Code', validators=[Optional(), Length(max=255)])
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
+    # anyone in the organisation: choices are set by set_main_contact_choices in routes/sites.py
+    main_contact_id = SelectField('Main Contact', coerce=optional_id, validators=[Optional()])
 
 class JobForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=120)])
@@ -33,6 +35,8 @@ class JobForm(FlaskForm):
     zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
     # an optional category or condition: choices are set by set_reference_choices
     job_category_id = SelectField('Job Category', coerce=optional_id, validators=[Optional()])
+    estimated_cost = DecimalField('Estimated Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
+    actual_cost = DecimalField('Actual Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
 
 class JobCloseForm(FlaskForm):
     closed_at = DateField('Closed On', default=uk_today, validators=[DataRequired()])
@@ -100,6 +104,9 @@ class JobScheduleForm(FlaskForm):
     zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
     # an optional category or condition: choices are set by set_reference_choices
     job_category_id = SelectField('Job Category', coerce=optional_id, validators=[Optional()])
+    estimated_cost = DecimalField('Estimated Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
+    # days, in steps as small as a quarter of a day
+    estimated_duration = DecimalField('Estimated Duration', places=2, description='In days, e.g. 0.5 for half a day', validators=[Optional(), NumberRange(min=0, max=9999)])
 
     # a job is raised at most one gap ahead, so the schedule never has two jobs waiting to come due
     def validate_notice_days(self, field):
@@ -188,6 +195,15 @@ class ReferenceItemForm(FlaskForm):
 # Add in bulk: values separated by commas or new lines (split_values in services/reference_data.py)
 class ReferenceBulkForm(FlaskForm):
     values = TextAreaField('Values', validators=[DataRequired(), Length(max=50000)])
+
+# raised from the Support page
+class SupportTicketForm(FlaskForm):
+    description = TextAreaField('Description', description='Describe the issue or question, with any details that would help us look into it',
+                                validators=[DataRequired(), Length(max=5000)], filters=[strip])
+
+# a platform admin's note on a support ticket
+class SupportTicketNoteForm(FlaskForm):
+    description = TextAreaField('Note', validators=[DataRequired(), Length(max=5000)], filters=[strip])
 
 class ImportForm(FlaskForm):
     file = FileField('CSV file', validators=[FileRequired('Choose a CSV file to upload.'), FileAllowed(['csv'], 'Upload a .csv file.')])

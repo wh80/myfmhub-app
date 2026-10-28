@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import BuildingForm
-from app.models import Building, Site, Zone, Asset, JobSchedule, BuildingCondition
+from app.models import Building, Site, Zone, Asset, Job, JobSchedule, BuildingCondition
 from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.reference_data import set_condition
 buildings_bp = Blueprint('buildings', __name__, url_prefix="/buildings")
@@ -108,6 +108,12 @@ def assets(id):
     building = org_get_or_404(Building, id)
     pagination, search = related_page(related(building, Building.assets, Asset), Asset)
     return render_template("buildings/view/assets.html", building=building, assets=pagination.items, pagination=pagination, search=search, active_tab="assets")
+
+@buildings_bp.route("/<uuid:id>/jobs")
+def jobs(id):
+    building = org_get_or_404(Building, id)
+    pagination, search = related_page(related(building, Building.jobs, Job), Job)
+    return render_template("buildings/view/jobs.html", building=building, jobs=pagination.items, pagination=pagination, search=search, active_tab="jobs")
 
 @buildings_bp.route("/<uuid:id>/job-schedules")
 def job_schedules(id):

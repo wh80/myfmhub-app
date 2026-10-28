@@ -10,16 +10,18 @@
     <form method="POST" id="close-form">
       {{ form.hidden_tag() }}
 
-      <div class="mb-3">
-        {{ form.closed_at.label(class="form-label") }} {{
-        form.closed_at(class="form-control" ~ (" is-invalid" if
-        form.closed_at.errors else "")) }} {% if form.closed_at.errors %}
-        <div class="invalid-feedback d-block">
-          {% for error in form.closed_at.errors %}
-          <div>{{ error }}</div>
-          {% endfor %}
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.closed_at.label(class="form-label") }} {{
+          form.closed_at(class="form-control" ~ (" is-invalid" if
+          form.closed_at.errors else "")) }} {% if form.closed_at.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.closed_at.errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
       </div>
     </form>
 

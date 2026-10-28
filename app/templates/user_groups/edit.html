@@ -7,16 +7,18 @@
 <form method="POST">
     {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-        {{ form.name.label(class="form-label") }}
-        {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
-        {% if form.name.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.name.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    <div class="row">
+      <div class="col-md-6 mb-3">
+          {{ form.name.label(class="form-label") }}
+          {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
+          {% if form.name.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.name.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
     </div>
 
     <h5 class="mt-4">Permissions</h5>

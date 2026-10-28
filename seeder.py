@@ -265,6 +265,8 @@ def seed(count):
             is_active=random.random() > 0.1,
             site=pick_site(),
             job_category=pick(JobCategory),
+            estimated_cost=random.choice([None, Decimal(random.randint(50, 5000))]),
+            estimated_duration=random.choice([None, Decimal('0.5'), Decimal('1'), Decimal('2')]),
             organisation=organisation,
         ))
 
@@ -294,6 +296,7 @@ def seed(count):
                 building=job_schedule.building,
                 zone=job_schedule.zone,
                 job_category=job_schedule.job_category,
+                estimated_cost=job_schedule.estimated_cost,
                 organisation=organisation,
                 job_schedule=job_schedule,
             ))

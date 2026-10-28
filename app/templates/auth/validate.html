@@ -8,16 +8,18 @@
 <form method="POST">
     {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-        {{ form.code.label(class="form-label") }}
-        {{ form.code(class="form-control" ~ (" is-invalid" if form.code.errors else ""), inputmode="numeric", autocomplete="one-time-code", maxlength="6") }}
-        {% if form.code.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.code.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    <div class="row">
+      <div class="col-md-6 mb-3">
+          {{ form.code.label(class="form-label") }}
+          {{ form.code(class="form-control" ~ (" is-invalid" if form.code.errors else ""), inputmode="numeric", autocomplete="one-time-code", maxlength="6") }}
+          {% if form.code.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.code.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
     </div>
 
     <button type="submit" class="btn btn-primary">Continue</button>

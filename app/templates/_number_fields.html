@@ -1,0 +1,38 @@
+{# money and number inputs for create and edit forms, as columns of the form's row #}
+
+{# pounds: a number input with a £ prefix #}
+{% macro money_field(field) %}
+<div class="col-md-6 mb-3">
+  {{ field.label(class="form-label") }}
+  <div class="input-group">
+    <span class="input-group-text">£</span>
+    {{ field(class="form-control" ~ (" is-invalid" if field.errors else ""), type="number", step="0.01", min="0") }}
+  </div>
+  {% if field.errors %}
+  <div class="invalid-feedback d-block">
+    {% for error in field.errors %}
+    <div>{{ error }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{# a decimal number with a unit after it, e.g. days #}
+{% macro number_field(field, unit, step='0.25') %}
+<div class="col-md-6 mb-3">
+  {{ field.label(class="form-label") }}
+  <div class="input-group">
+    {{ field(class="form-control" ~ (" is-invalid" if field.errors else ""), type="number", step=step, min="0") }}
+    <span class="input-group-text">{{ unit }}</span>
+  </div>
+  {% if field.description %}<div class="form-text">{{ field.description }}</div>{% endif %}
+  {% if field.errors %}
+  <div class="invalid-feedback d-block">
+    {% for error in field.errors %}
+    <div>{{ error }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

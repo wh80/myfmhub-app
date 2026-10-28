@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import SiteForm
-from app.models import Site, Building, Asset, Job, JobSchedule
+from app.models import Site, Building, Asset, Job, JobSchedule, Person
 from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab, related, related_page
 from app.services.exports import export_response
 sites_bp = Blueprint('sites', __name__, url_prefix="/sites")
@@ -60,9 +60,15 @@ def export(file_format):
     query, _ = filtered_sites()
     return export_response(file_format, 'sites', 'Sites', SITE_COLUMNS, query.all())
 
+# everyone in the organisation, so WTForms refuses anyone else
+def set_main_contact_choices(form):
+    people = org_query(Person).order_by(Person.first_name, Person.last_name, Person.id).all()
+    form.main_contact_id.choices = [('', '-')] + [(str(person.id), f'{person.first_name} {person.last_name} ({person.email})') for person in people]
+
 @sites_bp.route('/create', methods=['GET', 'POST'])
 def create():
     form = SiteForm()
+    set_main_contact_choices(form)
     
     if form.validate_on_submit() and check_name(form):
         site = Site(
@@ -74,6 +80,7 @@ def create():
             county=form.county.data,
             post_code=form.post_code.data,
             telephone=form.telephone.data,
+            main_contact_id=parse_uuid(form.main_contact_id.data),
             organisation_id=g.person.organisation_id,
         )
         db.session.add(site)
@@ -94,6 +101,7 @@ def edit(id):
     site = org_get_or_404(Site, id)
 
     form=SiteForm(obj=site)
+    set_main_contact_choices(form)
 
     if form.validate_on_submit() and check_name(form, site):
         
@@ -105,6 +113,7 @@ def edit(id):
         site.county=form.county.data
         site.post_code=form.post_code.data
         site.telephone=form.telephone.data
+        site.main_contact_id=parse_uuid(form.main_contact_id.data)
         
         db.session.commit()
         flash(f"Site '{site.name}' updated successfully!", 'success')

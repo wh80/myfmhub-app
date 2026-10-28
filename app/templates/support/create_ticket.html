@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% set title = 'Create Support Ticket' %}
+{% block body %}
+<h3>Create Support Ticket</h3>
+<p class="text-muted">Tell us about an issue or ask a question. The MyFmHub team will reply to {{ g.user.email }}.</p>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      {{ form.description.label(class="form-label") }}
+      {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else ""), rows=8) }}
+      <div class="form-text">{{ form.description.description }}</div>
+      {% if form.description.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.description.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Submit</button>
+  <a href="{{ url_for('support.index') }}" class="btn btn-secondary">Back</a>
+</form>
+{% endblock body %}

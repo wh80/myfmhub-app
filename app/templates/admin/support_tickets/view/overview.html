@@ -1,0 +1,26 @@
+{% extends "admin/support_tickets/view/_layout.html" %}
+
+{% block tab_content %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Raised By</div>
+    <div class="fw-semibold">{% if ticket.created_by %}{{ ticket.created_by.first_name }} {{ ticket.created_by.last_name }}{% else %}<span class="text-muted">Person deleted</span>{% endif %}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Email</div>
+    <div class="fw-semibold">{% if ticket.created_by %}<a href="mailto:{{ ticket.created_by.email }}">{{ ticket.created_by.email }}</a>{% else %}-{% endif %}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Organisation</div>
+    <div class="fw-semibold">{{ ticket.organisation.name }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Status</div>
+    <div class="fw-semibold">{{ ticket.status_label }}</div>
+  </div>
+  <div class="col-12">
+    <div class="text-muted small">Description</div>
+    <div class="fw-semibold" style="white-space: pre-wrap;">{{ ticket.description }}</div>
+  </div>
+</div>
+{% endblock tab_content %}

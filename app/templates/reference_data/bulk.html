@@ -14,16 +14,18 @@
 <form method="POST">
   {{ form.hidden_tag() }}
 
-  <div class="mb-3">
-    {{ form.values.label(class="form-label") }}
-    {{ form.values(class="form-control" ~ (" is-invalid" if form.values.errors else ""), rows=10, placeholder="For example: Electrical, Mechanical, Plumbing") }}
-    {% if form.values.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.values.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      {{ form.values.label(class="form-label") }}
+      {{ form.values(class="form-control" ~ (" is-invalid" if form.values.errors else ""), rows=10, placeholder="For example: Electrical, Mechanical, Plumbing") }}
+      {% if form.values.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.values.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
   <button type="submit" class="btn btn-primary">Add</button>

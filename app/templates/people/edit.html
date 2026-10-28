@@ -7,89 +7,93 @@
 <form method="POST">
     {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-        {{ form.first_name.label(class="form-label") }}
-        {{ form.first_name(class="form-control" ~ (" is-invalid" if form.first_name.errors else "")) }}
-        {% if form.first_name.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.first_name.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+          {{ form.first_name.label(class="form-label") }}
+          {{ form.first_name(class="form-control" ~ (" is-invalid" if form.first_name.errors else "")) }}
+          {% if form.first_name.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.first_name.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3">
-        {{ form.last_name.label(class="form-label") }}
-        {{ form.last_name(class="form-control" ~ (" is-invalid" if form.last_name.errors else "")) }}
-        {% if form.last_name.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.last_name.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+          {{ form.last_name.label(class="form-label") }}
+          {{ form.last_name(class="form-control" ~ (" is-invalid" if form.last_name.errors else "")) }}
+          {% if form.last_name.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.last_name.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3">
-        {{ form.email.label(class="form-label") }}
-        {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else "")) }}
-        {% if form.email.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.email.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else "")) }}
+          {% if form.email.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.email.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3">
-        {{ form.job_title.label(class="form-label") }}
-        {{ form.job_title(class="form-control" ~ (" is-invalid" if form.job_title.errors else "")) }}
-        {% if form.job_title.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.job_title.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+          {{ form.job_title.label(class="form-label") }}
+          {{ form.job_title(class="form-control" ~ (" is-invalid" if form.job_title.errors else "")) }}
+          {% if form.job_title.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.job_title.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="mb-3">
-        {{ form.mobile.label(class="form-label") }}
-        {{ form.mobile(class="form-control" ~ (" is-invalid" if form.mobile.errors else ""), type="tel") }}
-        {% if form.mobile.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.mobile.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+          {{ form.mobile.label(class="form-label") }}
+          {{ form.mobile(class="form-control" ~ (" is-invalid" if form.mobile.errors else ""), type="tel") }}
+          {% if form.mobile.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.mobile.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
 
-    <div class="form-check mb-3">
-        {{ form.can_login(class="form-check-input" ~ (" is-invalid" if form.can_login.errors else "")) }}
-        {{ form.can_login.label(class="form-check-label") }}
-        <div class="form-text">Turning this on emails them a sign-in code. Turning it off signs them out everywhere.</div>
-        {% if form.can_login.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.can_login.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
-    </div>
+      <div class="col-md-6 mb-3">
+        <div class="form-check">
+            {{ form.can_login(class="form-check-input" ~ (" is-invalid" if form.can_login.errors else "")) }}
+            {{ form.can_login.label(class="form-check-label") }}
+            <div class="form-text">Turning this on emails them a sign-in code. Turning it off signs them out everywhere.</div>
+            {% if form.can_login.errors %}
+                <div class="invalid-feedback d-block">
+                    {% for error in form.can_login.errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+      </div>
 
-    <div class="mb-3{{ ' d-none' if not form.can_login.data }}" id="user-group-field">
-        {{ form.user_group_id.label(class="form-label") }}
-        {{ form.user_group_id(class="form-select" ~ (" is-invalid" if form.user_group_id.errors else "")) }}
-        {% if form.user_group_id.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.user_group_id.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+      <div class="col-md-6 mb-3{{ ' d-none' if not form.can_login.data }}" id="user-group-field">
+          {{ form.user_group_id.label(class="form-label") }}
+          {{ form.user_group_id(class="form-select" ~ (" is-invalid" if form.user_group_id.errors else "")) }}
+          {% if form.user_group_id.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.user_group_id.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
     </div>
 
     <button type="submit" class="btn btn-primary">Save</button>

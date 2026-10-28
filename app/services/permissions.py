@@ -60,8 +60,8 @@ def _resource(blueprint, view=(), edit=()):
 # Related tabs and downloads need view, and linking or unlinking needs edit on the record you're on
 ENDPOINT_PERMISSIONS = {
     **_resource('sites', view=['export', 'buildings', 'assets', 'jobs', 'job_schedules']),
-    **_resource('buildings', view=['zones', 'assets', 'job_schedules']),
-    **_resource('zones'),
+    **_resource('buildings', view=['zones', 'assets', 'jobs', 'job_schedules']),
+    **_resource('zones', view=['assets', 'jobs', 'job_schedules']),
     **_resource('assets', view=['export', 'sub_assets', 'jobs', 'job_schedules'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_job_schedules', 'unlink_job_schedules']),
     **_resource('jobs', view=['export', 'assets'], edit=['link_assets', 'unlink_assets']),
     'jobs.close': 'jobs.close',

@@ -1,0 +1,2 @@
+{# expects ticket in context #}
+<span class="badge text-bg-{{ 'success' if ticket.status == 'open' else 'secondary' }}">{{ ticket.status_label }}</span>

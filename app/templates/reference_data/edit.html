@@ -7,16 +7,18 @@
 <form method="POST">
   {{ form.hidden_tag() }}
 
-  <div class="mb-3">
-    {{ form.description.label(class="form-label") }}
-    {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else "")) }}
-    {% if form.description.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.description.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      {{ form.description.label(class="form-label") }}
+      {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else "")) }}
+      {% if form.description.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.description.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 
   <button type="submit" class="btn btn-primary">Save</button>

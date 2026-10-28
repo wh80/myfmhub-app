@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% set title = 'Admin - Support Ticket' %}
+{% block body %}
+{% include 'admin/_tabs.html' %}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-1">Support Ticket {% include "support/_ticket_status_badge.html" %}</h4>
+    <div class="text-muted small">Raised {{ ticket.created_at | datetime }} (UTC) by {% if ticket.created_by %}{{ ticket.created_by.first_name }} {{ ticket.created_by.last_name }}{% else %}<span class="text-muted">Person deleted</span>{% endif %}, {{ ticket.organisation.name }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if ticket.status == 'open' %}
+    <form method="POST" action="{{ url_for('admin.close_support_ticket', id=ticket.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input type="hidden" name="next" value="{{ request.full_path }}" />
+      <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Close Ticket</button>
+    </form>
+    {% else %}
+    <form method="POST" action="{{ url_for('admin.reopen_support_ticket', id=ticket.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input type="hidden" name="next" value="{{ request.full_path }}" />
+      <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i> Reopen Ticket</button>
+    </form>
+    {% endif %}
+    <a href="{{ url_for('admin.support_tickets') }}" class="btn btn-secondary">Back</a>
+  </div>
+</div>
+
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'overview' %}active{% endif %}" href="{{ url_for('admin.support_ticket', id=ticket.id) }}">Overview</a></li>
+  <li class="nav-item"><a class="nav-link {% if active_tab == 'notes' %}active{% endif %}" href="{{ url_for('admin.support_ticket_notes', id=ticket.id) }}">Notes ({{ ticket.notes | length }})</a></li>
+</ul>
+
+{% block tab_content %}{% endblock %}
+{% endblock body %}

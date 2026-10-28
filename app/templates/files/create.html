@@ -13,45 +13,47 @@
     <form method="POST" enctype="multipart/form-data">
       {{ form.hidden_tag() }}
 
-      <div class="mb-3">
-        {{ form.file.label(class="form-label") }}
-        {{ form.file(class="form-control" ~ (" is-invalid" if form.file.errors else ""), accept='.' ~ file_types | join(',.')) }}
-        {% if form.file.errors %}
-        <div class="invalid-feedback d-block">
-          {% for error in form.file.errors %}
-          <div>{{ error }}</div>
-          {% endfor %}
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.file.label(class="form-label") }}
+          {{ form.file(class="form-control" ~ (" is-invalid" if form.file.errors else ""), accept='.' ~ file_types | join(',.')) }}
+          {% if form.file.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.file.errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="form-text">PDF, Word, Excel, text, CSV or image files, up to {{ max_file_mb }} MB.</div>
         </div>
-        {% endif %}
-        <div class="form-text">PDF, Word, Excel, text, CSV or image files, up to {{ max_file_mb }} MB.</div>
-      </div>
 
-      <div class="mb-3">
-        {{ form.description.label(class="form-label") }}
-        {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else "")) }}
-        {% if form.description.errors %}
-        <div class="invalid-feedback d-block">
-          {% for error in form.description.errors %}
-          <div>{{ error }}</div>
-          {% endfor %}
+        <div class="col-md-6 mb-3">
+          {{ form.description.label(class="form-label") }}
+          {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else "")) }}
+          {% if form.description.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.description.errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
-      </div>
 
-      <div class="mb-3">
-        {{ form.expires.label(class="form-label") }}
-        {{ form.expires(class="form-control" ~ (" is-invalid" if form.expires.errors else "")) }}
-        {% if form.expires.errors %}
-        <div class="invalid-feedback d-block">
-          {% for error in form.expires.errors %}
-          <div>{{ error }}</div>
-          {% endfor %}
+        <div class="col-md-6 mb-3">
+          {{ form.expires.label(class="form-label") }}
+          {{ form.expires(class="form-control" ~ (" is-invalid" if form.expires.errors else "")) }}
+          {% if form.expires.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.expires.errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <div class="form-text">Optional, for example when a certificate runs out.</div>
         </div>
-        {% endif %}
-        <div class="form-text">Optional, for example when a certificate runs out.</div>
-      </div>
 
-      {{ reference_select(form.file_category_id) }}
+        {{ reference_select(form.file_category_id) }}
+      </div>
 
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Upload</button>

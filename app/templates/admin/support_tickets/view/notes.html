@@ -1,0 +1,43 @@
+{% extends "admin/support_tickets/view/_layout.html" %}
+
+{% block tab_content %}
+<p class="text-muted small">Notes are for platform admins only. The person who raised the ticket never sees them.</p>
+
+{% for note in ticket.notes %}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+      <span class="small text-muted">
+        {{ note.created_by.email if note.created_by else 'Deleted user' }}, {{ note.created_at | datetime }} (UTC){% if (note.updated_at - note.created_at).total_seconds() > 1 %}, edited {{ note.updated_at | datetime }}{% endif %}
+      </span>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.edit_support_ticket_note', id=ticket.id, note_id=note.id) }}" class="btn btn-outline-primary btn-sm">Edit</a>
+        <a href="{{ url_for('admin.delete_support_ticket_note', id=ticket.id, note_id=note.id) }}" class="btn btn-outline-danger btn-sm">Delete</a>
+      </div>
+    </div>
+    <div style="white-space: pre-wrap;">{{ note.description }}</div>
+  </div>
+</div>
+{% else %}
+<p class="text-muted">No notes yet.</p>
+{% endfor %}
+
+<h5 class="mt-4">Add a note</h5>
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      {{ form.description.label(class="form-label visually-hidden") }}
+      {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else ""), rows=4) }}
+      {% if form.description.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.description.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Add Note</button>
+</form>
+{% endblock tab_content %}

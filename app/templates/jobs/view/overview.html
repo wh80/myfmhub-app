@@ -49,6 +49,14 @@
     <div class="text-muted small">Job Category</div>
     <div class="fw-semibold">{{ job.job_category or "-" }}</div>
   </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Estimated Cost</div>
+    <div class="fw-semibold">{{ job.estimated_cost | currency }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Actual Cost</div>
+    <div class="fw-semibold">{{ job.actual_cost | currency }}</div>
+  </div>
 </div>
 
 {% endblock tab_content %}

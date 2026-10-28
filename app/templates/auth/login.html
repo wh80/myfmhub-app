@@ -8,16 +8,18 @@
 <form method="POST">
     {{ form.hidden_tag() }}
 
-    <div class="mb-3">
-        {{ form.email.label(class="form-label") }}
-        {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else ""), autocomplete="email") }}
-        {% if form.email.errors %}
-            <div class="invalid-feedback d-block">
-                {% for error in form.email.errors %}
-                    <div>{{ error }}</div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    <div class="row">
+      <div class="col-md-6 mb-3">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else ""), autocomplete="email") }}
+          {% if form.email.errors %}
+              <div class="invalid-feedback d-block">
+                  {% for error in form.email.errors %}
+                      <div>{{ error }}</div>
+                  {% endfor %}
+              </div>
+          {% endif %}
+      </div>
     </div>
 
     <button type="submit" class="btn btn-primary">Send code</button>

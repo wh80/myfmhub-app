@@ -13,7 +13,7 @@
     {% include 'navbar.html' %}
     {% endif %}
 
-    <div class="container{% if not g.user %} pt-3{% endif %}">
+    <div class="container-fluid px-3 px-lg-4{% if not g.user %} pt-3{% endif %}">
 
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}

@@ -140,6 +140,8 @@ def create():
             building_id=parse_uuid(form.building_id.data),
             zone_id=parse_uuid(form.zone_id.data),
             job_category_id=parse_uuid(form.job_category_id.data),
+            estimated_cost=form.estimated_cost.data,
+            actual_cost=form.actual_cost.data,
             organisation_id=g.person.organisation_id,
         )
         db.session.add(job)
@@ -174,6 +176,8 @@ def edit(id):
         job.building_id=parse_uuid(form.building_id.data)
         job.zone_id=parse_uuid(form.zone_id.data)
         job.job_category_id=parse_uuid(form.job_category_id.data)
+        job.estimated_cost=form.estimated_cost.data
+        job.actual_cost=form.actual_cost.data
                 
         db.session.commit()
         flash(f"Job '{job.work_required}' updated successfully!", 'success')

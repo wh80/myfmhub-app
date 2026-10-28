@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% set title = 'Admin - Delete Note' %}
+{% block body %}
+{% include 'admin/_tabs.html' %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Confirm Delete</h4>
+  </div>
+  <div class="card-body">
+    <p>Are you sure you want to delete this note?</p>
+    <blockquote class="border-start ps-3 text-muted" style="white-space: pre-wrap;">{{ note.description }}</blockquote>
+
+    <form method="post" id="delete-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    </form>
+    <div class="d-flex gap-2">
+      <button class="btn btn-danger" form="delete-form">Confirm Delete</button>
+      <a href="{{ url_for('admin.support_ticket_notes', id=ticket.id) }}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+{% endblock body %}

@@ -3,9 +3,18 @@
 {% block tab_content %}
 
 <div class="row mb-4">
-    <div class="col-md-8">
+    <div class="col-md-4">
         <h6 class="text-muted">Telephone</h6>
         <p class="mb-0">{{ site.telephone or "-" }}</p>
+    </div>
+    <div class="col-md-4">
+        <h6 class="text-muted">Main Contact</h6>
+        <p class="mb-0">
+            {% if site.main_contact %}
+            {% set contact = site.main_contact %}
+            {% if can('people.view') %}<a href="{{ url_for('people.view', id=contact.id) }}">{{ contact.first_name }} {{ contact.last_name }}</a>{% else %}{{ contact.first_name }} {{ contact.last_name }}{% endif %}
+            {% else %}-{% endif %}
+        </p>
     </div>
 </div>
 

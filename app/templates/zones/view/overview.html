@@ -2,7 +2,7 @@
 
 {% block tab_content %}
 
-<div class="row g-3 mb-4">
+<div class="row g-3">
   <div class="col-md-6">
     <div class="text-muted small">Site</div>
     <div class="fw-semibold">
@@ -16,23 +16,5 @@
     </div>
   </div>
 </div>
-
-<h5 class="mb-3">Assets</h5>
-{% if zone.assets %}
-  {% with assets=zone.assets %}
-    {% include "assets/asset_list.html" %}
-  {% endwith %}
-{% else %}
-  <p class="text-muted">No assets found.</p>
-{% endif %}
-
-<h5 class="mb-3 mt-4">Job Schedules</h5>
-{% if zone.job_schedules %}
-  {% with job_schedules=zone.job_schedules %}
-    {% include "job_schedules/job_schedule_list.html" %}
-  {% endwith %}
-{% else %}
-  <p class="text-muted mb-0">No job schedules found.</p>
-{% endif %}
 
 {% endblock tab_content %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% set title = 'Admin - Edit Note' %}
+{% block body %}
+{% include 'admin/_tabs.html' %}
+<h4>Edit Note</h4>
+<p class="text-muted small">On the support ticket raised {{ ticket.created_at | datetime }} (UTC): {{ ticket.description | truncate(100) }}</p>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      {{ form.description.label(class="form-label") }}
+      {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else ""), rows=6) }}
+      {% if form.description.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.description.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('admin.support_ticket_notes', id=ticket.id) }}" class="btn btn-secondary">Back</a>
+</form>
+{% endblock body %}

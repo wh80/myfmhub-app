@@ -88,6 +88,7 @@ class Organisation(db.Model):
     building_conditions = db.relationship('BuildingCondition', backref='organisation', lazy=True, cascade='delete')
     supplier_categories = db.relationship('SupplierCategory', backref='organisation', lazy=True, cascade='delete')
     file_categories = db.relationship('FileCategory', backref='organisation', lazy=True, cascade='delete')
+    support_tickets = db.relationship('SupportTicket', backref='organisation', lazy=True, cascade='delete')
 
 
 ### REFERENCE DATA ###
@@ -157,6 +158,9 @@ class Site(db.Model):
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     # set when the record came from a CSV import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
+    # someone in the organisation to contact about the site. Cleared if they're deleted
+    main_contact_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
+    main_contact = db.relationship('Person', backref=db.backref('main_contact_sites', lazy=True, order_by='Site.name'), lazy=True)
 
     jobs = db.relationship('Job', backref='site', lazy=True, cascade='delete')
     assets = db.relationship('Asset', backref='site', lazy=True, cascade='delete')
@@ -249,6 +253,9 @@ class Job(db.Model):
     # copied from the job schedule when a job is raised from one
     job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
     job_category = db.relationship('JobCategory', lazy=True)
+    # pounds, shown with the currency filter. estimated_cost is copied from the job schedule by raise_job()
+    estimated_cost = db.Column(db.Numeric(12, 2))
+    actual_cost = db.Column(db.Numeric(12, 2))
 
     __table_args__ = (
         db.CheckConstraint(
@@ -369,6 +376,10 @@ class JobSchedule(db.Model):
     # raise_job() copies it to the job
     job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
     job_category = db.relationship('JobCategory', lazy=True)
+    # pounds, shown with the currency filter. raise_job() copies it to the job
+    estimated_cost = db.Column(db.Numeric(12, 2))
+    # in days, so half a day is 0.5. Shown with the days filter
+    estimated_duration = db.Column(db.Numeric(6, 2))
 
     jobs = db.relationship('Job', backref='job_schedule', lazy=True)
 
@@ -646,3 +657,52 @@ class FileExport(db.Model):
     @property
     def status_label(self):
         return dict(FILE_EXPORT_STATUSES)[self.status]
+
+
+# a support ticket's state. Platform admins close and reopen it in /admin; its creator only sees this
+SUPPORT_TICKET_STATUSES = [('open', 'Open'), ('closed', 'Closed')]
+SUPPORT_TICKET_STATUS_LABELS = dict(SUPPORT_TICKET_STATUSES)
+
+
+class SupportTicket(db.Model):
+    """An issue or question raised from the Support page by someone in an organisation. Platform admins
+    handle it in /admin/support-tickets, with notes its creator never sees."""
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    description = db.Column(db.Text, nullable=False)
+    # a key from SUPPORT_TICKET_STATUSES, set by the app, never a form
+    status = db.Column(db.String(20), default='open', server_default='open', nullable=False)
+
+    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+    # the person who raised it. Kept (as NULL) if they're deleted, so the ticket and its notes stay
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
+    created_by = db.relationship('Person', backref=db.backref('support_tickets', lazy=True), lazy=True)
+
+    # platform admins' notes, oldest first. Never shown to the ticket's creator
+    notes = db.relationship('SupportTicketNote', backref='support_ticket', lazy=True, cascade='all, delete-orphan',
+                            order_by='SupportTicketNote.created_at')
+
+    __table_args__ = (
+        db.CheckConstraint(f"status IN ({', '.join(repr(key) for key, _ in SUPPORT_TICKET_STATUSES)})", name='ck_support_ticket_status'),
+    )
+
+    @property
+    def status_label(self):
+        return SUPPORT_TICKET_STATUS_LABELS.get(self.status, '-')
+
+
+class SupportTicketNote(db.Model):
+    """A platform admin's note on a support ticket. It belongs to the ticket (deleted with it), so like
+    UserGroupPermission it has no organisation_id of its own."""
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    description = db.Column(db.Text, nullable=False)
+
+    support_ticket_id = db.Column(UUID(as_uuid=True), db.ForeignKey('support_ticket.id', ondelete='CASCADE'), nullable=False)
+    # the platform admin (a login, who may be in no organisation). Kept (as NULL) if the user is deleted
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'))
+    created_by = db.relationship('User', backref=db.backref('support_ticket_notes', lazy=True), lazy=True)

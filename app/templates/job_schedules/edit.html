@@ -1,97 +1,108 @@
 {% extends 'base.html' %}
 {% set title = 'Edit Job Schedule: ' ~ job_schedule.description %}
 {% from "_location_fields.html" import location_fields %}
-{% from "_reference_fields.html" import reference_select %} {% block body %}
+{% from "_reference_fields.html" import reference_select %}
+{% from "_number_fields.html" import money_field, number_field %} {% block body %}
 <h3>Edit Job Schedule</h3>
 
 <form method="POST">
   {{ form.hidden_tag() }}
 
- <div class="mb-3">
-    {{ form.description.label(class="form-label") }} {{
-    form.description(class="form-control" ~ (" is-invalid" if
-    form.description.errors else "")) }} {% if form.description.errors
-    %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.description.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+ <div class="row">
+   <div class="col-md-6 mb-3">
+      {{ form.description.label(class="form-label") }} {{
+      form.description(class="form-control" ~ (" is-invalid" if
+      form.description.errors else "")) }} {% if form.description.errors
+      %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.description.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
 
-  <div class="mb-3">
-    {{ form.work_required.label(class="form-label") }} {{
-    form.work_required(class="form-control" ~ (" is-invalid" if
-    form.work_required.errors else "")) }} {% if form.work_required.errors
-    %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.work_required.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+    <div class="col-md-6 mb-3">
+      {{ form.work_required.label(class="form-label") }} {{
+      form.work_required(class="form-control" ~ (" is-invalid" if
+      form.work_required.errors else "")) }} {% if form.work_required.errors
+      %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.work_required.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
 
-  {{ location_fields(form) }}
+    {{ location_fields(form) }}
 
-  {{ reference_select(form.job_category_id) }}
+    {{ reference_select(form.job_category_id) }}
 
-  <div class="mb-3">
-    {{ form.next_due.label(class="form-label") }} {{
-    form.next_due(class="form-control" ~ (" is-invalid" if
-    form.next_due.errors else "")) }} {% if form.next_due.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.next_due.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+    {{ money_field(form.estimated_cost) }}
+
+    {{ number_field(form.estimated_duration, 'days') }}
+
+    <div class="col-md-6 mb-3">
+      {{ form.next_due.label(class="form-label") }} {{
+      form.next_due(class="form-control" ~ (" is-invalid" if
+      form.next_due.errors else "")) }} {% if form.next_due.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.next_due.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
 
-  <div class="mb-3">
-    {{ form.frequency.label(class="form-label") }} {{
-    form.frequency(class="form-select" ~ (" is-invalid" if
-    form.frequency.errors else "")) }} {% if form.frequency.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.frequency.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+    <div class="col-md-6 mb-3">
+      {{ form.frequency.label(class="form-label") }} {{
+      form.frequency(class="form-select" ~ (" is-invalid" if
+      form.frequency.errors else "")) }} {% if form.frequency.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.frequency.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
 
-  <div class="mb-3">
-    {{ form.notice_days.label(class="form-label") }} {{
-    form.notice_days(class="form-control" ~ (" is-invalid" if
-    form.notice_days.errors else ""), min="0", max="365") }}
-    <div class="form-text">{{ form.notice_days.description }}</div>
-    {% if form.notice_days.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.notice_days.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+    <div class="col-md-6 mb-3">
+      {{ form.notice_days.label(class="form-label") }} {{
+      form.notice_days(class="form-control" ~ (" is-invalid" if
+      form.notice_days.errors else ""), min="0", max="365") }}
+      <div class="form-text">{{ form.notice_days.description }}</div>
+      {% if form.notice_days.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.notice_days.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
 
-  <div class="form-check mb-3">
-    {{ form.statutory_compliance(class="form-check-input" ~ (" is-invalid" if form.statutory_compliance.errors else "")) }}
-    {{ form.statutory_compliance.label(class="form-check-label") }}
-    {% if form.statutory_compliance.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.statutory_compliance.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+    <div class="col-md-6 mb-3">
+      <div class="form-check">
+        {{ form.statutory_compliance(class="form-check-input" ~ (" is-invalid" if form.statutory_compliance.errors else "")) }}
+        {{ form.statutory_compliance.label(class="form-check-label") }}
+        {% if form.statutory_compliance.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.statutory_compliance.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
     </div>
-    {% endif %}
-  </div>
 
-  <div class="form-check mb-3">
-    {{ form.is_active(class="form-check-input") }}
-    {{ form.is_active.label(class="form-check-label") }}
-    <div class="form-text">{{ form.is_active.description }}</div>
-  </div>
+    <div class="col-md-6 mb-3">
+      <div class="form-check">
+        {{ form.is_active(class="form-check-input") }}
+        {{ form.is_active.label(class="form-check-label") }}
+        <div class="form-text">{{ form.is_active.description }}</div>
+      </div>
+    </div>
+ </div>
 
   <button type="submit" class="btn btn-primary">Save</button>
   <a href="{{url_for('job_schedules.view', id=job_schedule.id)}}" class="btn btn-secondary"

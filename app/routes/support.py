@@ -1,7 +1,11 @@
-from flask import Blueprint, render_template, g, abort
-from app.routes.helpers import require_user
+from flask import Blueprint, render_template, redirect, url_for, flash, g, abort, current_app
+from app import db
+from app.forms import SupportTicketForm
+from app.models import SupportTicket
+from app.routes.helpers import require_user, login_required
 from app.services.auth import OTP_EXPIRY_MINUTES, OTP_MAX_ATTEMPTS, OTP_MAX_PER_HOUR, SESSION_EXPIRY_DAYS
 from app.services.scheduling import FREQUENCIES
+from app.services.support import send_ticket_notification
 support_bp = Blueprint('support', __name__, url_prefix="/support")
 support_bp.before_request(require_user)
 
@@ -11,7 +15,35 @@ support_bp.before_request(require_user)
 
 @support_bp.route('/')
 def index():
-    return render_template('support/index.html')
+    # your own tickets in the organisation you're working in, with their status but never their notes
+    tickets = []
+    if g.person:
+        tickets = SupportTicket.query.filter(SupportTicket.created_by_id == g.person.id).order_by(SupportTicket.created_at.desc(), SupportTicket.id).all()
+    return render_template('support/index.html', tickets=tickets)
+
+# raising a ticket needs an organisation (the ticket belongs to it), so login_required, not just a user
+@support_bp.route('/tickets/new', methods=['GET', 'POST'])
+@login_required
+def create_ticket():
+    form = SupportTicketForm()
+
+    if form.validate_on_submit():
+        ticket = SupportTicket(
+            description=form.description.data,
+            created_by_id=g.person.id,
+            organisation_id=g.person.organisation_id,
+        )
+        db.session.add(ticket)
+        db.session.commit()
+        # the ticket is saved either way: if the email fails it's still in /admin, so just log it
+        try:
+            send_ticket_notification(ticket)
+        except Exception:
+            current_app.logger.exception(f'Failed to send the notification for support ticket {ticket.id}')
+        flash("Support ticket created. We'll be in touch by email.", 'success')
+        return redirect(url_for('support.index'))
+
+    return render_template('support/create_ticket.html', form=form)
 
 @support_bp.route('/locations')
 def locations():

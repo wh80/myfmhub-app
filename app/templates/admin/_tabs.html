@@ -3,4 +3,5 @@
   <li class="nav-item"><a class="nav-link {% if request.endpoint == 'admin.organisations' %}active{% endif %}" href="{{ url_for('admin.organisations') }}">Organisations</a></li>
   <li class="nav-item"><a class="nav-link {% if request.endpoint == 'admin.sessions' %}active{% endif %}" href="{{ url_for('admin.sessions') }}">Sessions</a></li>
   <li class="nav-item"><a class="nav-link {% if request.endpoint == 'admin.users' %}active{% endif %}" href="{{ url_for('admin.users') }}">Users</a></li>
+  <li class="nav-item"><a class="nav-link {% if 'support_ticket' in request.endpoint %}active{% endif %}" href="{{ url_for('admin.support_tickets') }}">Support Tickets</a></li>
 </ul>

@@ -1,59 +1,66 @@
 {% extends 'base.html' %}
 {% set title = 'Edit Job: ' ~ job.description %}
 {% from "_location_fields.html" import location_fields %}
+{% from "_number_fields.html" import money_field %}
 {% from "_reference_fields.html" import reference_select %} {% block body %}
 <h3>Edit Job</h3>
 
 <form method="POST">
   {{ form.hidden_tag() }}
 
- <div class="mb-3">
-    {{ form.description.label(class="form-label") }} {{
-    form.description(class="form-control" ~ (" is-invalid" if
-    form.description.errors else "")) }} {% if form.description.errors
-    %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.description.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+ <div class="row">
+   <div class="col-md-6 mb-3">
+      {{ form.description.label(class="form-label") }} {{
+      form.description(class="form-control" ~ (" is-invalid" if
+      form.description.errors else "")) }} {% if form.description.errors
+      %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.description.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
 
-  <div class="mb-3">
-    {{ form.work_required.label(class="form-label") }} {{
-    form.work_required(class="form-control" ~ (" is-invalid" if
-    form.work_required.errors else "")) }} {% if form.work_required.errors
-    %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.work_required.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+    <div class="col-md-6 mb-3">
+      {{ form.work_required.label(class="form-label") }} {{
+      form.work_required(class="form-control" ~ (" is-invalid" if
+      form.work_required.errors else "")) }} {% if form.work_required.errors
+      %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.work_required.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
 
-  {{ location_fields(form) }}
+    {{ location_fields(form) }}
 
-  {{ reference_select(form.job_category_id) }}
+    {{ reference_select(form.job_category_id) }}
 
-  <div class="mb-3">
-    {% if job.source == 'planned' %}
-    <label class="form-label" for="due">Due</label>
-    <input type="text" id="due" class="form-control" value="{{ job.due | date }}" disabled />
-    <div class="form-text">Set by the job schedule. A planned job's due date can't be changed.</div>
-    {% else %}
-    {{ form.due.label(class="form-label") }} {{
-    form.due(class="form-control" ~ (" is-invalid" if
-    form.due.errors else "")) }} {% if form.due.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in form.due.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
+    <div class="col-md-6 mb-3">
+      {% if job.source == 'planned' %}
+      <label class="form-label" for="due">Due</label>
+      <input type="text" id="due" class="form-control" value="{{ job.due | date }}" disabled />
+      <div class="form-text">Set by the job schedule. A planned job's due date can't be changed.</div>
+      {% else %}
+      {{ form.due.label(class="form-label") }} {{
+      form.due(class="form-control" ~ (" is-invalid" if
+      form.due.errors else "")) }} {% if form.due.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.due.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% endif %}
     </div>
-    {% endif %}
-    {% endif %}
-  </div>
+
+    {{ money_field(form.estimated_cost) }}
+
+    {{ money_field(form.actual_cost) }}
+ </div>
 
   <button type="submit" class="btn btn-primary">Save</button>
   <a href="{{url_for('jobs.view', id=job.id)}}" class="btn btn-secondary"

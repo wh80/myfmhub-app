@@ -36,16 +36,18 @@
     <form method="POST" id="update-schedule-form" action="{{ url_for('jobs.update_schedule', id=job.id, closed_at=closed_at.isoformat()) }}">
       {{ form.hidden_tag() }}
 
-      <div class="mb-3">
-        {{ form.next_due.label(class="form-label") }} {{
-        form.next_due(class="form-control" ~ (" is-invalid" if
-        form.next_due.errors else "")) }} {% if form.next_due.errors %}
-        <div class="invalid-feedback d-block">
-          {% for error in form.next_due.errors %}
-          <div>{{ error }}</div>
-          {% endfor %}
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.next_due.label(class="form-label") }} {{
+          form.next_due(class="form-control" ~ (" is-invalid" if
+          form.next_due.errors else "")) }} {% if form.next_due.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.next_due.errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
       </div>
     </form>
 
