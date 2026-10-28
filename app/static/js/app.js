@@ -23,10 +23,41 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
+// Searchable selects: every .form-select becomes a Tom Select (from the CDN in base.html), so you can
+// type to find a site, person, category... The native select stays in the form and is what's
+// submitted. Add data-no-search to a select to leave it plain. Runs before the location selects below
+document.addEventListener("DOMContentLoaded", function () {
+  if (typeof TomSelect === "undefined") return; // the CDN didn't load: plain selects still work
+  document.querySelectorAll("select.form-select:not([data-no-search]):not([multiple])").forEach((select) => {
+    new TomSelect(select, {
+      // the blank option ("-", "All sites") is a real choice
+      allowEmptyOption: true,
+      // show every option, not just the first 50
+      maxOptions: null,
+      create: false,
+    });
+  });
+});
+
 // Site > building > zone selects (templates/_location_fields.html), on forms and index filters.
 // Every building and zone option has its parent's id as data-parent. Only the ones belonging to
 // the selected site (or building) are shown, and a choice that no longer fits goes back to blank
 document.addEventListener("DOMContentLoaded", function () {
+  // replace a select's options, and its Tom Select's (if it has one) to match
+  function setOptions(select, options, value) {
+    const tomSelect = select.tomselect;
+    if (tomSelect) {
+      tomSelect.clear(true);
+      tomSelect.clearOptions(() => false);
+    }
+    select.replaceChildren(...options);
+    select.value = value;
+    if (tomSelect) {
+      // re-reads the options and the selected one from the native select, without a change event
+      tomSelect.sync();
+    }
+  }
+
   document.querySelectorAll('select[data-location="site"]').forEach((site) => {
     const scope = site.closest("form") || document;
     const building = scope.querySelector('select[data-location="building"]');
@@ -42,8 +73,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const current = select.value;
       // the blank option has no data-parent, so it's always kept
       const options = allOptions.get(select).filter((option) => !option.dataset.parent || option.dataset.parent === parentId);
-      select.replaceChildren(...options);
-      select.value = options.some((option) => option.value === current) ? current : "";
+      setOptions(select, options, options.some((option) => option.value === current) ? current : "");
     }
 
     function update() {

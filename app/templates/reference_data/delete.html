@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% set title = 'Delete ' ~ reference_type.singular ~ ': ' ~ item.description %}
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Confirm Delete</h4>
+  </div>
+
+  <div class="card-body">
+    <p>Are you sure you want to delete the {{ reference_type.singular }} <strong>{{ item.description }}</strong>?</p>
+    {% if usage %}
+    <p class="mb-4">
+      It's used by {% for label, count in usage %}{{ count }} {{ label }}{{ ' and ' if not loop.last }}{% endfor %}.
+      They aren't deleted: they're left with no {{ reference_type.singular }}{% if 'condition' in reference_type.singular %} and no condition set date{% endif %}.
+    </p>
+    {% else %}
+    <p class="mb-4">Nothing uses it.</p>
+    {% endif %}
+
+    <form method="post" id="delete-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-danger" form="delete-form">Confirm Delete</button>
+      <a href="{{ url_for('reference_data.items', slug=reference_type.slug) }}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

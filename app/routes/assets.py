@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import AssetForm, AssetAssignForm
-from app.models import Asset, Site, Job, JobSchedule, Person
-from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab
+from app.models import Asset, Site, Job, JobSchedule, Person, AssetCategory, AssetCondition
+from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.services.reference_data import set_condition
 from app.services.exports import export_response
 assets_bp = Blueprint('assets', __name__, url_prefix="/assets")
 assets_bp.before_request(require_login)
@@ -33,6 +34,9 @@ ASSET_COLUMNS = [
     ('site', 'Site', lambda asset: asset.site.name),
     ('building', 'Building', lambda asset: asset.building.name if asset.building else None),
     ('zone', 'Zone', lambda asset: asset.zone.name if asset.zone else None),
+    ('category', 'Asset Category', lambda asset: asset.asset_category.description if asset.asset_category else None),
+    ('condition', 'Asset Condition', lambda asset: asset.asset_condition.description if asset.asset_condition else None),
+    ('condition_set', 'Condition Set', lambda asset: asset.condition_set),
     ('asset_number', 'Asset Number', lambda asset: asset.asset_number),
     ('make', 'Make', lambda asset: asset.make),
     ('model', 'Model', lambda asset: asset.model),
@@ -71,8 +75,11 @@ def filtered_assets():
         query = query.filter(Asset.site_id == site_id)
 
     query, location = filter_location(query, Asset)
+    query, asset_category_id = filter_reference(query, Asset, 'asset_category_id')
+    query, asset_condition_id = filter_reference(query, Asset, 'asset_condition_id')
 
-    return query.order_by(Asset.description, Asset.id), dict(search=search, site_id=site_id, import_id=import_id, **location)
+    return query.order_by(Asset.description, Asset.id), dict(search=search, site_id=site_id, import_id=import_id,
+                                                             asset_category_id=asset_category_id, asset_condition_id=asset_condition_id, **location)
 
 @assets_bp.route('/')
 def index():
@@ -86,6 +93,8 @@ def index():
         assets=pagination.items,
         pagination=pagination,
         **location_options(),
+        asset_categories=reference_items(AssetCategory),
+        asset_conditions=reference_items(AssetCondition),
         **filters
     )
 
@@ -104,6 +113,7 @@ def create():
 
     form = AssetForm()
     set_location_choices(form)
+    set_reference_choices(form)
     if parent and request.method == 'GET':
         form.site_id.data = str(parent.site_id)
         form.building_id.data = str(parent.building_id or '')
@@ -124,9 +134,11 @@ def create():
             site_id=form.site_id.data,
             building_id=parse_uuid(form.building_id.data),
             zone_id=parse_uuid(form.zone_id.data),
+            asset_category_id=parse_uuid(form.asset_category_id.data),
             parent=parent,
             organisation_id=g.person.organisation_id,
         )
+        set_condition(asset, 'asset_condition_id', parse_uuid(form.asset_condition_id.data))
         db.session.add(asset)
         db.session.commit()
         flash(f"Asset '{asset.description}' created successfully!", 'success')
@@ -148,6 +160,7 @@ def edit(id):
 
     form=AssetForm(obj=asset)
     set_location_choices(form)
+    set_reference_choices(form)
 
     if form.validate_on_submit() and check_location(form) and check_unique(form, asset):
 
@@ -164,6 +177,9 @@ def edit(id):
         asset.site_id=form.site_id.data
         asset.building_id=parse_uuid(form.building_id.data)
         asset.zone_id=parse_uuid(form.zone_id.data)
+        asset.asset_category_id=parse_uuid(form.asset_category_id.data)
+        # a changed condition sets condition_set to today
+        set_condition(asset, 'asset_condition_id', parse_uuid(form.asset_condition_id.data))
                 
         db.session.commit()
         flash(f"Asset '{asset.description}' updated successfully!", 'success')
@@ -207,12 +223,14 @@ def assign(id):
 @assets_bp.route("/<uuid:id>/sub-assets")
 def sub_assets(id):
     asset = org_get_or_404(Asset, id)
-    return render_template("assets/view/sub_assets.html", asset=asset, active_tab="sub_assets")
+    pagination, search = related_page(related(asset, Asset.sub_assets, Asset), Asset)
+    return render_template("assets/view/sub_assets.html", asset=asset, assets=pagination.items, pagination=pagination, search=search, active_tab="sub_assets")
 
 @assets_bp.route("/<uuid:id>/jobs")
 def jobs(id):
     asset = org_get_or_404(Asset, id)
-    return render_template("assets/view/jobs.html", asset=asset, active_tab="jobs",)
+    pagination, search = related_page(related(asset, Asset.jobs, Job), Job)
+    return render_template("assets/view/jobs.html", asset=asset, jobs=pagination.items, pagination=pagination, search=search, active_tab="jobs")
 
 @assets_bp.route("/<uuid:id>/jobs/link", methods=['GET', 'POST'])
 def link_jobs(id):
@@ -229,7 +247,7 @@ def link_jobs(id):
 
         if not ids:
             flash("Select at least one job to link.", 'warning')
-            return redirect(url_for('assets.link_jobs', id=asset.id))
+            return redirect(request.full_path)
 
         jobs = query.filter(Job.id.in_(ids)).all()
         asset.jobs.extend(jobs)
@@ -237,13 +255,14 @@ def link_jobs(id):
         flash(f"Linked {len(jobs)} job(s) to '{asset.description}'.", 'success')
         return redirect(url_for('assets.jobs', id=asset.id))
 
-    jobs = query.order_by(Job.description).all()
-    return render_template("assets/view/jobs_link.html", asset=asset, jobs=jobs)
+    pagination, search = related_page(query, Job)
+    return render_template("assets/view/jobs_link.html", asset=asset, jobs=pagination.items, pagination=pagination, search=search)
 
 @assets_bp.route("/<uuid:id>/job-schedules")
 def job_schedules(id):
     asset = org_get_or_404(Asset, id)
-    return render_template("assets/view/job_schedules.html", asset=asset, active_tab="job_schedules",)
+    pagination, search = related_page(related(asset, Asset.job_schedules, JobSchedule), JobSchedule)
+    return render_template("assets/view/job_schedules.html", asset=asset, job_schedules=pagination.items, pagination=pagination, search=search, active_tab="job_schedules")
 
 @assets_bp.route("/<uuid:id>/job-schedules/link", methods=['GET', 'POST'])
 def link_job_schedules(id):
@@ -260,7 +279,7 @@ def link_job_schedules(id):
 
         if not ids:
             flash("Select at least one job schedule to link.", 'warning')
-            return redirect(url_for('assets.link_job_schedules', id=asset.id))
+            return redirect(request.full_path)
 
         job_schedules = query.filter(JobSchedule.id.in_(ids)).all()
         asset.job_schedules.extend(job_schedules)
@@ -268,8 +287,8 @@ def link_job_schedules(id):
         flash(f"Linked {len(job_schedules)} job schedule(s) to '{asset.description}'.", 'success')
         return redirect(url_for('assets.job_schedules', id=asset.id))
 
-    job_schedules = query.order_by(JobSchedule.description).all()
-    return render_template("assets/view/job_schedules_link.html", asset=asset, job_schedules=job_schedules)
+    pagination, search = related_page(query, JobSchedule)
+    return render_template("assets/view/job_schedules_link.html", asset=asset, job_schedules=pagination.items, pagination=pagination, search=search)
 
 @assets_bp.route("/<uuid:id>/jobs/unlink", methods=['GET', 'POST'])
 def unlink_jobs(id):
@@ -280,7 +299,7 @@ def unlink_jobs(id):
 
         if not ids:
             flash("Select at least one job to unlink.", 'warning')
-            return redirect(url_for('assets.unlink_jobs', id=asset.id))
+            return redirect(request.full_path)
 
         jobs = [job for job in asset.jobs if job.id in ids]
         for job in jobs:
@@ -289,8 +308,8 @@ def unlink_jobs(id):
         flash(f"Unlinked {len(jobs)} job(s) from '{asset.description}'.", 'success')
         return redirect(url_for('assets.jobs', id=asset.id))
 
-    jobs = sorted(asset.jobs, key=lambda job: job.description)
-    return render_template("assets/view/jobs_unlink.html", asset=asset, jobs=jobs)
+    pagination, search = related_page(related(asset, Asset.jobs, Job), Job)
+    return render_template("assets/view/jobs_unlink.html", asset=asset, jobs=pagination.items, pagination=pagination, search=search)
 
 @assets_bp.route("/<uuid:id>/job-schedules/unlink", methods=['GET', 'POST'])
 def unlink_job_schedules(id):
@@ -301,7 +320,7 @@ def unlink_job_schedules(id):
 
         if not ids:
             flash("Select at least one job schedule to unlink.", 'warning')
-            return redirect(url_for('assets.unlink_job_schedules', id=asset.id))
+            return redirect(request.full_path)
 
         job_schedules = [job_schedule for job_schedule in asset.job_schedules if job_schedule.id in ids]
         for job_schedule in job_schedules:
@@ -310,8 +329,8 @@ def unlink_job_schedules(id):
         flash(f"Unlinked {len(job_schedules)} job schedule(s) from '{asset.description}'.", 'success')
         return redirect(url_for('assets.job_schedules', id=asset.id))
 
-    job_schedules = sorted(asset.job_schedules, key=lambda job_schedule: job_schedule.description)
-    return render_template("assets/view/job_schedules_unlink.html", asset=asset, job_schedules=job_schedules)
+    pagination, search = related_page(related(asset, Asset.job_schedules, JobSchedule), JobSchedule)
+    return render_template("assets/view/job_schedules_unlink.html", asset=asset, job_schedules=pagination.items, pagination=pagination, search=search)
 
 @assets_bp.route("/<uuid:id>/files")
 def files(id):

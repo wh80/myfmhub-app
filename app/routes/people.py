@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g, current_app, abort
 from app import db
 from app.forms import PersonForm
-from app.models import Person, UserGroup
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab
+from app.models import Person, UserGroup, Asset
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab, related, related_page
 from app.services.exports import export_response
 from app.services.auth import check_otp_rate_limit, create_and_send_otp, revoke_person_sessions, clear_session_cookie
 from app.services.permissions import can, other_active_admins
@@ -258,7 +258,8 @@ def assets(id):
     if not can(g.person, 'assets.view'):
         abort(403)
     person = org_get_or_404(Person, id)
-    return render_template("people/view/assets.html", person=person, active_tab="assets")
+    pagination, search = related_page(related(person, Person.assigned_assets, Asset), Asset)
+    return render_template("people/view/assets.html", person=person, assets=pagination.items, pagination=pagination, search=search, active_tab="assets")
 
 @people_bp.route("/<uuid:id>/files")
 def files(id):

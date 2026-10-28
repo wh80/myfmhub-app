@@ -1,13 +1,18 @@
 {% extends "buildings/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 
 {% block tab_content %}
 
 <h5 class="mb-3">Job Schedules</h5>
 
-{% if building.job_schedules %}
-    {% with job_schedules=building.job_schedules %}
-        {% include "job_schedules/job_schedule_list.html" %}
-    {% endwith %}
+{{ related_search(pagination, search, 'Description or work required ...') }}
+
+{% if job_schedules %}
+    {% include "job_schedules/job_schedule_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No job schedules match your search.</p>
 {% else %}
     <p class="text-muted mb-0">No job schedules found.</p>
 {% endif %}

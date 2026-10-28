@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import JobScheduleForm
-from app.models import JobSchedule, Site, Asset
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab
+from app.models import JobSchedule, Site, Asset, Job, JobCategory
+from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.exports import export_response
 from app.services.permissions import can
 from app.services.scheduling import job_creation_date, uk_today
@@ -16,6 +16,7 @@ JOB_SCHEDULE_COLUMNS = [
     ('site', 'Site', lambda job_schedule: job_schedule.site.name),
     ('building', 'Building', lambda job_schedule: job_schedule.building.name if job_schedule.building else None),
     ('zone', 'Zone', lambda job_schedule: job_schedule.zone.name if job_schedule.zone else None),
+    ('category', 'Job Category', lambda job_schedule: job_schedule.job_category.description if job_schedule.job_category else None),
     ('next_due', 'Next Due', lambda job_schedule: job_schedule.next_due),
     ('frequency', 'Frequency', lambda job_schedule: job_schedule.frequency_label),
     ('next_job_creation', 'Next Job Creation', lambda job_schedule: job_schedule.next_job_creation_label),
@@ -75,9 +76,10 @@ def filtered_job_schedules():
         query = query.filter(JobSchedule.next_due <= next_due_to)
 
     query, location = filter_location(query, JobSchedule)
+    query, job_category_id = filter_reference(query, JobSchedule, 'job_category_id')
 
     return query.order_by(JobSchedule.description, JobSchedule.id), dict(
-        search=search, site_id=site_id, statutory=statutory, import_id=import_id,
+        job_category_id=job_category_id, search=search, site_id=site_id, statutory=statutory, import_id=import_id,
         next_due_from=next_due_from, next_due_to=next_due_to, active=active, **location,
     )
 
@@ -93,6 +95,7 @@ def index():
         job_schedules=pagination.items,
         pagination=pagination,
         **location_options(),
+        job_categories=reference_items(JobCategory),
         **filters
     )
 
@@ -106,6 +109,7 @@ def export(file_format):
 def create():
     form = JobScheduleForm()
     set_location_choices(form)
+    set_reference_choices(form)
 
     # Copy (?copy_from=<id>) pre-fills the scheduling fields. Next due, location and linked records
     # aren't copied (the due date should be chosen, not carried over), and the new schedule has no tie to the old one
@@ -119,6 +123,7 @@ def create():
             form.notice_days.data = copy_from.notice_days
             form.statutory_compliance.data = copy_from.statutory_compliance
             form.is_active.data = copy_from.is_active
+            form.job_category_id.data = str(copy_from.job_category_id) if copy_from.job_category_id else ''
 
     if form.validate_on_submit() and check_location(form):
         job_schedule = JobSchedule(
@@ -133,6 +138,7 @@ def create():
             site_id=form.site_id.data,
             building_id=parse_uuid(form.building_id.data),
             zone_id=parse_uuid(form.zone_id.data),
+            job_category_id=parse_uuid(form.job_category_id.data),
             organisation_id=g.person.organisation_id,
         )
         db.session.add(job_schedule)
@@ -169,6 +175,7 @@ def edit(id):
 
     form=JobScheduleForm(obj=job_schedule)
     set_location_choices(form)
+    set_reference_choices(form)
 
     if form.validate_on_submit() and check_location(form) and check_reactivation(form, job_schedule):
         
@@ -184,6 +191,7 @@ def edit(id):
         job_schedule.site_id=form.site_id.data
         job_schedule.building_id=parse_uuid(form.building_id.data)
         job_schedule.zone_id=parse_uuid(form.zone_id.data)
+        job_schedule.job_category_id=parse_uuid(form.job_category_id.data)
                 
         db.session.commit()
         flash(f"Job Schedule '{job_schedule.work_required}' updated successfully!", 'success')
@@ -214,12 +222,14 @@ def delete(id):
 @job_schedules_bp.route("/<uuid:id>/jobs")
 def jobs(id):
     job_schedule = org_get_or_404(JobSchedule, id)
-    return render_template("job_schedules/view/jobs.html", job_schedule=job_schedule, active_tab="jobs",)
+    pagination, search = related_page(related(job_schedule, JobSchedule.jobs, Job), Job)
+    return render_template("job_schedules/view/jobs.html", job_schedule=job_schedule, jobs=pagination.items, pagination=pagination, search=search, active_tab="jobs")
 
 @job_schedules_bp.route("/<uuid:id>/assets")
 def assets(id):
     job_schedule = org_get_or_404(JobSchedule, id)
-    return render_template("job_schedules/view/assets.html", job_schedule=job_schedule, active_tab="assets",)
+    pagination, search = related_page(related(job_schedule, JobSchedule.assets, Asset), Asset)
+    return render_template("job_schedules/view/assets.html", job_schedule=job_schedule, assets=pagination.items, pagination=pagination, search=search, active_tab="assets")
 
 @job_schedules_bp.route("/<uuid:id>/assets/link", methods=['GET', 'POST'])
 def link_assets(id):
@@ -236,7 +246,7 @@ def link_assets(id):
 
         if not ids:
             flash("Select at least one asset to link.", 'warning')
-            return redirect(url_for('job_schedules.link_assets', id=job_schedule.id))
+            return redirect(request.full_path)
 
         assets = query.filter(Asset.id.in_(ids)).all()
         job_schedule.assets.extend(assets)
@@ -244,8 +254,8 @@ def link_assets(id):
         flash(f"Linked {len(assets)} asset(s) to '{job_schedule.description}'.", 'success')
         return redirect(url_for('job_schedules.assets', id=job_schedule.id))
 
-    assets = query.order_by(Asset.description).all()
-    return render_template("job_schedules/view/assets_link.html", job_schedule=job_schedule, assets=assets)
+    pagination, search = related_page(query, Asset)
+    return render_template("job_schedules/view/assets_link.html", job_schedule=job_schedule, assets=pagination.items, pagination=pagination, search=search)
 
 @job_schedules_bp.route("/<uuid:id>/assets/unlink", methods=['GET', 'POST'])
 def unlink_assets(id):
@@ -256,7 +266,7 @@ def unlink_assets(id):
 
         if not ids:
             flash("Select at least one asset to unlink.", 'warning')
-            return redirect(url_for('job_schedules.unlink_assets', id=job_schedule.id))
+            return redirect(request.full_path)
 
         assets = [asset for asset in job_schedule.assets if asset.id in ids]
         for asset in assets:
@@ -265,8 +275,8 @@ def unlink_assets(id):
         flash(f"Unlinked {len(assets)} asset(s) from '{job_schedule.description}'.", 'success')
         return redirect(url_for('job_schedules.assets', id=job_schedule.id))
 
-    assets = sorted(job_schedule.assets, key=lambda asset: asset.description)
-    return render_template("job_schedules/view/assets_unlink.html", job_schedule=job_schedule, assets=assets)
+    pagination, search = related_page(related(job_schedule, JobSchedule.assets, Asset), Asset)
+    return render_template("job_schedules/view/assets_unlink.html", job_schedule=job_schedule, assets=pagination.items, pagination=pagination, search=search)
 
 @job_schedules_bp.route("/<uuid:id>/files")
 def files(id):

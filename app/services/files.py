@@ -205,7 +205,7 @@ def extension(filename):
     return filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
 
 
-def create_file(upload, description, expires, organisation_id, link_to=None):
+def create_file(upload, description, expires, organisation_id, link_to=None, file_category_id=None):
     """Store an upload (a validated FileStorage) and save its File, linked to link_to if given. Commits.
     If saving the record fails, the stored object is removed again."""
     upload.stream.seek(0, os.SEEK_END)
@@ -223,6 +223,7 @@ def create_file(upload, description, expires, organisation_id, link_to=None):
         content_type=FILE_TYPES[ext],
         storage_key=f'{organisation_id}/{file_id}.{ext}',
         organisation_id=organisation_id,
+        file_category_id=file_category_id,
     )
     store(file.storage_key, upload.stream, file.content_type)
     try:

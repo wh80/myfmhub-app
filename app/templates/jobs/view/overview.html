@@ -45,6 +45,10 @@
     <div class="text-muted small">Statutory Compliance</div>
     <div class="fw-semibold">{% if job.statutory_compliance %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</div>
   </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Job Category</div>
+    <div class="fw-semibold">{{ job.job_category or "-" }}</div>
+  </div>
 </div>
 
 {% endblock tab_content %}

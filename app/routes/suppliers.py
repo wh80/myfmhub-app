@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import SupplierForm
-from app.models import Supplier
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab
+from app.models import Supplier, SupplierCategory
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab, set_reference_choices, reference_items, filter_reference
 from app.services.exports import export_response
 suppliers_bp = Blueprint('suppliers', __name__, url_prefix="/suppliers")
 suppliers_bp.before_request(require_login)
@@ -12,6 +12,7 @@ suppliers_bp.before_request(require_permission)
 SUPPLIER_COLUMNS = [
     ('name', 'Name', lambda supplier: supplier.name),
     ('telephone', 'Telephone', lambda supplier: supplier.telephone),
+    ('category', 'Supplier Category', lambda supplier: supplier.supplier_category.description if supplier.supplier_category else None),
 ]
 
 # the index filters, shared by the page and its downloads
@@ -28,7 +29,9 @@ def filtered_suppliers():
     if search:
         query = query.filter(Supplier.name.ilike(f'%{search}%'))
 
-    return query.order_by(Supplier.name, Supplier.id), dict(search=search, import_id=import_id)
+    query, supplier_category_id = filter_reference(query, Supplier, 'supplier_category_id')
+
+    return query.order_by(Supplier.name, Supplier.id), dict(search=search, import_id=import_id, supplier_category_id=supplier_category_id)
 
 @suppliers_bp.route('/')
 def index():
@@ -41,6 +44,7 @@ def index():
         'suppliers/index.html',
         suppliers=pagination.items,
         pagination=pagination,
+        supplier_categories=reference_items(SupplierCategory),
         **filters
     )
 
@@ -52,15 +56,19 @@ def export(file_format):
 @suppliers_bp.route('/create', methods=['GET', 'POST'])
 def create():
     form = SupplierForm()
+    set_reference_choices(form)
     
     if form.validate_on_submit():
         supplier = Supplier(
             name=form.name.data,
             address_line_one=form.address_line_one.data,
             address_line_two=form.address_line_two.data,
+            address_line_three=form.address_line_three.data,
             town_city=form.town_city.data,
+            county=form.county.data,
             post_code=form.post_code.data,
             telephone=form.telephone.data,
+            supplier_category_id=parse_uuid(form.supplier_category_id.data),
             organisation_id=g.person.organisation_id,
         )
         db.session.add(supplier)
@@ -81,15 +89,19 @@ def edit(id):
     supplier = org_get_or_404(Supplier, id)
 
     form=SupplierForm(obj=supplier)
+    set_reference_choices(form)
 
     if form.validate_on_submit():
         
         supplier.name=form.name.data
         supplier.address_line_one=form.address_line_one.data
         supplier.address_line_two=form.address_line_two.data
+        supplier.address_line_three=form.address_line_three.data
         supplier.town_city=form.town_city.data
+        supplier.county=form.county.data
         supplier.post_code=form.post_code.data
         supplier.telephone=form.telephone.data
+        supplier.supplier_category_id=parse_uuid(form.supplier_category_id.data)
         
         db.session.commit()
         flash(f"Supplier '{supplier.name}' updated successfully!", 'success')

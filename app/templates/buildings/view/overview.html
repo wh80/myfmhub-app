@@ -13,6 +13,14 @@
     <div class="text-muted small">Zones</div>
     <div class="fw-semibold">{{ building.zones|length }}</div>
   </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Building Condition</div>
+    <div class="fw-semibold">{{ building.building_condition or "-" }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Condition Set</div>
+    <div class="fw-semibold">{{ building.condition_set | date }}</div>
+  </div>
 </div>
 
 {% endblock tab_content %}

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% set title = 'Add File' ~ (': ' ~ parent.name(record) if record else '') %}
+{% from "_reference_fields.html" import reference_select %}
 
 {% block body %}
 
@@ -49,6 +50,8 @@
         {% endif %}
         <div class="form-text">Optional, for example when a certificate runs out.</div>
       </div>
+
+      {{ reference_select(form.file_category_id) }}
 
       <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">Upload</button>

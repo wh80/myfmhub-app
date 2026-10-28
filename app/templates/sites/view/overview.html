@@ -15,7 +15,7 @@
     <div class="col-md-6">
         <div class="text-muted small">Address</div>
 
-        {% if site.address_line_one or site.address_line_two or site.town_city or site.post_code %}
+        {% if site.address_line_one or site.address_line_two or site.address_line_three or site.town_city or site.county or site.post_code %}
 
             <div class="fw-semibold">
                 {% if site.address_line_one %}
@@ -26,8 +26,16 @@
                     <p>{{ site.address_line_two }}</p>
                 {% endif %}
 
+                {% if site.address_line_three %}
+                    <p>{{ site.address_line_three }}</p>
+                {% endif %}
+
                 {% if site.town_city %}
                     <p>{{ site.town_city }}</p>
+                {% endif %}
+
+                {% if site.county %}
+                    <p>{{ site.county }}</p>
                 {% endif %}
 
                 {% if site.post_code %}

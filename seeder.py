@@ -26,6 +26,7 @@ from app.extensions import db
 from app.services.permissions import create_default_groups
 from app.services.scheduling import FREQUENCIES, job_creation_date
 from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Site, Building, Zone, Asset, Job, JobSchedule, Supplier, job_assets, job_schedule_assets
+from app.models import JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory, FileCategory
 
 PLACE_NAMES = ['Riverside', 'Oakwood', 'Hillcrest', 'Kingsway', 'Meadow', 'Harbour', 'Station', 'Market', 'Abbey', 'Victoria']
 BUILDING_NAMES = ['Main Building', 'North Block', 'South Block', 'East Wing', 'West Wing', 'Annex', 'Plant House', 'Gatehouse']
@@ -33,6 +34,16 @@ ZONE_NAMES = ['Basement', 'Ground Floor', 'First Floor', 'Second Floor', 'Roof',
 SITE_TYPES = ['House', 'Court', 'Centre', 'Park', 'Plaza', 'Tower', 'Depot', 'Campus', 'Works', 'Hall']
 STREETS = ['High Street', 'Church Road', 'Mill Lane', 'Park Avenue', 'London Road', 'Queen Street', 'Green Lane', 'Station Road']
 TOWNS = ['Leeds', 'Bristol', 'Manchester', 'Birmingham', 'Sheffield', 'Nottingham', 'Cardiff', 'Glasgow', 'Newcastle', 'York']
+# each organisation's reference data (services/reference_data.py)
+REFERENCE_DATA = {
+    JobCategory: ['Electrical', 'Mechanical', 'Plumbing', 'Fire Safety', 'Building Fabric', 'Grounds'],
+    AssetCategory: ['HVAC', 'Electrical', 'Fire Safety', 'Lifts', 'Plumbing', 'Security'],
+    AssetCondition: ['Excellent', 'Good', 'Fair', 'Poor', 'Unserviceable'],
+    BuildingCondition: ['A - Good', 'B - Satisfactory', 'C - Poor', 'D - Bad'],
+    SupplierCategory: ['Electrical Contractor', 'Mechanical Contractor', 'Cleaning', 'Security', 'Grounds Maintenance'],
+    FileCategory: ['Certificate', 'Manual', 'Photo', 'Report', 'Contract'],
+}
+COUNTIES = ['West Yorkshire', 'Somerset', 'Greater Manchester', 'West Midlands', 'South Yorkshire', 'Nottinghamshire', 'Glamorgan', 'Lanarkshire', 'Tyne and Wear', 'North Yorkshire']
 POST_CODES = ['LS1', 'BS1', 'M1', 'B1', 'S1', 'NG1', 'CF10', 'G1', 'NE1', 'YO1']
 
 SUPPLIER_PREFIXES = ['Apex', 'Premier', 'Reliable', 'Northern', 'City', 'Total', 'Prime', 'Allied', 'Crown', 'Swift']
@@ -92,7 +103,9 @@ def address():
     return {
         'address_line_one': f'{random.randint(1, 200)} {random.choice(STREETS)}',
         'address_line_two': random.choice(['', f'Unit {random.randint(1, 20)}']),
+        'address_line_three': '',
         'town_city': random.choice(TOWNS),
+        'county': random.choice(COUNTIES),
         'post_code': f'{random.choice(POST_CODES)} {random.randint(1, 9)}{random.choice("ABDEFGHJ")}{random.choice("LNPQRSTU")}',
     }
 
@@ -104,7 +117,7 @@ def days_from_today(low, high):
 def clear():
     db.session.execute(job_assets.delete())
     db.session.execute(job_schedule_assets.delete())
-    for model in (Job, Asset, JobSchedule, Supplier, Zone, Building, Site, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
+    for model in (Job, Asset, JobSchedule, Supplier, Zone, Building, Site, *REFERENCE_DATA, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
         db.session.execute(db.delete(model))
     db.session.commit()
 
@@ -155,6 +168,20 @@ def seed(count):
             user=user,
         ))
 
+    reference_data = {
+        model: [model(description=description, organisation=organisation) for description in descriptions]
+        for model, descriptions in REFERENCE_DATA.items()
+    }
+
+    # one of the organisation's items of a kind, or sometimes none
+    def pick(model, none_chance=0.2):
+        return None if random.random() < none_chance else random.choice(reference_data[model])
+
+    # a condition and the date it was set, for an asset or building
+    def condition(model):
+        item = pick(model, 0.3)
+        return dict(condition_set=days_from_today(-730, 0) if item else None, **{f'{model.__tablename__}': item})
+
     # site names are unique in the organisation. Past 100 sites they get a number
     names = random.sample([f'{place} {kind}' for place in PLACE_NAMES for kind in SITE_TYPES], min(count, len(PLACE_NAMES) * len(SITE_TYPES)))
     names += [f'{random.choice(PLACE_NAMES)} {random.choice(SITE_TYPES)} {i + 1}' for i in range(len(names), count)]
@@ -167,7 +194,7 @@ def seed(count):
     buildings, zones = [], []
     for site in sites:
         for building_name in random.sample(BUILDING_NAMES, random.randint(1, 3)):
-            building = Building(name=building_name, site=site, organisation=organisation)
+            building = Building(name=building_name, site=site, organisation=organisation, **condition(BuildingCondition))
             buildings.append(building)
             for zone_name in random.sample(ZONE_NAMES, random.randint(1, 4)):
                 zones.append(Zone(name=zone_name, building=building, organisation=organisation))
@@ -190,6 +217,7 @@ def seed(count):
         Supplier(
             name=f'{random.choice(SUPPLIER_PREFIXES)} {random.choice(SUPPLIER_TRADES)} {random.choice(SUPPLIER_SUFFIXES)}',
             telephone=phone(),
+            supplier_category=pick(SupplierCategory),
             organisation=organisation,
             **address()
         )
@@ -214,6 +242,8 @@ def seed(count):
             estimated_replacement_date=purchased + timedelta(days=365 * random.randint(10, 25)),
             estimated_replacement_cost=Decimal(random.randint(5000, 2500000)) / 100,
             site=pick_site(),
+            asset_category=pick(AssetCategory),
+            **condition(AssetCondition),
             organisation=organisation,
         ))
 
@@ -234,6 +264,7 @@ def seed(count):
             statutory_compliance=statutory_compliance,
             is_active=random.random() > 0.1,
             site=pick_site(),
+            job_category=pick(JobCategory),
             organisation=organisation,
         ))
 
@@ -262,6 +293,7 @@ def seed(count):
                 site=job_schedule.site,
                 building=job_schedule.building,
                 zone=job_schedule.zone,
+                job_category=job_schedule.job_category,
                 organisation=organisation,
                 job_schedule=job_schedule,
             ))
@@ -275,6 +307,7 @@ def seed(count):
                 status=random.choice(JOB_STATUSES)[0],
                 source=random.choice(['reactive', 'remedial']),
                 site=site,
+                job_category=pick(JobCategory),
                 organisation=organisation,
             ), site))
 
@@ -289,7 +322,7 @@ def seed(count):
         asset.jobs = random.sample(site_jobs, min(len(site_jobs), random.randint(0, 3)))
         asset.job_schedules = random.sample(site_job_schedules, min(len(site_job_schedules), random.randint(0, 2)))
 
-    db.session.add_all([organisation] + people + sites + buildings + zones + suppliers + assets + job_schedules + jobs)
+    db.session.add_all([organisation] + [item for items in reference_data.values() for item in items] + people + sites + buildings + zones + suppliers + assets + job_schedules + jobs)
     db.session.commit()
 
     links = sum(len(asset.jobs) + len(asset.job_schedules) for asset in assets)

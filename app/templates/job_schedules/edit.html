@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% set title = 'Edit Job Schedule: ' ~ job_schedule.description %}
-{% from "_location_fields.html" import location_fields %} {% block body %}
+{% from "_location_fields.html" import location_fields %}
+{% from "_reference_fields.html" import reference_select %} {% block body %}
 <h3>Edit Job Schedule</h3>
 
 <form method="POST">
@@ -33,6 +34,8 @@
   </div>
 
   {{ location_fields(form) }}
+
+  {{ reference_select(form.job_category_id) }}
 
   <div class="mb-3">
     {{ form.next_due.label(class="form-label") }} {{

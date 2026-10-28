@@ -1,7 +1,8 @@
 {% from "_location_fields.html" import location_filters %}
+{% from "_reference_fields.html" import reference_filter %}
 <form method="get" class="mb-4">
   {# the search box shows on its own. Advanced opens the other filters, and starts open when one is set #}
-  {% set advanced_open = site_id or building_id or zone_id %}
+  {% set advanced_open = site_id or building_id or zone_id or asset_category_id or asset_condition_id %}
   <div class="row g-2">
     <div class="col-md-6">
       <label for="search" class="form-label">Search</label>
@@ -38,6 +39,8 @@
   <div class="collapse{{ ' show' if advanced_open }}" id="advanced-filters">
     <div class="row g-2 mt-1">
       {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
+      {{ reference_filter('Asset Category', 'asset_category_id', asset_categories, asset_category_id, 'All categories', col='col-md-4') }}
+      {{ reference_filter('Asset Condition', 'asset_condition_id', asset_conditions, asset_condition_id, 'All conditions', col='col-md-4') }}
     </div>
   </div>
 </form>

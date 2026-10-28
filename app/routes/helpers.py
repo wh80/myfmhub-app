@@ -3,7 +3,8 @@ from datetime import date
 from functools import wraps
 from flask import request, g, redirect, url_for, flash, abort, render_template
 from app import db
-from app.models import Site, Building, Zone
+from sqlalchemy.orm import with_parent
+from app.models import Site, Building, Zone, Asset, Job, JobSchedule, File, JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory, FileCategory
 from app.services.auth import revoke_session, clear_session_cookie
 from app.services.permissions import ENDPOINT_PERMISSIONS, can
 
@@ -213,4 +214,69 @@ def files_tab(model, id, template, name):
     if not can(g.person, 'files.view'):
         abort(403)
     record = org_get_or_404(model, id)
-    return render_template(template, active_tab='files', **{name: record})
+    pagination, search = related_page(related(record, model.files, File), File)
+    return render_template(template, active_tab='files', files=pagination.items, pagination=pagination, search=search, **{name: record})
+
+
+### RELATED TABS AND LINK PAGES ###
+# the columns ?search= looks in, and the sort order, for each kind of record they list
+
+RELATED_LISTS = {
+    Asset: ([Asset.description, Asset.asset_number, Asset.make, Asset.model, Asset.serial_number], Asset.description),
+    Job: ([Job.description, Job.work_required], Job.description),
+    JobSchedule: ([JobSchedule.description, JobSchedule.work_required], JobSchedule.description),
+    Building: ([Building.name], Building.name),
+    Zone: ([Zone.name], Zone.name),
+    File: ([File.description, File.filename], File.description),
+}
+
+
+def related(record, relationship, model):
+    """A query for the records in one of record's relationships, e.g. related(site, Site.jobs, Job)."""
+    return org_query(model).filter(with_parent(record, relationship))
+
+
+def related_page(query, model):
+    """Search (?search=) and paginate (?page=) a related tab's or link page's query, like an index page.
+    Returns the pagination and the search text, for _related_search.html and pagination_nav."""
+    columns, sort = RELATED_LISTS[model]
+    search = request.args.get('search', '').strip()
+    if search:
+        query = query.filter(db.or_(*(column.ilike(f'%{search}%') for column in columns)))
+    page = request.args.get('page', 1, type=int)
+    return query.order_by(sort, model.id).paginate(page=page, per_page=25, error_out=False), search
+
+
+### CATEGORIES AND CONDITIONS ###
+# the reference data (services/reference_data.py) behind each form field and index filter of that name
+
+REFERENCE_FIELDS = {
+    'job_category_id': JobCategory,
+    'asset_category_id': AssetCategory,
+    'asset_condition_id': AssetCondition,
+    'building_condition_id': BuildingCondition,
+    'supplier_category_id': SupplierCategory,
+    'file_category_id': FileCategory,
+}
+
+
+def reference_items(model):
+    """The organisation's categories or conditions of one kind, for selects and filters."""
+    return org_query(model).order_by(model.description, model.id).all()
+
+
+def set_reference_choices(form):
+    """Fill in any category and condition selects on the form: '-' for none, then the organisation's
+    items, so WTForms refuses anything else. Store the value with parse_uuid."""
+    for name, model in REFERENCE_FIELDS.items():
+        if name in form:
+            form[name].choices = [('', '-')] + [(str(item.id), item.description) for item in reference_items(model)]
+
+
+def filter_reference(query, model, name):
+    """Apply an index's ?<name>=<id> category or condition filter. Returns the query and the id as a
+    string ('' when unset), for the filter select."""
+    value = parse_uuid(request.args.get(name))
+    if value:
+        query = query.filter(getattr(model, name) == value)
+    return query, str(value) if value else ''

@@ -1,13 +1,18 @@
 {% extends "people/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 
 {% block tab_content %}
 
 <h5 class="mb-3">Assigned Assets</h5>
 
-{% if person.assigned_assets %}
-    {% with assets=person.assigned_assets %}
-        {% include "assets/asset_list.html" %}
-    {% endwith %}
+{{ related_search(pagination, search, 'Description, asset number, make, model or serial number ...') }}
+
+{% if assets %}
+    {% include "assets/asset_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No assets match your search.</p>
 {% else %}
     <p class="text-muted mb-0">No assets assigned to {{ person.first_name }}. Assign one from the asset's page.</p>
 {% endif %}

@@ -1,6 +1,7 @@
 from app.extensions import db
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import declared_attr
 from datetime import datetime, timezone
 from app.services.scheduling import FREQUENCY_LABELS, uk_date, uk_today
 
@@ -81,6 +82,62 @@ class Organisation(db.Model):
     zones = db.relationship('Zone', backref='organisation', lazy=True, cascade='delete')
     files = db.relationship('File', backref='organisation', lazy=True, cascade='delete')
     file_exports = db.relationship('FileExport', backref='organisation', lazy=True, cascade='delete')
+    job_categories = db.relationship('JobCategory', backref='organisation', lazy=True, cascade='delete')
+    asset_categories = db.relationship('AssetCategory', backref='organisation', lazy=True, cascade='delete')
+    asset_conditions = db.relationship('AssetCondition', backref='organisation', lazy=True, cascade='delete')
+    building_conditions = db.relationship('BuildingCondition', backref='organisation', lazy=True, cascade='delete')
+    supplier_categories = db.relationship('SupplierCategory', backref='organisation', lazy=True, cascade='delete')
+    file_categories = db.relationship('FileCategory', backref='organisation', lazy=True, cascade='delete')
+
+
+### REFERENCE DATA ###
+# each organisation's own lists of categories and conditions, managed under /reference-data
+# (services/reference_data.py). Records point at them with ondelete SET NULL, so deleting one leaves
+# its records with none
+
+class ReferenceItem:
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    description = db.Column(db.String(100), nullable=False)
+
+    @declared_attr
+    def organisation_id(cls):
+        return db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+
+    # unique per organisation. The routes and imports also check case-insensitively
+    @declared_attr
+    def __table_args__(cls):
+        return (db.UniqueConstraint('organisation_id', 'description'),)
+
+    # so templates can show {{ asset.asset_category or '-' }}
+    def __str__(self):
+        return self.description
+
+
+class JobCategory(ReferenceItem, db.Model):
+    pass
+
+
+class AssetCategory(ReferenceItem, db.Model):
+    pass
+
+
+class AssetCondition(ReferenceItem, db.Model):
+    pass
+
+
+class BuildingCondition(ReferenceItem, db.Model):
+    pass
+
+
+class SupplierCategory(ReferenceItem, db.Model):
+    pass
+
+
+class FileCategory(ReferenceItem, db.Model):
+    pass
 
 
 class Site(db.Model):
@@ -91,7 +148,9 @@ class Site(db.Model):
     name = db.Column(db.String(100), nullable=False)
     address_line_one = db.Column(db.String(100))
     address_line_two = db.Column(db.String(100))
+    address_line_three = db.Column(db.String(100))
     town_city = db.Column(db.String(100))
+    county = db.Column(db.String(100))
     post_code = db.Column(db.String(100))
     telephone = db.Column(db.String(100))
 
@@ -123,6 +182,10 @@ class Building(db.Model):
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     # never changes after creation, so the records in it always stay in its site
     site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
+    building_condition_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building_condition.id', ondelete='SET NULL'))
+    building_condition = db.relationship('BuildingCondition', lazy=True)
+    # the UK date the condition was last changed, set by the app (or by an import)
+    condition_set = db.Column(db.Date())
 
     zones = db.relationship('Zone', backref='building', lazy=True, cascade='delete', order_by='Zone.name')
     # deleting the building clears building_id (and zone_id, through the zones) on these
@@ -183,6 +246,9 @@ class Job(db.Model):
     building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
     zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
     job_schedule_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_schedule.id', ondelete='RESTRICT'))
+    # copied from the job schedule when a job is raised from one
+    job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
+    job_category = db.relationship('JobCategory', lazy=True)
 
     __table_args__ = (
         db.CheckConstraint(
@@ -256,6 +322,12 @@ class Asset(db.Model):
     # never changed, so there can't be a loop. Deleting the parent leaves its sub-assets as top-level assets
     parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('asset.id', ondelete='SET NULL'))
     parent = db.relationship('Asset', remote_side='Asset.id', backref=db.backref('sub_assets', lazy=True, order_by='Asset.description'))
+    asset_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('asset_category.id', ondelete='SET NULL'))
+    asset_category = db.relationship('AssetCategory', lazy=True)
+    asset_condition_id = db.Column(UUID(as_uuid=True), db.ForeignKey('asset_condition.id', ondelete='SET NULL'))
+    asset_condition = db.relationship('AssetCondition', lazy=True)
+    # the UK date the condition was last changed, set by the app (or by an import)
+    condition_set = db.Column(db.Date())
 
     jobs = db.relationship('Job', secondary=job_assets, backref='assets', lazy=True)
     job_schedules = db.relationship('JobSchedule', secondary=job_schedule_assets, backref='assets', lazy=True)
@@ -294,6 +366,9 @@ class JobSchedule(db.Model):
     # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
     building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
     zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
+    # raise_job() copies it to the job
+    job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
+    job_category = db.relationship('JobCategory', lazy=True)
 
     jobs = db.relationship('Job', backref='job_schedule', lazy=True)
 
@@ -325,13 +400,17 @@ class Supplier(db.Model):
     name = db.Column(db.String(100), nullable=False)
     address_line_one = db.Column(db.String(100))
     address_line_two = db.Column(db.String(100))
+    address_line_three = db.Column(db.String(100))
     town_city = db.Column(db.String(100))
+    county = db.Column(db.String(100))
     post_code = db.Column(db.String(100))
     telephone = db.Column(db.String(100))
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     # set when the record came from a CSV import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
+    supplier_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('supplier_category.id', ondelete='SET NULL'))
+    supplier_category = db.relationship('SupplierCategory', lazy=True)
 
 
 # the login: one per email, across every organisation. What the user can do in an organisation
@@ -497,7 +576,8 @@ class ImportEvent(db.Model):
 
 class File(db.Model):
     """An uploaded file, stored in DigitalOcean Spaces under the organisation's id (services/files.py).
-    Files are never updated: they're uploaded, linked and unlinked, and deleted."""
+    Only the description, category and expiry date can be edited. The stored file, its name, type and
+    size never change: they're uploaded, linked and unlinked, and deleted."""
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
@@ -513,6 +593,9 @@ class File(db.Model):
     storage_key = db.Column(db.String(255), nullable=False, unique=True)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+    # chosen at upload, like everything else on a file
+    file_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('file_category.id', ondelete='SET NULL'))
+    file_category = db.relationship('FileCategory', lazy=True)
 
     # the records it's linked to. Each also has .files
     sites = db.relationship('Site', secondary=site_files, backref=db.backref('files', order_by='File.description'), lazy=True)

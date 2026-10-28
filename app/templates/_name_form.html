@@ -1,4 +1,5 @@
-{# a form with only a name field. Set heading, intro (optional) and back_url before including #}
+{# a form with a name field (and a building's condition). Set heading, intro (optional) and back_url before including #}
+{% from "_reference_fields.html" import reference_select %}
 <h3>{{ heading }}</h3>
 {% if intro %}<p class="text-muted">{{ intro }}</p>{% endif %}
 
@@ -16,6 +17,10 @@
             </div>
         {% endif %}
     </div>
+
+    {% if form.building_condition_id %}
+    {{ reference_select(form.building_condition_id) }}
+    {% endif %}
 
     <button type="submit" class="btn btn-primary">Save</button>
     <a href="{{ back_url }}" class="btn btn-secondary">Back</a>

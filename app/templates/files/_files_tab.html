@@ -1,4 +1,6 @@
 {# a record's Files tab. Include it with record (the site, job...) and resource (its FILE_PARENTS key, e.g. 'sites') #}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0">Files</h5>
     {% if can(resource ~ '.edit') %}
@@ -14,7 +16,7 @@
                 <li><a class="dropdown-item" href="{{ url_for('files.link', resource=resource, id=record.id) }}">Link Existing</a></li>
             </ul>
         </div>
-        {% if record.files %}
+        {% if pagination.total or search %}
         <a href="{{ url_for('files.unlink', resource=resource, id=record.id) }}" class="btn btn-outline-danger btn-sm">
             Remove File
         </a>
@@ -23,10 +25,13 @@
     {% endif %}
 </div>
 
-{% if record.files %}
-    {% with files=record.files %}
-        {% include "files/file_list.html" %}
-    {% endwith %}
+{{ related_search(pagination, search, 'Description or file name ...') }}
+
+{% if files %}
+    {% include "files/file_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No files match your search.</p>
 {% else %}
     <p class="text-muted mb-0">No files found.</p>
 {% endif %}

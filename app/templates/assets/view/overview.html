@@ -93,6 +93,18 @@
 
     </div>
   </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Asset Category</div>
+    <div class="fw-semibold">{{ asset.asset_category or "-" }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Asset Condition</div>
+    <div class="fw-semibold">{{ asset.asset_condition or "-" }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Condition Set</div>
+    <div class="fw-semibold">{{ asset.condition_set | date }}</div>
+  </div>
 </div>
 
 {% endblock tab_content %}

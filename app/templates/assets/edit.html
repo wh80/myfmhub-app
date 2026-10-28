@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% set title = 'Edit Asset: ' ~ asset.description %}
-{% from "_location_fields.html" import location_fields %} {% block body %}
+{% from "_location_fields.html" import location_fields %}
+{% from "_reference_fields.html" import reference_select %} {% block body %}
 <h3>Edit Asset</h3>
 
 <form method="POST">
@@ -20,6 +21,9 @@
   </div>
 
   {{ location_fields(form) }}
+
+  {{ reference_select(form.asset_category_id) }}
+  {{ reference_select(form.asset_condition_id) }}
 
   <div class="mb-3">
     {{ form.asset_number.label(class="form-label") }} {{

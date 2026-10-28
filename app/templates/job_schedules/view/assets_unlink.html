@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 {% set title = 'Unlink assets: ' ~ job_schedule.description %}
 
 {% block body %}
@@ -10,11 +12,14 @@
 
   <div class="card-body">
 
+    {{ related_search(pagination, search, 'Description, asset number, make, model or serial number ...') }}
+
     {% if assets %}
       <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
         {% include "assets/asset_select_list.html" %}
+        {{ pagination_nav(pagination) }}
 
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-danger">Unlink Selected</button>
@@ -22,7 +27,7 @@
         </div>
       </form>
     {% else %}
-      <p class="text-muted">No linked assets found.</p>
+      <p class="text-muted">{% if search %}No assets match your search.{% else %}No linked assets found.{% endif %}</p>
       <a href="{{url_for('job_schedules.assets', id=job_schedule.id)}}" class="btn btn-secondary">Back</a>
     {% endif %}
 

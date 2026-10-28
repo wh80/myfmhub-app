@@ -1,13 +1,18 @@
 {% extends "sites/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 
 {% block tab_content %}
 
 <h5 class="mb-3">Jobs</h5>
 
-{% if site.jobs %}
-    {% with jobs=site.jobs %}
-        {% include "jobs/job_list.html" %}
-    {% endwith %}
+{{ related_search(pagination, search, 'Description or work required ...') }}
+
+{% if jobs %}
+    {% include "jobs/job_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No jobs match your search.</p>
 {% else %}
     <p class="text-muted mb-0">No jobs found.</p>
 {% endif %}

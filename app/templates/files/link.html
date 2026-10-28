@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 {% set title = 'Link files: ' ~ parent.name(record) %}
 
 {% block body %}
@@ -9,16 +11,7 @@
   </div>
 
   <div class="card-body">
-    <form method="get" class="mb-3">
-      <div class="row g-2">
-        <div class="col-md-6">
-          <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search description or file name ..." aria-label="Search files" />
-        </div>
-        <div class="col-md-auto">
-          <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Search</button>
-        </div>
-      </div>
-    </form>
+    {{ related_search(pagination, search, 'Description or file name ...') }}
 
     {% set back_url = url_for(parent.key ~ '.files', id=record.id) %}
     {% if files %}
@@ -26,6 +19,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
         {% include "files/file_select_list.html" %}
+        {{ pagination_nav(pagination) }}
 
         <div class="d-flex gap-2 mt-3">
           <button type="submit" class="btn btn-primary">Link Selected</button>

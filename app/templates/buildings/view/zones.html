@@ -1,4 +1,6 @@
 {% extends "buildings/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 
 {% block tab_content %}
 
@@ -11,10 +13,13 @@
     {% endif %}
 </div>
 
-{% if building.zones %}
-    {% with zones=building.zones %}
-        {% include "zones/zone_list.html" %}
-    {% endwith %}
+{{ related_search(pagination, search, 'Name ...') }}
+
+{% if zones %}
+    {% include "zones/zone_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No zones match your search.</p>
 {% else %}
     <p class="text-muted mb-0">No zones found.</p>
 {% endif %}

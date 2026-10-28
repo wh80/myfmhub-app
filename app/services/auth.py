@@ -144,17 +144,15 @@ def hash_token(token):
 
 def choose_person(user, otp=None):
     """The organisation (as the user's person there) a new session starts in, or None for the user to
-    choose on the Switch organisation page (or a platform admin with no organisation to go to). In order:
-    the one the code was sent for, the last one they used, or their only one. Verifies an organisation
-    registered with otp. Commits."""
+    select on the Switch organisation page (or a platform admin with no organisation to go to): the one
+    the code was sent for, else their only one. Someone in several organisations always selects one at a
+    fresh sign-in. Verifies an organisation registered with otp. Commits."""
     people = user.signin_people(otp)
     person = None
     if otp is not None and otp.person in people:
         person = otp.person
-    else:
-        person = next((p for p in people if p.organisation_id == user.last_organisation_id), None)
-        if person is None and len(people) == 1:
-            person = people[0]
+    elif len(people) == 1:
+        person = people[0]
 
     if person is not None:
         if person.organisation.verified_at is None:

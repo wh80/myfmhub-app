@@ -23,9 +23,13 @@ EXTRA_PERMISSIONS = [
     ('imports.manage', 'Import data'),
     # download every record of the types the group can view, as a zip of CSVs
     ('exports.manage', 'Export data'),
+    # the organisation's categories and conditions under /reference-data. Choosing one on a record
+    # only needs edit on the record
+    ('reference_data.manage', 'Manage reference data'),
 ]
-# files can't be edited (only uploaded, linked and deleted), so files.edit isn't offered
-NOT_GRANTABLE = {'files.edit'}
+# permissions in the grid that don't apply to their resource, shown as n/a. None at the moment: files.edit
+# covers a file's details (the stored file itself is never replaced)
+NOT_GRANTABLE = set()
 GRANTABLE = ({f'{resource}.{action}' for resource, _ in RESOURCES for action, _ in ACTIONS} - NOT_GRANTABLE) | {key for key, _ in EXTRA_PERMISSIONS}
 
 # only the Admin group has these. They're never stored on a group or shown in the grid
@@ -70,6 +74,7 @@ ENDPOINT_PERMISSIONS = {
     **{f'user_groups.{name}': 'user_groups.manage' for name in ['index', 'create', 'view', 'edit', 'delete']},
     **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'view', 'undo']},
     'exports.index': 'exports.manage',
+    **{f'reference_data.{name}': 'reference_data.manage' for name in ['index', 'items', 'edit', 'delete', 'bulk']},
     # Download all files: these also check files.view
     'exports.request_files': 'exports.manage',
     'exports.download_files': 'exports.manage',
@@ -80,6 +85,7 @@ ENDPOINT_PERMISSIONS = {
     'files.index': 'files.view',
     'files.view': 'files.view',
     'files.create': 'files.create',
+    'files.edit': 'files.edit',
     'files.link': 'files.view',
     'files.unlink': 'files.view',
     'files.delete': 'files.delete',

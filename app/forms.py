@@ -16,7 +16,9 @@ class SiteForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
     address_line_one = StringField('Address Line 1', validators=[Optional(), Length(max=255)])
     address_line_two = StringField('Address Line 2', validators=[Optional(), Length(max=255)])
+    address_line_three = StringField('Address Line 3', validators=[Optional(), Length(max=100)])
     town_city = StringField('Town/City', validators=[Optional(), Length(max=255)])
+    county = StringField('County', validators=[Optional(), Length(max=100)])
     post_code = StringField('Post Code', validators=[Optional(), Length(max=255)])
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
 
@@ -29,6 +31,8 @@ class JobForm(FlaskForm):
     # sure the building is in the site and the zone in the building
     building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
     zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
+    # an optional category or condition: choices are set by set_reference_choices
+    job_category_id = SelectField('Job Category', coerce=optional_id, validators=[Optional()])
 
 class JobCloseForm(FlaskForm):
     closed_at = DateField('Closed On', default=uk_today, validators=[DataRequired()])
@@ -76,6 +80,10 @@ class AssetForm(FlaskForm):
     # sure the building is in the site and the zone in the building
     building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
     zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
+    # an optional category or condition: choices are set by set_reference_choices
+    asset_category_id = SelectField('Asset Category', coerce=optional_id, validators=[Optional()])
+    # changing it sets condition_set to today (set_condition)
+    asset_condition_id = SelectField('Asset Condition', coerce=optional_id, validators=[Optional()])
 
 class JobScheduleForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=120)])
@@ -90,6 +98,8 @@ class JobScheduleForm(FlaskForm):
     # sure the building is in the site and the zone in the building
     building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
     zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
+    # an optional category or condition: choices are set by set_reference_choices
+    job_category_id = SelectField('Job Category', coerce=optional_id, validators=[Optional()])
 
     # a job is raised at most one gap ahead, so the schedule never has two jobs waiting to come due
     def validate_notice_days(self, field):
@@ -100,6 +110,8 @@ class JobScheduleForm(FlaskForm):
 # the site (or building, for a zone) comes from the page it's created from, and never changes
 class BuildingForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
+    # changing it sets condition_set to today (set_condition)
+    building_condition_id = SelectField('Building Condition', coerce=optional_id, validators=[Optional()])
 
 class ZoneForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
@@ -108,9 +120,12 @@ class SupplierForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=120)])
     address_line_one = StringField('Address Line 1', validators=[Optional(), Length(max=255)])
     address_line_two = StringField('Address Line 2', validators=[Optional(), Length(max=255)])
+    address_line_three = StringField('Address Line 3', validators=[Optional(), Length(max=100)])
     town_city = StringField('Town/City', validators=[Optional(), Length(max=255)])
+    county = StringField('County', validators=[Optional(), Length(max=100)])
     post_code = StringField('Post Code', validators=[Optional(), Length(max=255)])
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
+    supplier_category_id = SelectField('Supplier Category', coerce=optional_id, validators=[Optional()])
 
 class RegisterForm(FlaskForm):
     organisation_name = StringField('Organisation Name', validators=[DataRequired(), Length(max=100)])
@@ -158,6 +173,21 @@ class FileUploadForm(FlaskForm):
     ])
     description = StringField('Description', validators=[DataRequired(), Length(max=255)], filters=[strip])
     expires = DateField('Expires', validators=[Optional()])
+    file_category_id = SelectField('File Category', coerce=optional_id, validators=[Optional()])
+
+# a file's details. The stored file itself can't be replaced
+class FileEditForm(FlaskForm):
+    description = StringField('Description', validators=[DataRequired(), Length(max=255)], filters=[strip])
+    expires = DateField('Expires', validators=[Optional()])
+    file_category_id = SelectField('File Category', coerce=optional_id, validators=[Optional()])
+
+# a category or condition on its reference data page
+class ReferenceItemForm(FlaskForm):
+    description = StringField('Description', validators=[DataRequired(), Length(max=100)], filters=[strip])
+
+# Add in bulk: values separated by commas or new lines (split_values in services/reference_data.py)
+class ReferenceBulkForm(FlaskForm):
+    values = TextAreaField('Values', validators=[DataRequired(), Length(max=50000)])
 
 class ImportForm(FlaskForm):
     file = FileField('CSV file', validators=[FileRequired('Choose a CSV file to upload.'), FileAllowed(['csv'], 'Upload a .csv file.')])

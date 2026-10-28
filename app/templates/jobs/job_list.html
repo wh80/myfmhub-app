@@ -14,6 +14,7 @@
         <th scope="col" data-col="site">Site</th>
         <th scope="col" data-col="building">Building</th>
         <th scope="col" data-col="zone">Zone</th>
+        <th scope="col" data-col="category">Job Category</th>
         <th scope="col" data-col="due">Due</th>
         <th scope="col" data-col="source">Source</th>
         <th scope="col" data-col="status">Status</th>
@@ -28,6 +29,7 @@
         <td>{{job.site.name}}</td>
         <td>{{ job.building.name if job.building else '-' }}</td>
         <td>{{ job.zone.name if job.zone else '-' }}</td>
+        <td>{{ job.job_category or '-' }}</td>
         <td>{{job.due | date}}</td>
         <td>{{job.source_label}}</td>
         <td>{% include "jobs/_status_badge.html" %}</td>
@@ -50,6 +52,7 @@
         <div class="card-body">
           <h5 class="card-title mb-3"><a href="{{url_for('jobs.view', id=job.id)}}" class="stretched-link text-reset text-decoration-none">{{job.description}}</a></h5>
           <p class="card-text"><strong>Location:</strong> {{ location_text(job) }}</p>
+          {% if job.job_category %}<p class="card-text"><strong>Category:</strong> {{ job.job_category }}</p>{% endif %}
           <p class="card-text">
             <strong>Due:</strong> {{job.due | date}}
           </p>

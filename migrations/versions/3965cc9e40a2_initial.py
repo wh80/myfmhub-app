@@ -1,8 +1,8 @@
-"""initial migration
+"""initial
 
-Revision ID: 00c6a50a88e3
+Revision ID: 3965cc9e40a2
 Revises: 
-Create Date: 2026-10-27 12:08:15.110180
+Create Date: 2026-10-28 12:51:36.568280
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '00c6a50a88e3'
+revision = '3965cc9e40a2'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -29,20 +29,45 @@ def upgrade():
     sa.Column('terms_accepted_by_id', sa.UUID(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('file',
+    op.create_table('asset_category',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('description', sa.String(length=255), nullable=False),
-    sa.Column('expires', sa.Date(), nullable=True),
-    sa.Column('size_mb', sa.Numeric(precision=12, scale=4), nullable=False),
-    sa.Column('filename', sa.String(length=255), nullable=False),
-    sa.Column('content_type', sa.String(length=100), nullable=False),
-    sa.Column('storage_key', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.String(length=100), nullable=False),
     sa.Column('organisation_id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('storage_key')
+    sa.UniqueConstraint('organisation_id', 'description')
+    )
+    op.create_table('asset_condition',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'description')
+    )
+    op.create_table('building_condition',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'description')
+    )
+    op.create_table('file_category',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'description')
     )
     op.create_table('import_event',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -58,6 +83,26 @@ def upgrade():
     sa.Column('undone_by_id', sa.UUID(), nullable=True),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('job_category',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'description')
+    )
+    op.create_table('supplier_category',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'description')
     )
     op.create_table('user',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -82,6 +127,23 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('organisation_id', 'name')
     )
+    op.create_table('file',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=255), nullable=False),
+    sa.Column('expires', sa.Date(), nullable=True),
+    sa.Column('size_mb', sa.Numeric(precision=12, scale=4), nullable=False),
+    sa.Column('filename', sa.String(length=255), nullable=False),
+    sa.Column('content_type', sa.String(length=100), nullable=False),
+    sa.Column('storage_key', sa.String(length=255), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('file_category_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['file_category_id'], ['file_category.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('storage_key')
+    )
     op.create_table('person',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -103,14 +165,75 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('organisation_id', 'user_id')
     )
-    # person refers to organisation and import_event, which refer back to it, so these are added once
-    # all three exist (use_alter in the model). Alembic leaves use_alter keys out of create_table, so
-    # keep these when regenerating
+    # person and organisation/import_event refer to each other, so these are added once both exist
+    # (autogenerate puts use_alter foreign keys inside create_table, where Postgres leaves them out)
     with op.batch_alter_table('organisation', schema=None) as batch_op:
         batch_op.create_foreign_key('fk_organisation_terms_accepted_by_id', 'person', ['terms_accepted_by_id'], ['id'], ondelete='SET NULL')
     with op.batch_alter_table('import_event', schema=None) as batch_op:
         batch_op.create_foreign_key('fk_import_event_person_id', 'person', ['person_id'], ['id'], ondelete='SET NULL')
         batch_op.create_foreign_key('fk_import_event_undone_by_id', 'person', ['undone_by_id'], ['id'], ondelete='SET NULL')
+    op.create_table('site',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('address_line_one', sa.String(length=100), nullable=True),
+    sa.Column('address_line_two', sa.String(length=100), nullable=True),
+    sa.Column('address_line_three', sa.String(length=100), nullable=True),
+    sa.Column('town_city', sa.String(length=100), nullable=True),
+    sa.Column('county', sa.String(length=100), nullable=True),
+    sa.Column('post_code', sa.String(length=100), nullable=True),
+    sa.Column('telephone', sa.String(length=100), nullable=True),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('import_event_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'name')
+    )
+    op.create_table('supplier',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('address_line_one', sa.String(length=100), nullable=True),
+    sa.Column('address_line_two', sa.String(length=100), nullable=True),
+    sa.Column('address_line_three', sa.String(length=100), nullable=True),
+    sa.Column('town_city', sa.String(length=100), nullable=True),
+    sa.Column('county', sa.String(length=100), nullable=True),
+    sa.Column('post_code', sa.String(length=100), nullable=True),
+    sa.Column('telephone', sa.String(length=100), nullable=True),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('import_event_id', sa.UUID(), nullable=True),
+    sa.Column('supplier_category_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['supplier_category_id'], ['supplier_category.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('user_group_permission',
+    sa.Column('user_group_id', sa.UUID(), nullable=False),
+    sa.Column('permission', sa.String(length=50), nullable=False),
+    sa.ForeignKeyConstraint(['user_group_id'], ['user_group.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('user_group_id', 'permission')
+    )
+    op.create_table('building',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('import_event_id', sa.UUID(), nullable=True),
+    sa.Column('site_id', sa.UUID(), nullable=False),
+    sa.Column('building_condition_id', sa.UUID(), nullable=True),
+    sa.Column('condition_set', sa.Date(), nullable=True),
+    sa.ForeignKeyConstraint(['building_condition_id'], ['building_condition.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('site_id', 'name')
+    )
     op.create_table('file_export',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -131,59 +254,6 @@ def upgrade():
     sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('site',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('address_line_one', sa.String(length=100), nullable=True),
-    sa.Column('address_line_two', sa.String(length=100), nullable=True),
-    sa.Column('town_city', sa.String(length=100), nullable=True),
-    sa.Column('post_code', sa.String(length=100), nullable=True),
-    sa.Column('telephone', sa.String(length=100), nullable=True),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('import_event_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('organisation_id', 'name')
-    )
-    op.create_table('supplier',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('address_line_one', sa.String(length=100), nullable=True),
-    sa.Column('address_line_two', sa.String(length=100), nullable=True),
-    sa.Column('town_city', sa.String(length=100), nullable=True),
-    sa.Column('post_code', sa.String(length=100), nullable=True),
-    sa.Column('telephone', sa.String(length=100), nullable=True),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('import_event_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('user_group_permission',
-    sa.Column('user_group_id', sa.UUID(), nullable=False),
-    sa.Column('permission', sa.String(length=50), nullable=False),
-    sa.ForeignKeyConstraint(['user_group_id'], ['user_group.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('user_group_id', 'permission')
-    )
-    op.create_table('building',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('import_event_id', sa.UUID(), nullable=True),
-    sa.Column('site_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('site_id', 'name')
-    )
     op.create_table('otp',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -197,6 +267,27 @@ def upgrade():
     sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('person_files',
+    sa.Column('person_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('person_id', 'file_id')
+    )
+    op.create_table('site_files',
+    sa.Column('site_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['site_id'], ['site.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('site_id', 'file_id')
+    )
+    op.create_table('supplier_files',
+    sa.Column('supplier_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['supplier_id'], ['supplier.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('supplier_id', 'file_id')
     )
     op.create_table('user_session',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -214,6 +305,13 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('token_hash')
+    )
+    op.create_table('building_files',
+    sa.Column('building_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('building_id', 'file_id')
     )
     op.create_table('zone',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -250,11 +348,16 @@ def upgrade():
     sa.Column('zone_id', sa.UUID(), nullable=True),
     sa.Column('assigned_to_id', sa.UUID(), nullable=True),
     sa.Column('parent_id', sa.UUID(), nullable=True),
+    sa.Column('asset_category_id', sa.UUID(), nullable=True),
+    sa.Column('asset_condition_id', sa.UUID(), nullable=True),
+    sa.Column('condition_set', sa.Date(), nullable=True),
+    sa.ForeignKeyConstraint(['asset_category_id'], ['asset_category.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['asset_condition_id'], ['asset_condition.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['assigned_to_id'], ['person.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['parent_id'], ['asset.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['parent_id'], ['asset.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
     sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
@@ -278,12 +381,28 @@ def upgrade():
     sa.Column('site_id', sa.UUID(), nullable=False),
     sa.Column('building_id', sa.UUID(), nullable=True),
     sa.Column('zone_id', sa.UUID(), nullable=True),
+    sa.Column('job_category_id', sa.UUID(), nullable=True),
     sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['job_category_id'], ['job_category.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
     sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('zone_files',
+    sa.Column('zone_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('zone_id', 'file_id')
+    )
+    op.create_table('asset_files',
+    sa.Column('asset_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['asset_id'], ['asset.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('asset_id', 'file_id')
     )
     op.create_table('job',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -301,9 +420,11 @@ def upgrade():
     sa.Column('building_id', sa.UUID(), nullable=True),
     sa.Column('zone_id', sa.UUID(), nullable=True),
     sa.Column('job_schedule_id', sa.UUID(), nullable=True),
+    sa.Column('job_category_id', sa.UUID(), nullable=True),
     sa.CheckConstraint("source IN ('planned', 'reactive', 'remedial')", name='ck_job_source'),
     sa.CheckConstraint("status IN ('new', 'open', 'closed')", name='ck_job_status'),
     sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['job_category_id'], ['job_category.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.ForeignKeyConstraint(['site_id'], ['site.id'], ),
@@ -320,61 +441,12 @@ def upgrade():
     sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('job_schedule_id', 'asset_id')
     )
-    op.create_table('site_files',
-    sa.Column('site_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['site_id'], ['site.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('site_id', 'file_id')
-    )
-    op.create_table('building_files',
-    sa.Column('building_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['building_id'], ['building.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('building_id', 'file_id')
-    )
-    op.create_table('zone_files',
-    sa.Column('zone_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['zone_id'], ['zone.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('zone_id', 'file_id')
-    )
-    op.create_table('job_files',
-    sa.Column('job_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['job_id'], ['job.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('job_id', 'file_id')
-    )
-    op.create_table('asset_files',
-    sa.Column('asset_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['asset_id'], ['asset.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('asset_id', 'file_id')
-    )
     op.create_table('job_schedule_files',
     sa.Column('job_schedule_id', sa.UUID(), nullable=False),
     sa.Column('file_id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('job_schedule_id', 'file_id')
-    )
-    op.create_table('person_files',
-    sa.Column('person_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('person_id', 'file_id')
-    )
-    op.create_table('supplier_files',
-    sa.Column('supplier_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['supplier_id'], ['supplier.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('supplier_id', 'file_id')
     )
     op.create_table('job_assets',
     sa.Column('job_id', sa.UUID(), nullable=False),
@@ -383,31 +455,38 @@ def upgrade():
     sa.ForeignKeyConstraint(['job_id'], ['job.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('job_id', 'asset_id')
     )
+    op.create_table('job_files',
+    sa.Column('job_id', sa.UUID(), nullable=False),
+    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['job_id'], ['job.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('job_id', 'file_id')
+    )
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table('file_export')
-    op.drop_table('site_files')
-    op.drop_table('building_files')
-    op.drop_table('zone_files')
     op.drop_table('job_files')
-    op.drop_table('asset_files')
-    op.drop_table('job_schedule_files')
-    op.drop_table('person_files')
-    op.drop_table('supplier_files')
     op.drop_table('job_assets')
+    op.drop_table('job_schedule_files')
     op.drop_table('job_schedule_assets')
     with op.batch_alter_table('job', schema=None) as batch_op:
         batch_op.drop_index('uq_job_open_per_schedule', postgresql_where=sa.text("status != 'closed'"), sqlite_where=sa.text("status != 'closed'"))
 
     op.drop_table('job')
+    op.drop_table('asset_files')
+    op.drop_table('zone_files')
     op.drop_table('job_schedule')
     op.drop_table('asset')
     op.drop_table('zone')
+    op.drop_table('building_files')
     op.drop_table('user_session')
+    op.drop_table('supplier_files')
+    op.drop_table('site_files')
+    op.drop_table('person_files')
     op.drop_table('otp')
+    op.drop_table('file_export')
     op.drop_table('building')
     op.drop_table('user_group_permission')
     op.drop_table('supplier')
@@ -418,9 +497,15 @@ def downgrade():
     with op.batch_alter_table('organisation', schema=None) as batch_op:
         batch_op.drop_constraint('fk_organisation_terms_accepted_by_id', type_='foreignkey')
     op.drop_table('person')
+    op.drop_table('file')
     op.drop_table('user_group')
     op.drop_table('user')
+    op.drop_table('supplier_category')
+    op.drop_table('job_category')
     op.drop_table('import_event')
-    op.drop_table('file')
+    op.drop_table('file_category')
+    op.drop_table('building_condition')
+    op.drop_table('asset_condition')
+    op.drop_table('asset_category')
     op.drop_table('organisation')
     # ### end Alembic commands ###

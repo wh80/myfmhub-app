@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g, current_app
-from app.models import Site, Building, Zone, Asset, Job, JobSchedule, Supplier, Person, UserGroup, ImportEvent, File
+from app.models import Site, Building, Zone, Asset, Job, JobSchedule, Supplier, Person, UserGroup, ImportEvent, File, JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory, FileCategory
 from app.services.files import storage_text, storage_used_mb
 from app.routes.helpers import require_login, require_permission, org_query
 from app.services.auth import clear_session_cookie
@@ -25,6 +25,12 @@ DELETE_ITEMS = [
     ('user_groups', 'User Groups', UserGroup),
     ('imports', 'Import history', ImportEvent),
     ('files', 'Files (removed from storage too)', File),
+    ('job_categories', 'Job Categories', JobCategory),
+    ('asset_categories', 'Asset Categories', AssetCategory),
+    ('asset_conditions', 'Asset Conditions', AssetCondition),
+    ('building_conditions', 'Building Conditions', BuildingCondition),
+    ('supplier_categories', 'Supplier Categories', SupplierCategory),
+    ('file_categories', 'File Categories', FileCategory),
 ]
 # and one more box, with no count
 IRREVERSIBLE = ('irreversible', 'I understand that deleting this data is permanent and cannot be undone')

@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import SiteForm
-from app.models import Site
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab
+from app.models import Site, Building, Asset, Job, JobSchedule
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab, related, related_page
 from app.services.exports import export_response
 sites_bp = Blueprint('sites', __name__, url_prefix="/sites")
 sites_bp.before_request(require_login)
@@ -69,7 +69,9 @@ def create():
             name=form.name.data,
             address_line_one=form.address_line_one.data,
             address_line_two=form.address_line_two.data,
+            address_line_three=form.address_line_three.data,
             town_city=form.town_city.data,
+            county=form.county.data,
             post_code=form.post_code.data,
             telephone=form.telephone.data,
             organisation_id=g.person.organisation_id,
@@ -98,7 +100,9 @@ def edit(id):
         site.name=form.name.data
         site.address_line_one=form.address_line_one.data
         site.address_line_two=form.address_line_two.data
+        site.address_line_three=form.address_line_three.data
         site.town_city=form.town_city.data
+        site.county=form.county.data
         site.post_code=form.post_code.data
         site.telephone=form.telephone.data
         
@@ -125,23 +129,27 @@ def delete(id):
 @sites_bp.route("/<uuid:id>/buildings")
 def buildings(id):
     site = org_get_or_404(Site, id)
-    return render_template("sites/view/buildings.html", site=site, active_tab="buildings",)
+    pagination, search = related_page(related(site, Site.buildings, Building), Building)
+    return render_template("sites/view/buildings.html", site=site, buildings=pagination.items, pagination=pagination, search=search, active_tab="buildings")
 
 @sites_bp.route("/<uuid:id>/assets")
 def assets(id):
     site = org_get_or_404(Site, id)
-    return render_template("sites/view/assets.html", site=site, active_tab="assets",)
+    pagination, search = related_page(related(site, Site.assets, Asset), Asset)
+    return render_template("sites/view/assets.html", site=site, assets=pagination.items, pagination=pagination, search=search, active_tab="assets")
 
 
 @sites_bp.route("/<uuid:id>/jobs")
 def jobs(id):
     site = org_get_or_404(Site, id)
-    return render_template("sites/view/jobs.html", site=site, active_tab="jobs",)
+    pagination, search = related_page(related(site, Site.jobs, Job), Job)
+    return render_template("sites/view/jobs.html", site=site, jobs=pagination.items, pagination=pagination, search=search, active_tab="jobs")
 
 @sites_bp.route("/<uuid:id>/job-schedules")
 def job_schedules(id):
     site = org_get_or_404(Site, id)
-    return render_template("sites/view/job_schedules.html", site=site, active_tab="job_schedules",)
+    pagination, search = related_page(related(site, Site.job_schedules, JobSchedule), JobSchedule)
+    return render_template("sites/view/job_schedules.html", site=site, job_schedules=pagination.items, pagination=pagination, search=search, active_tab="job_schedules")
 
 @sites_bp.route("/<uuid:id>/files")
 def files(id):

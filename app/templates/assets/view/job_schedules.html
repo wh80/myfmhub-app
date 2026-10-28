@@ -1,4 +1,6 @@
 {% extends "assets/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 
 {% block tab_content %}
 
@@ -9,7 +11,7 @@
         <a href="{{ url_for('assets.link_job_schedules', id=asset.id) }}" class="btn btn-primary btn-sm">
             Link Job Schedules
         </a>
-        {% if asset.job_schedules %}
+        {% if pagination.total or search %}
             <a href="{{ url_for('assets.unlink_job_schedules', id=asset.id) }}" class="btn btn-outline-danger btn-sm">
                 Unlink Job Schedules
             </a>
@@ -18,10 +20,13 @@
     {% endif %}
 </div>
 
-{% if asset.job_schedules %}
-    {% with job_schedules=asset.job_schedules %}
-        {% include "job_schedules/job_schedule_list.html" %}
-    {% endwith %}
+{{ related_search(pagination, search, 'Description or work required ...') }}
+
+{% if job_schedules %}
+    {% include "job_schedules/job_schedule_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No job schedules match your search.</p>
 {% else %}
     <p class="text-muted mb-0">No job schedules found.</p>
 {% endif %}

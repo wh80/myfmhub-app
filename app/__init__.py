@@ -43,6 +43,7 @@ def create_app():
     from app.routes.zones import zones_bp
     from app.routes.my_organisation import my_organisation_bp
     from app.routes.files import files_bp
+    from app.routes.reference_data import reference_data_bp
 
     app.register_blueprint(sites_bp)
     app.register_blueprint(jobs_bp)
@@ -62,6 +63,7 @@ def create_app():
     app.register_blueprint(zones_bp)
     app.register_blueprint(my_organisation_bp)
     app.register_blueprint(files_bp)
+    app.register_blueprint(reference_data_bp)
 
     # / goes to the dashboard (which sends signed-out visitors to /login)
     app.add_url_rule('/', endpoint='dashboard.root', view_func=root)

@@ -14,6 +14,9 @@
         <th scope="col" data-col="site">Site</th>
         <th scope="col" data-col="building">Building</th>
         <th scope="col" data-col="zone">Zone</th>
+        <th scope="col" data-col="category">Asset Category</th>
+        <th scope="col" data-col="condition">Asset Condition</th>
+        <th scope="col" data-col="condition_set">Condition Set</th>
         <th scope="col" data-col="asset_number">Asset Number</th>
         <th scope="col" data-col="make">Make</th>
         <th scope="col" data-col="model">Model</th>
@@ -32,6 +35,9 @@
         <td>{{asset.site.name}}</td>
         <td>{{ asset.building.name if asset.building else '-' }}</td>
         <td>{{ asset.zone.name if asset.zone else '-' }}</td>
+        <td>{{ asset.asset_category or '-' }}</td>
+        <td>{{ asset.asset_condition or '-' }}</td>
+        <td>{{ asset.condition_set | date }}</td>
         <td>{{asset.asset_number or '-'}}</td>
         <td>{{asset.make or '-'}}</td>
         <td>{{asset.model or '-'}}</td>
@@ -61,6 +67,8 @@
           <p class="card-text">
             <strong>Location:</strong> {{ location_text(asset) }}
           </p>
+          {% if asset.asset_category %}<p class="card-text"><strong>Category:</strong> {{ asset.asset_category }}</p>{% endif %}
+          {% if asset.asset_condition %}<p class="card-text"><strong>Condition:</strong> {{ asset.asset_condition }} (set {{ asset.condition_set | date }})</p>{% endif %}
           <p class="card-text">
             <strong>Asset Number:</strong> {{asset.asset_number or '-'}}
           </p>

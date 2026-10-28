@@ -8,6 +8,8 @@
       <tr>
         <th scope="col" data-col="name" data-col-fixed>Name</th>
         {% if show_site %}<th scope="col" data-col="site">Site</th>{% endif %}
+        <th scope="col" data-col="condition">Building Condition</th>
+        <th scope="col" data-col="condition_set">Condition Set</th>
         <th scope="col" data-col="zones">Zones</th>
         <th scope="col" data-col="jobs">Jobs</th>
         <th scope="col" data-col="assets">Assets</th>
@@ -19,6 +21,8 @@
       <tr class="position-relative">
         <td><a href="{{ url_for('buildings.view', id=building.id) }}" class="stretched-link text-reset text-decoration-none">{{ building.name }}</a></td>
         {% if show_site %}<td>{{ building.site.name }}</td>{% endif %}
+        <td>{{ building.building_condition or '-' }}</td>
+        <td>{{ building.condition_set | date }}</td>
         <td>{{ building.zones|length }}</td>
         <td>{{ building.jobs|length }}</td>
         <td>{{ building.assets|length }}</td>

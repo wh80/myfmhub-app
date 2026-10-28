@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% set title = 'Suppliers' %}
 {% from "pagination.html" import pagination_nav %}
+{% from "_reference_fields.html" import reference_filter %}
 {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="mb-0">Suppliers</h1>
@@ -24,6 +25,8 @@
         placeholder="Name ..."
       />
     </div>
+
+    {{ reference_filter('Category', 'supplier_category_id', supplier_categories, supplier_category_id, 'All categories') }}
 
     <div class="col-md-2 d-flex align-items-end">
       <button type="submit" class="btn btn-primary w-100">
@@ -51,6 +54,7 @@
       <tr>
         <th scope="col" data-col="name" data-col-fixed>Name</th>
         <th scope="col" data-col="telephone">Telephone</th>
+        <th scope="col" data-col="category">Supplier Category</th>
       </tr>
     </thead>
     <tbody>
@@ -58,6 +62,7 @@
       <tr class="position-relative">
         <td><a href="{{url_for('suppliers.view', id=supplier.id)}}" class="stretched-link text-reset text-decoration-none">{{supplier.name}}</a></td>
         <td>{{supplier.telephone or "-"}}</td>
+        <td>{{ supplier.supplier_category or "-" }}</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -74,6 +79,7 @@
           <h5 class="card-title mb-3"><a href="{{url_for('suppliers.view', id=supplier.id)}}" class="stretched-link text-reset text-decoration-none">{{supplier.name}}</a></h5>
           <p class="card-text">
             <strong>Tel:</strong> {{supplier.telephone or "-"}}
+            {% if supplier.supplier_category %}<br /><strong>Category:</strong> {{ supplier.supplier_category }}{% endif %}
           </p>
         </div>
       </div>
@@ -83,7 +89,7 @@
 </div>
 
 {{ pagination_nav(pagination) }}
-{% elif search or import_id %}
+{% elif search or import_id or supplier_category_id %}
 <p>No suppliers match your search.</p>
 {% else %}
 <p>No suppliers yet.</p>

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% set title = 'Buildings' %}
 {% from "pagination.html" import pagination_nav %}
+{% from "_reference_fields.html" import reference_filter %}
 {% block body %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="mb-0">Buildings</h1>
@@ -14,6 +15,8 @@
       <label for="search" class="form-label">Search</label>
       <input type="text" id="search" name="search" value="{{ search }}" class="form-control" placeholder="Building or site name..." />
     </div>
+
+    {{ reference_filter('Condition', 'building_condition_id', building_conditions, building_condition_id, 'All conditions') }}
 
     <div class="col-md-2 d-flex align-items-end">
       <button type="submit" class="btn btn-primary w-100">
@@ -32,7 +35,7 @@
   {% set show_site = True %}
   {% include "buildings/building_list.html" %}
   {{ pagination_nav(pagination) }}
-{% elif search or import_id %}
+{% elif search or import_id or building_condition_id %}
   <p>No buildings match your search.</p>
 {% else %}
   <p>No buildings yet.</p>

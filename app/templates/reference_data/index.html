@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% set title = 'Reference Data' %}
+{% block body %}
+<h1 class="mb-2">Reference Data</h1>
+<p class="text-muted mb-4">Your organisation's own lists of categories and conditions, to choose from on jobs, job schedules, assets, buildings, suppliers and files.</p>
+
+<h5>Manage</h5>
+<div class="row g-3 mb-5">
+  {% for reference_type in reference_types %}
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <div class="card h-100 shadow-sm position-relative">
+      <div class="card-body text-center">
+        <i class="bi {{ reference_type.icon }} fs-3 text-muted" aria-hidden="true"></i>
+        <h6 class="card-title mt-2 mb-1">
+          <a href="{{ url_for('reference_data.items', slug=reference_type.slug) }}" class="stretched-link text-reset text-decoration-none">{{ reference_type.label }}</a>
+        </h6>
+        <span class="small text-muted">{{ counts[reference_type.slug] }} item{{ 's' if counts[reference_type.slug] != 1 }}</span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<h5>Add in bulk</h5>
+<p class="text-muted">Type or paste a list of values, separated by commas or new lines.</p>
+<div class="row g-3">
+  {% for reference_type in reference_types %}
+  <div class="col-12 col-sm-6 col-lg-4 col-xl-2">
+    <div class="card h-100 shadow-sm position-relative">
+      <div class="card-body text-center">
+        <i class="bi bi-upload fs-3 text-muted" aria-hidden="true"></i>
+        <h6 class="card-title mt-2 mb-0">
+          <a href="{{ url_for('reference_data.bulk', slug=reference_type.slug) }}" class="stretched-link text-reset text-decoration-none">{{ reference_type.label }}</a>
+        </h6>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock body %}

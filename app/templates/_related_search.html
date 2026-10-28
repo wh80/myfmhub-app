@@ -1,0 +1,19 @@
+{# The search box on related tabs and link pages (?search=, see related_page() in routes/helpers.py).
+   Hidden while there's nothing to search. Use with pagination_nav(pagination) below the list #}
+{% macro related_search(pagination, search, placeholder) %}
+{% if pagination.total or search %}
+<form method="get" class="mb-3">
+  <div class="row g-2">
+    <div class="col-md-6">
+      <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="{{ placeholder }}" aria-label="Search" />
+    </div>
+    <div class="col-md-auto d-flex gap-2">
+      <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Search</button>
+      {% if search %}
+      <a href="{{ url_for(request.endpoint, **request.view_args) }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Cancel</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+{% endif %}
+{% endmacro %}

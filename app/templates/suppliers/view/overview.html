@@ -7,6 +7,10 @@
     <h6 class="text-muted">Telephone</h6>
     <p class="mb-0">{{supplier.telephone or "-"}}</p>
   </div>
+  <div class="col-md-4">
+    <h6 class="text-muted">Supplier Category</h6>
+    <p class="mb-0">{{ supplier.supplier_category or "-" }}</p>
+  </div>
 </div>
 
 <hr />
@@ -17,7 +21,9 @@
     <div class="fw-semibold">
       <p>{{supplier.address_line_one}}</p>
       <p>{{supplier.address_line_two}}</p>
+      <p>{{supplier.address_line_three}}</p>
       <p>{{supplier.town_city}}</p>
+      <p>{{supplier.county}}</p>
       <p>{{supplier.post_code}}</p>
     </div>
   </div>

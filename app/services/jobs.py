@@ -32,6 +32,7 @@ def raise_job(job_schedule):
         site_id=job_schedule.site_id,
         building_id=job_schedule.building_id,
         zone_id=job_schedule.zone_id,
+        job_category_id=job_schedule.job_category_id,
         organisation_id=job_schedule.organisation_id,
         job_schedule_id=job_schedule.id,
     )

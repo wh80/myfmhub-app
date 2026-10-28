@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% set title = 'Add ' ~ reference_type.label ~ ' in bulk' %}
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Add {{ reference_type.label }} in Bulk</h1>
+  <a href="{{ url_for('reference_data.items', slug=reference_type.slug) }}" class="btn btn-secondary">Back</a>
+</div>
+
+<p>
+  Type or paste the {{ reference_type.label | lower }} to add, separated by commas or new lines, up to {{ max_items }} at a time.
+  Each can be up to 100 characters. Any already in the list (ignoring capitals) are skipped.
+</p>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+
+  <div class="mb-3">
+    {{ form.values.label(class="form-label") }}
+    {{ form.values(class="form-control" ~ (" is-invalid" if form.values.errors else ""), rows=10, placeholder="For example: Electrical, Mechanical, Plumbing") }}
+    {% if form.values.errors %}
+    <div class="invalid-feedback d-block">
+      {% for error in form.values.errors %}
+      <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <button type="submit" class="btn btn-primary">Add</button>
+  <a href="{{ url_for('reference_data.items', slug=reference_type.slug) }}" class="btn btn-secondary">Back</a>
+</form>
+{% endblock body %}

@@ -98,6 +98,9 @@
                         {% if can('exports.manage') %}
                         <li><a class="dropdown-item" href="{{ url_for('exports.index') }}">Export data</a></li>
                         {% endif %}
+                        {% if can('reference_data.manage') %}
+                        <li><a class="dropdown-item" href="{{ url_for('reference_data.index') }}">Reference data</a></li>
+                        {% endif %}
                         <li><a class="dropdown-item" href="{{ url_for('support.index') }}">Support</a></li>
                         {% if g.user.is_platform_admin %}
                         <li><a class="dropdown-item" href="{{ url_for('admin.index') }}">Admin</a></li>

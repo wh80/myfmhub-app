@@ -1,4 +1,6 @@
 {% extends "sites/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
 
 {% block tab_content %}
 
@@ -11,10 +13,13 @@
     {% endif %}
 </div>
 
-{% if site.buildings %}
-    {% with buildings=site.buildings %}
-        {% include "buildings/building_list.html" %}
-    {% endwith %}
+{{ related_search(pagination, search, 'Name ...') }}
+
+{% if buildings %}
+    {% include "buildings/building_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No buildings match your search.</p>
 {% else %}
     <p class="text-muted mb-0">No buildings found.</p>
 {% endif %}

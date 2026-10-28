@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% set title = 'Edit File: ' ~ file.description %}
+{% from "_reference_fields.html" import reference_select %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Edit File: {{ file.description }}</h4>
+  </div>
+
+  <div class="card-body">
+    <p class="text-muted">
+      {{ file.filename }} ({{ file.size_mb | filesize }}, uploaded {{ file.created_at | datetime }}).
+      The file itself can't be changed: to replace it, upload a new one and delete this one.
+    </p>
+
+    <form method="POST">
+      {{ form.hidden_tag() }}
+
+      <div class="mb-3">
+        {{ form.description.label(class="form-label") }}
+        {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else "")) }}
+        {% if form.description.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.description.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
+        {{ form.expires.label(class="form-label") }}
+        {{ form.expires(class="form-control" ~ (" is-invalid" if form.expires.errors else "")) }}
+        {% if form.expires.errors %}
+        <div class="invalid-feedback d-block">
+          {% for error in form.expires.errors %}
+          <div>{{ error }}</div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="form-text">Optional, for example when a certificate runs out.</div>
+      </div>
+
+      {{ reference_select(form.file_category_id) }}
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{{ next_url }}" class="btn btn-secondary">Back</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock body %}

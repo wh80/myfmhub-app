@@ -14,6 +14,7 @@
         <th scope="col" data-col="site">Site</th>
         <th scope="col" data-col="building">Building</th>
         <th scope="col" data-col="zone">Zone</th>
+        <th scope="col" data-col="category">Job Category</th>
         <th scope="col" data-col="next_due">Next Due</th>
         <th scope="col" data-col="frequency">Frequency</th>
         <th scope="col" data-col="next_job_creation">Next Job Creation</th>
@@ -28,6 +29,7 @@
         <td>{{job_schedule.site.name}}</td>
         <td>{{ job_schedule.building.name if job_schedule.building else '-' }}</td>
         <td>{{ job_schedule.zone.name if job_schedule.zone else '-' }}</td>
+        <td>{{ job_schedule.job_category or '-' }}</td>
         <td>{{job_schedule.next_due | date}}</td>
         <td>{{job_schedule.frequency_label}}</td>
         <td>{{ job_schedule.next_job_creation_label }}</td>
@@ -50,6 +52,7 @@
         <div class="card-body">
           <h5 class="card-title mb-3"><a href="{{url_for('job_schedules.view', id=job_schedule.id)}}" class="stretched-link text-reset text-decoration-none">{{job_schedule.description}}</a></h5>
           <p class="card-text"><strong>Location:</strong> {{ location_text(job_schedule) }}</p>
+          {% if job_schedule.job_category %}<p class="card-text"><strong>Category:</strong> {{ job_schedule.job_category }}</p>{% endif %}
           <p class="card-text">
             <strong>Next due:</strong> {{job_schedule.next_due | date}}
           </p>

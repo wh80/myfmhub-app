@@ -44,11 +44,35 @@
     </div>
 
     <div class="mb-3">
+        {{ form.address_line_three.label(class="form-label") }}
+        {{ form.address_line_three(class="form-control" ~ (" is-invalid" if form.address_line_three.errors else "")) }}
+        {% if form.address_line_three.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.address_line_three.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
         {{ form.town_city.label(class="form-label") }}
         {{ form.town_city(class="form-control" ~ (" is-invalid" if form.town_city.errors else "")) }}
         {% if form.town_city.errors %}
             <div class="invalid-feedback d-block">
                 {% for error in form.town_city.errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.county.label(class="form-label") }}
+        {{ form.county(class="form-control" ~ (" is-invalid" if form.county.errors else "")) }}
+        {% if form.county.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in form.county.errors %}
                     <div>{{ error }}</div>
                 {% endfor %}
             </div>

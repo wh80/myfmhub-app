@@ -24,7 +24,9 @@ def ids(records):
 ADDRESS_COLUMNS = [
     ('Address Line One', lambda record: record.address_line_one),
     ('Address Line Two', lambda record: record.address_line_two),
+    ('Address Line Three', lambda record: record.address_line_three),
     ('Town/City', lambda record: record.town_city),
+    ('County', lambda record: record.county),
     ('Post Code', lambda record: record.post_code),
     ('Telephone', lambda record: record.telephone),
 ]
@@ -35,6 +37,12 @@ LOCATION_COLUMNS = [
     ('Zone', lambda record: record.zone.name if record.zone else None),
     ('Zone ID', lambda record: record.zone_id),
 ]
+# a category or condition (services/reference_data.py): its description, and its id
+def reference_columns(label, attribute):
+    return [
+        (label, lambda record: getattr(record, attribute).description if getattr(record, attribute) else None),
+        (f'{label} ID', lambda record: getattr(record, f'{attribute}_id')),
+    ]
 TIMESTAMP_COLUMNS = [
     ('Created (UTC)', lambda record: record.created_at),
     ('Updated (UTC)', lambda record: record.updated_at),
@@ -52,6 +60,8 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Name', lambda building: building.name),
         ('Site', lambda building: building.site.name),
         ('Site ID', lambda building: building.site_id),
+        *reference_columns('Building Condition', 'building_condition'),
+        ('Condition Set', lambda building: building.condition_set),
         *TIMESTAMP_COLUMNS,
     ], lambda: [db.joinedload(Building.site)]),
     ExportType('zones', 'Zones', Zone, 'zones.view', [
@@ -81,6 +91,9 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Assigned To', lambda asset: f'{asset.assigned_to.first_name} {asset.assigned_to.last_name}' if asset.assigned_to else None),
         ('Assigned To ID', lambda asset: asset.assigned_to_id),
         ('Part Of Asset ID', lambda asset: asset.parent_id),
+        *reference_columns('Asset Category', 'asset_category'),
+        *reference_columns('Asset Condition', 'asset_condition'),
+        ('Condition Set', lambda asset: asset.condition_set),
         *TIMESTAMP_COLUMNS,
     ], lambda: [db.joinedload(Asset.site)]),
     ExportType('jobs', 'Jobs', Job, 'jobs.view', [
@@ -96,6 +109,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Closed On', lambda job: job.closed_at),
         ('Statutory', lambda job: job.statutory_compliance),
         ('Job Schedule ID', lambda job: job.job_schedule_id),
+        *reference_columns('Job Category', 'job_category'),
         ('Asset IDs', lambda job: ids(job.assets)),
         *TIMESTAMP_COLUMNS,
     ], lambda: [db.joinedload(Job.site), db.selectinload(Job.assets)]),
@@ -112,6 +126,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Next Job Creation', lambda job_schedule: job_schedule.next_job_creation_date),
         ('Statutory', lambda job_schedule: job_schedule.statutory_compliance),
         ('Active', lambda job_schedule: job_schedule.is_active),
+        *reference_columns('Job Category', 'job_category'),
         ('Asset IDs', lambda job_schedule: ids(job_schedule.assets)),
         *TIMESTAMP_COLUMNS,
     ], lambda: [db.joinedload(JobSchedule.site), db.selectinload(JobSchedule.assets)]),
@@ -119,6 +134,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('ID', lambda supplier: supplier.id),
         ('Name', lambda supplier: supplier.name),
         *ADDRESS_COLUMNS,
+        *reference_columns('Supplier Category', 'supplier_category'),
         *TIMESTAMP_COLUMNS,
     ], lambda: []),
     # the person record, including the two settings the organisation controls on it. Nothing from the user (login)

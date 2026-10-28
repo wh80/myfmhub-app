@@ -19,7 +19,7 @@
   {% set export_endpoint = 'assets.export' %}
 {% include "assets/asset_list.html" %}
   {{ pagination_nav(pagination) }}
-{% elif search or site_id or import_id or building_id or zone_id %}
+{% elif search or site_id or import_id or building_id or zone_id or asset_category_id or asset_condition_id %}
   <p>No assets match your search.</p>
 {% else %}
   <p>No assets yet.</p>

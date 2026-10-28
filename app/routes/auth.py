@@ -157,7 +157,9 @@ def switch_organisation():
         # only a platform admin gets here without an organisation
         return redirect(url_for('admin.index'))
 
-    form = SwitchOrganisationForm(person_id=str(g.person.id) if g.person else '')
+    # the current organisation, or at sign-in the one they last worked in
+    current = g.person or next((person for person in people if person.organisation_id == g.user.last_organisation_id), None)
+    form = SwitchOrganisationForm(person_id=str(current.id) if current else '')
     form.person_id.choices = [(str(person.id), person.organisation.name) for person in people]
 
     if form.validate_on_submit():

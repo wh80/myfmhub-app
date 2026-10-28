@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import BuildingForm
-from app.models import Building, Site
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab
+from app.models import Building, Site, Zone, Asset, JobSchedule, BuildingCondition
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.services.reference_data import set_condition
 buildings_bp = Blueprint('buildings', __name__, url_prefix="/buildings")
 buildings_bp.before_request(require_login)
 buildings_bp.before_request(require_permission)
@@ -31,15 +32,19 @@ def index():
     if search:
         query = query.filter(db.or_(Building.name.ilike(f'%{search}%'), Site.name.ilike(f'%{search}%')))
 
+    query, building_condition_id = filter_reference(query, Building, 'building_condition_id')
+
     pagination = query.order_by(Site.name, Building.name, Building.id).paginate(page=page, per_page=25, error_out=False)
 
-    return render_template('buildings/index.html', buildings=pagination.items, pagination=pagination, search=search, import_id=import_id)
+    return render_template('buildings/index.html', buildings=pagination.items, pagination=pagination, search=search, import_id=import_id,
+                           building_conditions=reference_items(BuildingCondition), building_condition_id=building_condition_id)
 
 # /buildings/create?site_id=<id>, from the site's Buildings tab
 @buildings_bp.route('/create', methods=['GET', 'POST'])
 def create():
     site = org_get_or_404(Site, parse_uuid(request.args.get('site_id')))
     form = BuildingForm()
+    set_reference_choices(form)
 
     if form.validate_on_submit() and check_name(form, site):
         building = Building(
@@ -47,6 +52,7 @@ def create():
             site_id=site.id,
             organisation_id=g.person.organisation_id,
         )
+        set_condition(building, 'building_condition_id', parse_uuid(form.building_condition_id.data))
         db.session.add(building)
         db.session.commit()
         flash(f"Building '{building.name}' created successfully!", 'success')
@@ -64,9 +70,12 @@ def edit(id):
     building = org_get_or_404(Building, id)
 
     form = BuildingForm(obj=building)
+    set_reference_choices(form)
 
     if form.validate_on_submit() and check_name(form, building.site, building):
         building.name = form.name.data
+        # a changed condition sets condition_set to today
+        set_condition(building, 'building_condition_id', parse_uuid(form.building_condition_id.data))
         db.session.commit()
         flash(f"Building '{building.name}' updated successfully!", 'success')
         return redirect(url_for('buildings.view', id=building.id))
@@ -91,17 +100,20 @@ def delete(id):
 @buildings_bp.route("/<uuid:id>/zones")
 def zones(id):
     building = org_get_or_404(Building, id)
-    return render_template("buildings/view/zones.html", building=building, active_tab="zones")
+    pagination, search = related_page(related(building, Building.zones, Zone), Zone)
+    return render_template("buildings/view/zones.html", building=building, zones=pagination.items, pagination=pagination, search=search, active_tab="zones")
 
 @buildings_bp.route("/<uuid:id>/assets")
 def assets(id):
     building = org_get_or_404(Building, id)
-    return render_template("buildings/view/assets.html", building=building, active_tab="assets")
+    pagination, search = related_page(related(building, Building.assets, Asset), Asset)
+    return render_template("buildings/view/assets.html", building=building, assets=pagination.items, pagination=pagination, search=search, active_tab="assets")
 
 @buildings_bp.route("/<uuid:id>/job-schedules")
 def job_schedules(id):
     building = org_get_or_404(Building, id)
-    return render_template("buildings/view/job_schedules.html", building=building, active_tab="job_schedules")
+    pagination, search = related_page(related(building, Building.job_schedules, JobSchedule), JobSchedule)
+    return render_template("buildings/view/job_schedules.html", building=building, job_schedules=pagination.items, pagination=pagination, search=search, active_tab="job_schedules")
 
 @buildings_bp.route("/<uuid:id>/files")
 def files(id):

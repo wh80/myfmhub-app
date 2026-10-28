@@ -8,9 +8,9 @@ from email_validator import EmailNotValidError, validate_email
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Asset, Building, ImportEvent, JobSchedule, Person, Site, Supplier, User, UserGroup, Zone
+from app.models import Asset, Building, ImportEvent, JobSchedule, Person, Site, Supplier, User, UserGroup, Zone, JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory
 from app.services.people import delete_person
-from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date
+from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date, uk_today
 
 # CSV imports. Each import type lists its columns; the header row must use the column keys.
 # A file is refused outright if its headers are wrong. Otherwise every row is checked and saved
@@ -28,12 +28,14 @@ class RowError(Exception):
 @dataclass
 class Column:
     key: str
-    kind: str  # text, date, money, whole_number, yes_no, frequency, site, email, user_group
+    kind: str  # text, date, money, whole_number, yes_no, frequency, site, email, user_group, reference
     required: bool = False
     max_length: int = None
     notes: str = ''
     # yes_no only: what a blank cell means
     blank_means_yes: bool = False
+    # reference only: the category or condition model (services/reference_data.py) the value must match
+    reference: object = None
 
     @property
     def label(self):
@@ -44,6 +46,8 @@ class Column:
         """How the value should be written, for the guidance page."""
         if self.kind == 'text':
             return f'Text, up to {self.max_length} characters'
+        if self.kind == 'reference':
+            return f'The description of one of your {self.label.lower().replace("category", "categories").replace("condition", "conditions")} (Reference data)'
         return {
             'date': 'Date: dd/mm/yyyy, dd-mm-yyyy or yyyy-mm-dd',
             'money': 'Amount in pounds, e.g. 1250.00 (£ and commas are allowed)',
@@ -100,6 +104,17 @@ class Lookups:
             for zone in Zone.query.filter_by(organisation_id=person.organisation_id)
         }
         self.seen = {}
+        # each kind of category and condition, by lower-case description, loaded when first needed
+        self.references = {}
+
+    def reference_item(self, model, description):
+        items = self.references.get(model)
+        if items is None:
+            items = self.references[model] = {
+                item.description.strip().lower(): item
+                for item in model.query.filter_by(organisation_id=self.person.organisation_id)
+            }
+        return items.get(description.lower())
 
     def first_in_file(self, key, value):
         """False if an earlier row in this file already used this value for key."""
@@ -183,6 +198,12 @@ def parse_value(column, raw, lookups):
             raise RowError('Only admins can put people in the Admin group')
         return user_group
 
+    if column.kind == 'reference':
+        item = lookups.reference_item(column.reference, raw)
+        if item is None:
+            raise RowError(f"There's no {column.label.lower()} called '{raw}'. Add it under Reference data first")
+        return item
+
     raise ValueError(f'Unknown column kind {column.kind}')
 
 
@@ -202,7 +223,9 @@ def address_fields(values):
         name=values['name'],
         address_line_one=values['address_line_one'],
         address_line_two=values['address_line_two'],
+        address_line_three=values['address_line_three'],
         town_city=values['town_city'],
+        county=values['county'],
         post_code=values['post_code'],
         telephone=values['telephone'],
     )
@@ -239,6 +262,21 @@ def location(values, lookups):
     return dict(building_id=building.id if building else None, zone_id=zone.id if zone else None)
 
 
+def reference_id(item):
+    return item.id if item else None
+
+
+def condition_fields(values, key):
+    """An asset's or building's condition (column key, e.g. 'asset_condition') and condition_set. A
+    condition without a condition_set date was set on the import date, like changing it on the form."""
+    condition, condition_set = values[key], values['condition_set']
+    if condition_set and condition is None:
+        raise RowError(f'Condition set needs {key.replace("_", " ")} as well')
+    if condition_set and condition_set > uk_today():
+        raise RowError("Condition set can't be in the future")
+    return {f'{key}_id': reference_id(condition), 'condition_set': condition_set or (uk_today() if condition else None)}
+
+
 def create_building(values, lookups):
     site, name = values['site'], values['name']
     # unique within the site, ignoring case, as on the building form
@@ -246,7 +284,7 @@ def create_building(values, lookups):
         raise RowError(f"{site.name} already has a building called '{name}'")
     if not lookups.first_in_file('building', (site.id, name.lower())):
         raise RowError(f"Building '{name}' at {site.name} is used by an earlier row in the file")
-    return [Building(name=name, site_id=site.id)]
+    return [Building(name=name, site_id=site.id, **condition_fields(values, 'building_condition'))]
 
 
 def create_zone(values, lookups):
@@ -260,7 +298,7 @@ def create_zone(values, lookups):
 
 
 def create_supplier(values, lookups):
-    return [Supplier(**address_fields(values))]
+    return [Supplier(**address_fields(values), supplier_category_id=reference_id(values['supplier_category']))]
 
 
 def create_asset(values, lookups):
@@ -290,6 +328,8 @@ def create_asset(values, lookups):
         warranty_expiry=values['warranty_expiry'],
         estimated_replacement_date=values['estimated_replacement_date'],
         estimated_replacement_cost=values['estimated_replacement_cost'],
+        asset_category_id=reference_id(values['asset_category']),
+        **condition_fields(values, 'asset_condition'),
     )]
 
 
@@ -313,6 +353,7 @@ def create_job_schedule(values, lookups):
         next_job_creation_date=job_creation_date(values['next_due'], notice_days),
         statutory_compliance=values['statutory_compliance'],
         is_active=values['active'],
+        job_category_id=reference_id(values['job_category']),
     )]
 
 
@@ -355,10 +396,18 @@ ADDRESS_COLUMNS = [
     text('name', 100, required=True),
     text('address_line_one', 100),
     text('address_line_two', 100),
+    text('address_line_three', 100),
     text('town_city', 100),
+    text('county', 100),
     text('post_code', 100),
     text('telephone', 100),
 ]
+
+def reference(key, model, notes=''):
+    return Column(key, 'reference', reference=model, notes=notes or 'Optional. Must match one you already have, ignoring capitals')
+
+
+CONDITION_SET_NOTES = 'Optional. The date the condition was set. Blank means the import date, when there is a condition'
 
 LOCATION_COLUMNS = [
     text('building', 100, notes="Optional. The name of a building at the row's site. Import buildings first"),
@@ -374,6 +423,8 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
     ImportType('buildings', 'Buildings', Building, 'buildings.index', [
         text('name', 100, required=True, notes='Unique within the site, ignoring case'),
         Column('site', 'site', required=True, notes='Import sites first'),
+        reference('building_condition', BuildingCondition),
+        Column('condition_set', 'date', notes=CONDITION_SET_NOTES),
     ], create_building),
     ImportType('zones', 'Zones', Zone, 'zones.index', [
         text('name', 100, required=True, notes='Unique within the building, ignoring case'),
@@ -393,6 +444,9 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         Column('warranty_expiry', 'date'),
         Column('estimated_replacement_date', 'date'),
         Column('estimated_replacement_cost', 'money'),
+        reference('asset_category', AssetCategory),
+        reference('asset_condition', AssetCondition),
+        Column('condition_set', 'date', notes=CONDITION_SET_NOTES),
     ], create_asset),
     ImportType('people', 'People', Person, 'people.index', [
         text('first_name', 100, required=True),
@@ -404,7 +458,10 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
     ], create_person, notes=[
         "Imported people can't log in, and aren't emailed. Turn on \"Can log in\" on a person's record to invite them.",
     ]),
-    ImportType('suppliers', 'Suppliers', Supplier, 'suppliers.index', ADDRESS_COLUMNS, create_supplier),
+    ImportType('suppliers', 'Suppliers', Supplier, 'suppliers.index', [
+        *ADDRESS_COLUMNS,
+        reference('supplier_category', SupplierCategory),
+    ], create_supplier),
     ImportType('job_schedules', 'Job Schedules', JobSchedule, 'job_schedules.index', [
         text('description', 100, required=True),
         text('work_required', 500, required=True),
@@ -416,6 +473,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
                notes="0 to 365, and no more than the gap between jobs (e.g. 28 for monthly). The next job creation date is worked out from it"),
         Column('statutory_compliance', 'yes_no'),
         Column('active', 'yes_no', blank_means_yes=True, notes="Inactive schedules don't raise any jobs until they're made active"),
+        reference('job_category', JobCategory, notes='Optional. Must match one you already have, ignoring capitals. Jobs raised from the schedule get it too'),
     ], create_job_schedule),
 ]}
 
