@@ -2,16 +2,50 @@
     <h4 class="mb-0">Job: {{ job.description }}</h4>
 
     <div class="d-flex gap-2">
-        {% if can('jobs.close') and job.status != 'closed' %}
+        {# Start and Complete are for the assignee, or someone who can assign jobs doing it for them #}
+        {% set can_progress = job.is_assignee(g.person) or can('jobs.assign') %}
+
+        {% if can('jobs.approve') and job.status == 'new' %}
+        <form method="POST" action="{{ url_for('jobs.approve', id=job.id) }}" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+        </form>
         <a
-            href="{{ url_for('jobs.close', id=job.id) }}"
-            class="btn btn-success btn-sm"
+            href="{{ url_for('jobs.reject', id=job.id) }}"
+            class="btn btn-outline-danger btn-sm"
         >
-            Close
+            Reject
         </a>
         {% endif %}
 
-        {% if can('jobs.reopen') and job.status == 'closed' and job.source != 'planned' %}
+        {% if can('jobs.assign') and job.status == 'unassigned' %}
+        <a href="{{ url_for('jobs.assign', id=job.id) }}" class="btn btn-success btn-sm">Assign</a>
+        {% endif %}
+
+        {% if can_progress and job.status == 'assigned' %}
+        <form method="POST" action="{{ url_for('jobs.start', id=job.id) }}" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="btn btn-success btn-sm">Start</button>
+        </form>
+        {% endif %}
+
+        {% if can_progress and job.status == 'in_progress' %}
+        <a href="{{ url_for('jobs.complete', id=job.id) }}" class="btn btn-success btn-sm">Complete</a>
+        {% endif %}
+
+        {% if can('jobs.assign') and job.status in ('assigned', 'in_progress', 'completed') %}
+        <a href="{{ url_for('jobs.reassign', id=job.id) }}" class="btn btn-outline-primary btn-sm">Reassign</a>
+        {% endif %}
+
+        {# a planned job goes on to Update schedule from here #}
+        {% if can('jobs.close') and job.status == 'completed' %}
+        <form method="POST" action="{{ url_for('jobs.close', id=job.id) }}" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="btn btn-success btn-sm">Close</button>
+        </form>
+        {% endif %}
+
+        {% if can('jobs.reopen') and job.status in ('closed', 'rejected') and job.source != 'planned' %}
         <form method="POST" action="{{ url_for('jobs.reopen', id=job.id) }}" class="m-0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-warning btn-sm">Reopen</button>
@@ -27,7 +61,7 @@
         </a>
         {% endif %}
 
-        {% if can('jobs.delete') and job.source == 'planned' and job.status != 'closed' %}
+        {% if can('jobs.delete') and job.source == 'planned' and job.status not in ('closed', 'rejected') %}
         <button type="button" class="btn btn-danger btn-sm" disabled title="An open planned job can't be deleted. Close it instead">
             Delete
         </button>
@@ -40,4 +74,4 @@
         </a>
         {% endif %}
     </div>
-</div>
+</div>

@@ -3,6 +3,7 @@ from app import db
 from app.forms import SupplierForm
 from app.models import Supplier, SupplierCategory
 from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab, set_reference_choices, reference_items, filter_reference
+from app.services.addresses import clean_address
 from app.services.exports import export_response
 suppliers_bp = Blueprint('suppliers', __name__, url_prefix="/suppliers")
 suppliers_bp.before_request(require_login)
@@ -61,13 +62,9 @@ def create():
     if form.validate_on_submit():
         supplier = Supplier(
             name=form.name.data,
-            address_line_one=form.address_line_one.data,
-            address_line_two=form.address_line_two.data,
-            address_line_three=form.address_line_three.data,
-            town_city=form.town_city.data,
-            county=form.county.data,
-            post_code=form.post_code.data,
+            address=clean_address(form.address.data),
             telephone=form.telephone.data,
+            email=form.email.data or None,
             supplier_category_id=parse_uuid(form.supplier_category_id.data),
             organisation_id=g.person.organisation_id,
         )
@@ -94,13 +91,9 @@ def edit(id):
     if form.validate_on_submit():
         
         supplier.name=form.name.data
-        supplier.address_line_one=form.address_line_one.data
-        supplier.address_line_two=form.address_line_two.data
-        supplier.address_line_three=form.address_line_three.data
-        supplier.town_city=form.town_city.data
-        supplier.county=form.county.data
-        supplier.post_code=form.post_code.data
+        supplier.address=clean_address(form.address.data)
         supplier.telephone=form.telephone.data
+        supplier.email=form.email.data or None
         supplier.supplier_category_id=parse_uuid(form.supplier_category_id.data)
         
         db.session.commit()
@@ -112,6 +105,11 @@ def edit(id):
 @suppliers_bp.route('/<uuid:id>/delete', methods=['GET', 'POST'])
 def delete(id):
     supplier = org_get_or_404(Supplier, id)
+
+    # a job's assignee is kept for audit (Job.assigned_supplier_id is RESTRICT)
+    if supplier.assigned_jobs:
+        flash(f"Supplier '{supplier.name}' can't be deleted because it has jobs assigned to it, which are kept for audit purposes. Archiving will be available instead in a future update.", 'warning')
+        return redirect(url_for('suppliers.view', id=supplier.id))
 
     if request.method =="POST":
         db.session.delete(supplier)

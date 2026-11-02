@@ -25,7 +25,7 @@ from app import create_app
 from app.extensions import db
 from app.services.permissions import create_default_groups
 from app.services.scheduling import FREQUENCIES, job_creation_date
-from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Site, Building, Zone, Asset, Job, JobSchedule, Supplier, job_assets, job_schedule_assets
+from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Site, Building, Zone, Asset, Job, JobSchedule, Supplier, Notification, job_assets, job_helpers, job_schedule_assets
 from app.models import JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory, FileCategory
 
 PLACE_NAMES = ['Riverside', 'Oakwood', 'Hillcrest', 'Kingsway', 'Meadow', 'Harbour', 'Station', 'Market', 'Abbey', 'Victoria']
@@ -100,14 +100,14 @@ def phone():
 
 
 def address():
-    return {
-        'address_line_one': f'{random.randint(1, 200)} {random.choice(STREETS)}',
-        'address_line_two': random.choice(['', f'Unit {random.randint(1, 20)}']),
-        'address_line_three': '',
-        'town_city': random.choice(TOWNS),
-        'county': random.choice(COUNTIES),
-        'post_code': f'{random.choice(POST_CODES)} {random.randint(1, 9)}{random.choice("ABDEFGHJ")}{random.choice("LNPQRSTU")}',
-    }
+    lines = [
+        random.choice(['', f'Unit {random.randint(1, 20)}']),
+        f'{random.randint(1, 200)} {random.choice(STREETS)}',
+        random.choice(TOWNS),
+        random.choice(COUNTIES),
+        f'{random.choice(POST_CODES)} {random.randint(1, 9)}{random.choice("ABDEFGHJ")}{random.choice("LNPQRSTU")}',
+    ]
+    return {'address': '\n'.join(line for line in lines if line)}
 
 
 def days_from_today(low, high):
@@ -116,8 +116,9 @@ def days_from_today(low, high):
 
 def clear():
     db.session.execute(job_assets.delete())
+    db.session.execute(job_helpers.delete())
     db.session.execute(job_schedule_assets.delete())
-    for model in (Job, Asset, JobSchedule, Supplier, Zone, Building, Site, *REFERENCE_DATA, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
+    for model in (Notification, Job, Asset, JobSchedule, Supplier, Zone, Building, Site, *REFERENCE_DATA, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
         db.session.execute(db.delete(model))
     db.session.commit()
 
@@ -155,7 +156,8 @@ def seed(count):
         ))
     # the first person is the admin, as if they'd registered it
     organisation.terms_accepted_at = organisation.verified_at
-    organisation.terms_accepted_by = people[0]
+    organisation.terms_accepted_by_name = people[0].full_name
+    organisation.terms_accepted_by_email = people[0].email
     for user in shared:
         existing = user.signin_people()[0]
         people.append(Person(
@@ -250,17 +252,17 @@ def seed(count):
     job_schedules = []
     for _ in range(count):
         description, work_required, statutory_compliance = random.choice(JOB_SCHEDULES)
-        next_due = days_from_today(1, 365)
+        next_due_by = days_from_today(1, 365)
         # notice shorter than the gap between jobs
         frequency = random.choice(FREQUENCIES)[0]
         notice_days = {'daily': 0, 'weekly': random.randint(0, 3)}.get(frequency, random.choice([7, 14, 21, 28]))
         job_schedules.append(JobSchedule(
             description=description,
             work_required=work_required,
-            next_due=next_due,
+            next_due_by=next_due_by,
             frequency=frequency,
             notice_days=notice_days,
-            next_job_creation_date=job_creation_date(next_due, notice_days),
+            next_job_creation_date=job_creation_date(next_due_by, notice_days),
             statutory_compliance=statutory_compliance,
             is_active=random.random() > 0.1,
             site=pick_site(),
@@ -279,7 +281,8 @@ def seed(count):
         # inactive schedules raise nothing, so only active ones have jobs
         if random.random() < 0.33:
             job_schedule = random.choice([job_schedule for job_schedule in job_schedules if job_schedule.is_active])
-            status = random.choice(JOB_STATUSES)[0]
+            # rejecting a planned job moves its schedule on, so seeded ones aren't rejected
+            status = random.choice([key for key, _ in JOB_STATUSES if key != 'rejected'])
             # a schedule has at most one job that isn't closed, and waits on it like raise_job() leaves it
             if job_schedule.next_job_creation_date is None:
                 status = 'closed'
@@ -288,7 +291,7 @@ def seed(count):
             jobs.append(Job(
                 description=job_schedule.description,
                 work_required=job_schedule.work_required,
-                due=days_from_today(-30, 90),
+                due_by=days_from_today(-30, 90),
                 statutory_compliance=job_schedule.statutory_compliance,
                 status=status,
                 source='planned',
@@ -303,20 +306,49 @@ def seed(count):
         else:
             description, work_required = random.choice(JOBS)
             site = pick_site()
+            status = random.choice(JOB_STATUSES)[0]
             jobs.append(place(Job(
                 description=description,
                 work_required=work_required,
-                due=random.choice([None, days_from_today(-30, 60)]),
-                status=random.choice(JOB_STATUSES)[0],
-                source=random.choice(['reactive', 'remedial']),
+                due_by=random.choice([None, days_from_today(-30, 60)]),
+                status=status,
+                rejection_reason='Not our responsibility: the landlord maintains this.' if status == 'rejected' else None,
+                source='reactive',
                 site=site,
                 job_category=pick(JobCategory),
                 organisation=organisation,
             ), site))
 
+    # what the app sets as a job moves on: who it's assigned to (a supplier or a person, plus some helpers)
+    # and the times
+    now = datetime.now(timezone.utc)
     for job in jobs:
         if job.status == 'closed':
             job.closed_at = days_from_today(-30, 0)
+        if job.status not in ('new', 'rejected'):
+            job.approved_at = now - timedelta(days=40)
+        if job.status in ('assigned', 'in_progress', 'completed', 'closed'):
+            job.assigned_at = now - timedelta(days=38)
+            if random.random() < 0.5:
+                job.assigned_supplier = random.choice(suppliers)
+            else:
+                job.assigned_person = random.choice(people)
+            job.helpers = random.sample([person for person in people if person is not job.assigned_person], random.randint(0, 2))
+        if job.status in ('in_progress', 'completed', 'closed'):
+            job.started_at = now - timedelta(days=35)
+        if job.status in ('completed', 'closed'):
+            job.completed_at = now - timedelta(days=31)
+            job.completion_comments = 'Work carried out as required. Area left clean and tidy.'
+        if job.status == 'rejected':
+            job.rejected_at = now - timedelta(days=40)
+
+    # a few reactive jobs are follow-up work for a completed or closed job on the same site
+    finished = [job for job in jobs if job.status in ('completed', 'closed')]
+    for job in [job for job in jobs if job.source == 'reactive'][:max(1, count // 10)]:
+        parents = [parent for parent in finished if parent.site is job.site and parent is not job]
+        if parents:
+            job.source = 'follow_up'
+            job.parent_job = random.choice(parents)
 
     # link each asset to some jobs and job schedules on its own site
     for asset in assets:

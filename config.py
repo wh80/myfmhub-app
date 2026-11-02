@@ -16,6 +16,9 @@ class Config:
     RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
     EMAIL_FROM = os.environ.get('EMAIL_FROM', 'MyFmHub <notifications@app.myfmhub.com>')
     SUPPORT_EMAIL = os.environ.get('SUPPORT_EMAIL', 'support@myfmhub.com')
+    # the site's own address, for links in emails sent outside a request (the cron commands). Requests
+    # build links from the address they came in on
+    APP_URL = os.environ.get('APP_URL', 'http://localhost:5000')
     # file storage (DigitalOcean Spaces). With no bucket set, files are saved under LOCAL_FILE_FOLDER
     # instead (dev and tests), like email being logged when there's no Resend key
     DO_SPACES_ENDPOINT = os.environ.get('DO_SPACES_ENDPOINT')

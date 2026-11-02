@@ -2,7 +2,7 @@ from flask import current_app, render_template, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app import db
-from app.models import Person
+from app.models import Job, Person
 from app.services.email import send_email
 from app.services.files import remove_stored_organisation
 from app.services.people import delete_person
@@ -44,6 +44,9 @@ def delete_organisation(organisation):
     """Delete the organisation and everything in it, then its stored files. People go through
     delete_person, so a login is only deleted when this was its last organisation. Commits."""
     organisation_id = organisation.id
+    # a job's assignee can't be deleted while it's assigned (RESTRICT), so clear them first
+    Job.query.filter_by(organisation_id=organisation.id).update(
+        {Job.assigned_person_id: None, Job.assigned_supplier_id: None}, synchronize_session=False)
     for person in Person.query.filter_by(organisation_id=organisation.id).all():
         delete_person(person)
     # people must go first: the rest (sites, jobs, groups, imports...) cascades from the organisation

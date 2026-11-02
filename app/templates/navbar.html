@@ -65,6 +65,38 @@
                 </li>
                 {% endif %}
 
+                {# the person's unread notifications. View marks one read and opens it #}
+                {% if g.person %}
+                {% set unread_count, unread = navbar_notifications() %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link active dropdown-toggle position-relative" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications{% if unread_count %}, {{ unread_count }} unread{% endif %}">
+                        <i class="bi bi-bell fs-5" aria-hidden="true"></i>
+                        {% if unread_count %}
+                        <span class="badge rounded-pill text-bg-danger">{{ unread_count if unread_count < 100 else '99+' }}</span>
+                        {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" style="min-width: 20rem;">
+                        <li><h6 class="dropdown-header">Notifications</h6></li>
+                        {% for notification in unread %}
+                        <li class="px-3 py-2 border-top">
+                            <div class="small">{{ notification.message }}</div>
+                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                <span class="text-muted small">{{ notification.created_at | datetime }}</span>
+                                <form method="POST" action="{{ url_for('notifications.open_notification', id=notification.id) }}" class="m-0">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-primary btn-sm">View</button>
+                                </form>
+                            </div>
+                        </li>
+                        {% else %}
+                        <li><span class="dropdown-item-text text-muted small">You have no unread notifications.</span></li>
+                        {% endfor %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('notifications.index') }}">See all notifications</a></li>
+                    </ul>
+                </li>
+                {% endif %}
+
                 <li class="nav-item dropdown">
                     <a class="nav-link active dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account">
                         <i class="bi bi-person-circle fs-5" aria-hidden="true"></i>

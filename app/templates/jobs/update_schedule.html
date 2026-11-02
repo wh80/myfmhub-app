@@ -7,7 +7,7 @@
   </div>
 
   <div class="card-body">
-    <p>This job is from the following job schedule. Set when its next job is due to close the job.</p>
+    <p>This job is from the following job schedule. Set when its next job is due to close the job today.</p>
     <dl class="row">
       <dt class="col-sm-3">Description</dt>
       <dd class="col-sm-9">
@@ -24,7 +24,7 @@
     </dl>
 
     <p>
-      Based on a close date of {{ closed_at | date }}, the next job would then be due by
+      Based on the work being completed on {{ job.completed_on | date }}, the next job would then be due by
       <strong>{{ calculated | date }}</strong>.
       {% if form.latest != calculated %}
       That date has already passed, so the next job can only be due today.
@@ -33,16 +33,16 @@
       {% endif %}
     </p>
 
-    <form method="POST" id="update-schedule-form" action="{{ url_for('jobs.update_schedule', id=job.id, closed_at=closed_at.isoformat()) }}">
+    <form method="POST" id="update-schedule-form" action="{{ url_for('jobs.update_schedule', id=job.id) }}">
       {{ form.hidden_tag() }}
 
       <div class="row">
         <div class="col-md-6 mb-3">
-          {{ form.next_due.label(class="form-label") }} {{
-          form.next_due(class="form-control" ~ (" is-invalid" if
-          form.next_due.errors else "")) }} {% if form.next_due.errors %}
+          {{ form.next_due_by.label(class="form-label") }} {{
+          form.next_due_by(class="form-control" ~ (" is-invalid" if
+          form.next_due_by.errors else "")) }} {% if form.next_due_by.errors %}
           <div class="invalid-feedback d-block">
-            {% for error in form.next_due.errors %}
+            {% for error in form.next_due_by.errors %}
             <div>{{ error }}</div>
             {% endfor %}
           </div>
@@ -53,7 +53,7 @@
 
     <div class="d-flex gap-2">
       <button class="btn btn-success" form="update-schedule-form">Close Job</button>
-      <a href="{{url_for('jobs.close', id=job.id, closed_at=closed_at.isoformat())}}" class="btn btn-secondary"
+      <a href="{{url_for('jobs.view', id=job.id)}}" class="btn btn-secondary"
         >Back</a
       >
     </div>

@@ -1,0 +1,25 @@
+{% extends "jobs/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
+
+{% block tab_content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Follow Up Jobs</h5>
+    {% if can('jobs.create') %}
+    <a href="{{ url_for('jobs.create', parent_id=job.id) }}" class="btn btn-primary btn-sm">Create Follow Up Job</a>
+    {% endif %}
+</div>
+
+{{ related_search(pagination, search, 'Description or work required ...') }}
+
+{% if jobs %}
+    {% include "jobs/job_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No follow up jobs match your search.</p>
+{% else %}
+    <p class="text-muted mb-0">No follow up jobs yet.</p>
+{% endif %}
+
+{% endblock tab_content %}

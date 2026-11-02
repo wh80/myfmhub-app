@@ -1,15 +1,37 @@
 import logging
 
+from flask import render_template
+
 from app.extensions import db
-from app.models import Job, JobSchedule
+from app.models import Job, JobSchedule, JOB_FINISHED_STATUSES
+from app.services.email import send_email
+from app.services.notifications import notify
 from app.services.scheduling import uk_today
 
 logger = logging.getLogger(__name__)
 
 
-# past its due date and not closed. A job due today isn't overdue yet. Pass uk_today()
+def notify_assignee(job, assigned_by):
+    """Tell the job's new assignee it's been assigned to them (Assign and Reassign): an in-app notification
+    for a person who can sign in (the caller commits it), otherwise an email with the job's details, for a
+    supplier or a person who can't sign in. assigned_by is the assigner's name. Returns False when there's
+    no email address to send to. Raises if the email fails."""
+    person = job.assigned_person
+    if person is not None and person.can_sign_in():
+        notify(person, f"{assigned_by} assigned you a job: {job.description}", job)
+        return True
+    email = job.assignee.email
+    if not email:
+        return False
+    organisation_name = job.organisation.name
+    html = render_template('emails/jobs/assigned.html', job=job, assignee_name=job.assignee_name, organisation_name=organisation_name)
+    send_email(email, f'New job from {organisation_name}: {job.description}', html)
+    return True
+
+
+# past its due date and not closed or rejected. A job due today isn't overdue yet. Pass uk_today()
 def overdue_conditions(today):
-    return Job.due < today, Job.status != 'closed'
+    return Job.due_by < today, Job.status.notin_(JOB_FINISHED_STATUSES)
 
 
 # <= rather than ==, so a missed cron run, or a schedule saved with a creation date already
@@ -19,13 +41,13 @@ def due_job_schedules(today):
     return JobSchedule.query.filter(JobSchedule.next_job_creation_date <= today, JobSchedule.is_active.is_(True))
 
 
-# raises one job for the schedule's current due date. next_due is left as it is and the creation
+# raises one job for the schedule's current due date. next_due_by is left as it is and the creation
 # date is cleared, so the schedule raises nothing more until the job is closed
 def raise_job(job_schedule):
     job = Job(
         description=job_schedule.description,
         work_required=job_schedule.work_required,
-        due=job_schedule.next_due,
+        due_by=job_schedule.next_due_by,
         statutory_compliance=job_schedule.statutory_compliance,
         status='new',
         source='planned',
@@ -71,7 +93,7 @@ def create_scheduled_jobs(today=None):
         # one job at a time: raising clears the creation date, so even a schedule that's behind
         # raises nothing more until its job is closed
         try:
-            description = f"'{job_schedule.description}' ({job_schedule.id}) due {job_schedule.next_due:%d-%m-%Y}"
+            description = f"'{job_schedule.description}' ({job_schedule.id}) due {job_schedule.next_due_by:%d-%m-%Y}"
             raise_job(job_schedule)
             db.session.commit()
             created.append(description)

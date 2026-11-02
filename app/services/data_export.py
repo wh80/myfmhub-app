@@ -6,6 +6,8 @@ from collections import namedtuple
 from app.extensions import db
 from app.models import Asset, Building, Job, JobSchedule, Person, Site, Supplier, Zone
 from app.services.exports import csv_value
+from app.services.auth import as_utc
+from app.services.scheduling import UK_TIMEZONE
 
 # the "Export data" page: an organisation downloads all of its records as a zip of CSVs, one per type.
 # Unlike the index downloads, every field is included, with ids so records can be matched up again
@@ -21,13 +23,13 @@ def ids(records):
     return '; '.join(sorted(str(record.id) for record in records))
 
 
+# a time someone entered in UK time (like a job's completed_at), exported in UK time
+def as_uk(value):
+    return as_utc(value).astimezone(UK_TIMEZONE) if value else None
+
+
 ADDRESS_COLUMNS = [
-    ('Address Line One', lambda record: record.address_line_one),
-    ('Address Line Two', lambda record: record.address_line_two),
-    ('Address Line Three', lambda record: record.address_line_three),
-    ('Town/City', lambda record: record.town_city),
-    ('County', lambda record: record.county),
-    ('Post Code', lambda record: record.post_code),
+    ('Address', lambda record: record.address),
     ('Telephone', lambda record: record.telephone),
 ]
 # a record's optional building and zone, after its site
@@ -105,12 +107,27 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Site', lambda job: job.site.name),
         ('Site ID', lambda job: job.site_id),
         *LOCATION_COLUMNS,
-        ('Due', lambda job: job.due),
+        ('Due By', lambda job: job.due_by),
         ('Source', lambda job: job.source_label),
         ('Status', lambda job: job.status_label),
+        ('Assigned To', lambda job: job.assignee_name),
+        ('Assigned Supplier ID', lambda job: job.assigned_supplier_id),
+        ('Assigned Person ID', lambda job: job.assigned_person_id),
+        ('Helpers', lambda job: '; '.join(f'{person.first_name} {person.last_name}' for person in job.helpers) or None),
+        ('Helper IDs', lambda job: ids(job.helpers) or None),
+        ('Approved At (UTC)', lambda job: job.approved_at),
+        ('Rejected At (UTC)', lambda job: job.rejected_at),
+        ('Assigned At (UTC)', lambda job: job.assigned_at),
+        ('Started At (UK)', lambda job: as_uk(job.started_at)),
+        ('Completed At (UK)', lambda job: as_uk(job.completed_at)),
+        ('Completion Comments', lambda job: job.completion_comments),
         ('Closed On', lambda job: job.closed_at),
+        ('Closed By', lambda job: f'{job.closed_by.first_name} {job.closed_by.last_name}' if job.closed_by else None),
+        ('Closed By ID', lambda job: job.closed_by_id),
+        ('Rejection Reason', lambda job: job.rejection_reason),
         ('Statutory', lambda job: job.statutory_compliance),
         ('Job Schedule ID', lambda job: job.job_schedule_id),
+        ('Parent Job ID', lambda job: job.parent_job_id),
         *reference_columns('Job Category', 'job_category'),
         ('Estimated Cost', lambda job: job.estimated_cost),
         ('Actual Cost', lambda job: job.actual_cost),
@@ -125,7 +142,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Site ID', lambda job_schedule: job_schedule.site_id),
         *LOCATION_COLUMNS,
         ('Frequency', lambda job_schedule: job_schedule.frequency_label),
-        ('Next Due', lambda job_schedule: job_schedule.next_due),
+        ('Next Due By', lambda job_schedule: job_schedule.next_due_by),
         ('Notice Days', lambda job_schedule: job_schedule.notice_days),
         ('Next Job Creation', lambda job_schedule: job_schedule.next_job_creation_date),
         ('Statutory', lambda job_schedule: job_schedule.statutory_compliance),
@@ -140,6 +157,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('ID', lambda supplier: supplier.id),
         ('Name', lambda supplier: supplier.name),
         *ADDRESS_COLUMNS,
+        ('Email', lambda supplier: supplier.email),
         *reference_columns('Supplier Category', 'supplier_category'),
         *TIMESTAMP_COLUMNS,
     ], lambda: []),

@@ -5,19 +5,29 @@ from sqlalchemy.orm import declared_attr
 from datetime import datetime, timezone
 from app.services.scheduling import FREQUENCY_LABELS, uk_date, uk_today
 
-# a job's lifecycle. The key is stored on Job.status, which is set by the app, never a form
+# a job's lifecycle. The key is stored on Job.status, which is set by the app, never a form. A new job is
+# approved (to unassigned) or rejected, then assigned to one supplier or person, who starts and completes
+# it. Then it's closed
 JOB_STATUSES = [
     ('new', 'New'),
-    ('open', 'Open'),
+    ('unassigned', 'Unassigned'),
+    ('assigned', 'Assigned'),
+    ('in_progress', 'In Progress'),
+    ('completed', 'Completed'),
     ('closed', 'Closed'),
+    ('rejected', 'Rejected'),
 ]
 JOB_STATUS_LABELS = dict(JOB_STATUSES)
+# statuses a job doesn't move on from: it isn't overdue, a compliance risk or "not closed", and can't be closed
+JOB_FINISHED_STATUSES = ('closed', 'rejected')
+# statuses where the job has an assignee: it can be reassigned and given helpers
+ASSIGNED_JOB_STATUSES = ('assigned', 'in_progress', 'completed')
 
 # where a job came from. The key is stored on Job.source, which is set by the app, never a form
 JOB_SOURCES = [
     ('planned', 'Planned'),
     ('reactive', 'Reactive'),
-    ('remedial', 'Remedial'),
+    ('follow_up', 'Follow Up'),
 ]
 JOB_SOURCE_LABELS = dict(JOB_SOURCES)
 
@@ -25,6 +35,13 @@ job_assets = db.Table(
     'job_assets',
     db.Column('job_id', UUID(as_uuid=True), db.ForeignKey('job.id', ondelete='CASCADE'), primary_key=True),
     db.Column('asset_id', UUID(as_uuid=True), db.ForeignKey('asset.id', ondelete='CASCADE'), primary_key=True),
+)
+
+# the people helping a job's assignee. Deleting either side removes only the link rows
+job_helpers = db.Table(
+    'job_helpers',
+    db.Column('job_id', UUID(as_uuid=True), db.ForeignKey('job.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('person_id', UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='CASCADE'), primary_key=True),
 )
 
 job_schedule_assets = db.Table(
@@ -63,12 +80,12 @@ class Organisation(db.Model):
     # set when the person who registered it first enters a code. Anyone can register with any email,
     # so until then it isn't offered at sign-in or in Switch organisation (see Person.can_sign_in)
     verified_at = db.Column(db.DateTime(timezone=True))
-    # set at registration, when the registrant ticks the terms and conditions. Person has organisation_id
-    # too, so this foreign key is added after both tables are created (use_alter), and the row is
-    # updated after both are inserted (post_update)
+    # set at registration, when the registrant ticks the terms and conditions. Who accepted is kept as their
+    # name and email at the time rather than a foreign key to their person: it survives the person being
+    # deleted, and person already refers to organisation, so a key back would be circular (see CLAUDE.md)
     terms_accepted_at = db.Column(db.DateTime(timezone=True))
-    terms_accepted_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL', use_alter=True, name='fk_organisation_terms_accepted_by_id'))
-    terms_accepted_by = db.relationship('Person', foreign_keys=[terms_accepted_by_id], post_update=True)
+    terms_accepted_by_name = db.Column(db.String(201))
+    terms_accepted_by_email = db.Column(db.String(255))
 
     sites =db.relationship('Site', backref='organisation', lazy=True, cascade='delete')
     jobs = db.relationship('Job', backref='organisation', lazy=True, cascade='delete')
@@ -76,7 +93,7 @@ class Organisation(db.Model):
     job_schedules = db.relationship('JobSchedule', backref='organisation', lazy=True, cascade='delete')
     suppliers = db.relationship('Supplier', backref='organisation', lazy=True, cascade='delete')
     user_groups = db.relationship('UserGroup', backref='organisation', lazy=True, cascade='delete')
-    people = db.relationship('Person', backref='organisation', lazy=True, cascade='delete', foreign_keys='Person.organisation_id')
+    people = db.relationship('Person', backref='organisation', lazy=True, cascade='delete')
     import_events = db.relationship('ImportEvent', backref='organisation', lazy=True, cascade='delete')
     buildings = db.relationship('Building', backref='organisation', lazy=True, cascade='delete')
     zones = db.relationship('Zone', backref='organisation', lazy=True, cascade='delete')
@@ -89,6 +106,7 @@ class Organisation(db.Model):
     supplier_categories = db.relationship('SupplierCategory', backref='organisation', lazy=True, cascade='delete')
     file_categories = db.relationship('FileCategory', backref='organisation', lazy=True, cascade='delete')
     support_tickets = db.relationship('SupportTicket', backref='organisation', lazy=True, cascade='delete')
+    notifications = db.relationship('Notification', backref='organisation', lazy=True, cascade='delete')
 
 
 ### REFERENCE DATA ###
@@ -147,12 +165,8 @@ class Site(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     name = db.Column(db.String(100), nullable=False)
-    address_line_one = db.Column(db.String(100))
-    address_line_two = db.Column(db.String(100))
-    address_line_three = db.Column(db.String(100))
-    town_city = db.Column(db.String(100))
-    county = db.Column(db.String(100))
-    post_code = db.Column(db.String(100))
+    # one line per row, separated by newlines, see services/addresses.py
+    address = db.Column(db.String(500))
     telephone = db.Column(db.String(100))
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
@@ -234,13 +248,27 @@ class Job(db.Model):
 
     description = db.Column(db.String(100), nullable=False)
     work_required = db.Column(db.String(500), nullable=False)
-    due = db.Column(db.Date())
+    due_by = db.Column(db.Date())
     # not on JobForm: copied from the job schedule when a job is raised from one
     statutory_compliance = db.Column(db.Boolean, default=False, nullable=False)
     # not on JobForm: a key from JOB_STATUSES, set programmatically
     status = db.Column(db.String(20), default='new', server_default='new', nullable=False)
-    # set with status when the job is closed, on JobCloseForm only
+    # the UK date it was closed, set with status by the Close button (or Update schedule, for a planned job)
     closed_at = db.Column(db.Date())
+    # the person who closed it. Reopening clears it, with closed_at
+    closed_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
+    closed_by = db.relationship('Person', foreign_keys=[closed_by_id], backref=db.backref('closed_jobs', lazy=True), lazy=True)
+    # set with status when a new job is rejected, on JobRejectForm only
+    rejection_reason = db.Column(db.Text)
+    # when a new job was approved or rejected. Reopening a rejected job clears rejected_at
+    approved_at = db.Column(db.DateTime(timezone=True))
+    rejected_at = db.Column(db.DateTime(timezone=True))
+    # when it was last assigned or reassigned (Assign, Reassign)
+    assigned_at = db.Column(db.DateTime(timezone=True))
+    # set with status by Start (now) and Complete (entered in UK time on JobCompleteForm, with the comments)
+    started_at = db.Column(db.DateTime(timezone=True))
+    completed_at = db.Column(db.DateTime(timezone=True))
+    completion_comments = db.Column(db.Text)
     # not on JobForm: a key from JOB_SOURCES. No default, so every route that makes a job must set it
     source = db.Column(db.String(20), nullable=False)
 
@@ -253,9 +281,28 @@ class Job(db.Model):
     # copied from the job schedule when a job is raised from one
     job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
     job_category = db.relationship('JobCategory', lazy=True)
+    # the job this is follow-up work for, set when it's created from that job's Follow Up Jobs tab, and never
+    # changed. Deleting the parent leaves its follow-up jobs without one
+    parent_job_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job.id', ondelete='SET NULL'))
+    parent_job = db.relationship('Job', remote_side='Job.id', foreign_keys=[parent_job_id],
+                                 backref=db.backref('follow_up_jobs', lazy=True, order_by='Job.created_at'))
     # pounds, shown with the currency filter. estimated_cost is copied from the job schedule by raise_job()
     estimated_cost = db.Column(db.Numeric(12, 2))
     actual_cost = db.Column(db.Numeric(12, 2))
+
+    # who the job is assigned to: one supplier or one person, never both (ck_job_assignee). They're kept
+    # for audit, so a supplier or person with jobs assigned can't be deleted (the routes refuse, and the
+    # FKs are RESTRICT). passive_deletes='all': the ORM never clears them, so the database refuses instead
+    assigned_supplier_id = db.Column(UUID(as_uuid=True), db.ForeignKey('supplier.id', ondelete='RESTRICT'))
+    assigned_person_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='RESTRICT'))
+    assigned_supplier = db.relationship('Supplier', foreign_keys=[assigned_supplier_id], lazy=True, backref=db.backref(
+        'assigned_jobs', lazy=True, passive_deletes='all'))
+    assigned_person = db.relationship('Person', foreign_keys=[assigned_person_id], lazy=True, backref=db.backref(
+        'assigned_jobs', lazy=True, passive_deletes='all'))
+    # people helping the assignee. They aren't notified, and can't start or complete the job
+    helpers = db.relationship('Person', secondary=job_helpers, lazy=True,
+                              order_by=lambda: (Person.first_name, Person.last_name),
+                              backref=db.backref('helping_jobs', lazy=True))
 
     __table_args__ = (
         db.CheckConstraint(
@@ -266,11 +313,15 @@ class Job(db.Model):
             "source IN ({})".format(', '.join(f"'{key}'" for key, _ in JOB_SOURCES)),
             name='ck_job_source',
         ),
-        # backstop for the sequence rules: a job schedule has at most one job that isn't closed
+        db.CheckConstraint(
+            'assigned_supplier_id IS NULL OR assigned_person_id IS NULL',
+            name='ck_job_assignee',
+        ),
+        # backstop for the sequence rules: a job schedule has at most one job that isn't closed or rejected
         db.Index(
             'uq_job_open_per_schedule', 'job_schedule_id', unique=True,
-            postgresql_where=db.text("status != 'closed'"),
-            sqlite_where=db.text("status != 'closed'"),
+            postgresql_where=db.text("status NOT IN ('closed', 'rejected')"),
+            sqlite_where=db.text("status NOT IN ('closed', 'rejected')"),
         ),
     )
 
@@ -287,8 +338,14 @@ class Job(db.Model):
     def raised_on(self):
         return uk_date(self.created_at)
 
-    # a planned job whose schedule is waiting on it (raise_job cleared the creation date). Closing it
-    # goes through jobs.update_schedule, which closes the job and sets the schedule's next due date together
+    # the UK date the job was completed (completed_at). A planned job's next due date is worked out from it
+    @property
+    def completed_on(self):
+        return uk_date(self.completed_at) if self.completed_at else None
+
+    # a planned job whose schedule is waiting on it (raise_job cleared the creation date). Closing it goes
+    # through jobs.update_schedule, and rejecting it asks for the next due date too, so the job and the
+    # schedule's next due date are saved together
     @property
     def closes_with_schedule_update(self):
         return (
@@ -296,6 +353,44 @@ class Job(db.Model):
             and self.job_schedule is not None
             and self.job_schedule.next_job_creation_date is None
         )
+
+    # the supplier or person it's assigned to, or None
+    @property
+    def assignee(self):
+        return self.assigned_supplier or self.assigned_person
+
+    @property
+    def assignee_name(self):
+        if self.assigned_supplier:
+            return self.assigned_supplier.name
+        if self.assigned_person:
+            return f'{self.assigned_person.first_name} {self.assigned_person.last_name}'
+        return None
+
+    # the signed-in person is the job's assignee, so they can open it, start it and complete it
+    def is_assignee(self, person):
+        return person is not None and self.assigned_person_id is not None and self.assigned_person_id == person.id
+
+
+class Notification(db.Model):
+    """An in-app message to a person who can sign in, shown under the navbar's bell (services/notifications.py).
+    People who can't sign in, and suppliers, are emailed instead. It's deleted with its person, and with its
+    job (both CASCADE in the database)."""
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    message = db.Column(db.String(255), nullable=False)
+    # set when they open it (its View button) or mark them all read
+    read_at = db.Column(db.DateTime(timezone=True))
+
+    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+    person_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='CASCADE'), nullable=False)
+    # what View opens. The only kind so far is a job assigned to them
+    job_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job.id', ondelete='CASCADE'))
+    # one-way relationships, so the ORM never tries to clear these when a person or job is deleted
+    person = db.relationship('Person', lazy=True)
+    job = db.relationship('Job', lazy=True)
 
 
 class Asset(db.Model):
@@ -354,16 +449,16 @@ class JobSchedule(db.Model):
 
     description = db.Column(db.String(100), nullable=False)
     work_required = db.Column(db.String(500), nullable=False)
-    next_due = db.Column(db.Date(), nullable=False)
+    next_due_by = db.Column(db.Date(), nullable=False)
     statutory_compliance = db.Column(db.Boolean, default=False, nullable=False)
     # an inactive schedule raises no jobs. Making it active again needs a next due date in the future
     is_active = db.Column(db.Boolean, default=True, server_default=db.text('true'), nullable=False)
     # a key from services/scheduling.py FREQUENCIES
     frequency = db.Column(db.String(20), nullable=False)
-    # how many days ahead of next_due the job is created
+    # how many days ahead of next_due_by the job is created
     notice_days = db.Column(db.Integer, nullable=False)
-    # calculated from next_due and notice_days, never taken from a form. NULL once a job has been
-    # raised for next_due, so the schedule raises nothing more while that job is waiting
+    # calculated from next_due_by and notice_days, never taken from a form. NULL once a job has been
+    # raised for next_due_by, so the schedule raises nothing more while that job is waiting
     next_job_creation_date = db.Column(db.Date())
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
@@ -396,11 +491,11 @@ class JobSchedule(db.Model):
             return 'Pending current job closure'
         return self.next_job_creation_date.strftime('%d-%m-%Y')
 
-    # a job raised from the schedule that isn't closed yet, or None. The schedule can't be edited
+    # a job raised from the schedule that isn't closed or rejected yet, or None. The schedule can't be edited
     # while there is one, so it can never have two open jobs
     @property
     def open_job(self):
-        return Job.query.filter(Job.job_schedule_id == self.id, Job.status != 'closed').order_by(Job.due, Job.id).first()
+        return Job.query.filter(Job.job_schedule_id == self.id, Job.status.notin_(JOB_FINISHED_STATUSES)).order_by(Job.due_by, Job.id).first()
 
 
 class Supplier(db.Model):
@@ -409,13 +504,11 @@ class Supplier(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     name = db.Column(db.String(100), nullable=False)
-    address_line_one = db.Column(db.String(100))
-    address_line_two = db.Column(db.String(100))
-    address_line_three = db.Column(db.String(100))
-    town_city = db.Column(db.String(100))
-    county = db.Column(db.String(100))
-    post_code = db.Column(db.String(100))
+    # one line per row, separated by newlines, see services/addresses.py
+    address = db.Column(db.String(500))
     telephone = db.Column(db.String(100))
+    # optional contact email. Blank is stored as NULL
+    email = db.Column(db.String(255))
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     # set when the record came from a CSV import
@@ -478,6 +571,10 @@ class Person(db.Model):
     __table_args__ = (
         db.UniqueConstraint('organisation_id', 'user_id'),
     )
+
+    @property
+    def full_name(self):
+        return f'{self.first_name} {self.last_name}'
 
     @property
     def is_org_admin(self):
@@ -574,15 +671,13 @@ class ImportEvent(db.Model):
     errors = db.Column(db.JSON, default=list, nullable=False)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # the people in this organisation who imported it and undid it. Person has import_event_id too, so
-    # these foreign keys are added after both tables are created (use_alter)
-    person_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL', use_alter=True, name='fk_import_event_person_id'))
+    # the names of the people who imported it and undid it, at the time. Names rather than foreign keys to
+    # person: they survive the person being deleted, and person has import_event_id, so keys back would be
+    # circular (see CLAUDE.md)
+    imported_by_name = db.Column(db.String(201))
     # set by undo, which deletes the imported records but keeps this as history
     undone_at = db.Column(db.DateTime)
-    undone_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL', use_alter=True, name='fk_import_event_undone_by_id'))
-
-    person = db.relationship('Person', foreign_keys=[person_id], lazy=True)
-    undone_by = db.relationship('Person', foreign_keys=[undone_by_id], lazy=True)
+    undone_by_name = db.Column(db.String(201))
 
 
 class File(db.Model):

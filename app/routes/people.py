@@ -241,6 +241,11 @@ def delete(id):
         flash('Your organisation needs at least one admin who can log in. Make someone else an admin first.', 'warning')
         return redirect(url_for('people.view', id=person.id))
 
+    # a job's assignee is kept for audit (Job.assigned_person_id is RESTRICT)
+    if person.assigned_jobs:
+        flash(f"Person '{person.first_name} {person.last_name}' can't be deleted because they have jobs assigned to them, which are kept for audit purposes. Archiving will be available instead in a future update.", 'warning')
+        return redirect(url_for('people.view', id=person.id))
+
     if request.method =="POST":
         # ends their sessions here, and deletes their login too if this was their only organisation
         delete_person(person)

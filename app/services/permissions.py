@@ -16,6 +16,9 @@ RESOURCES = [
 ACTIONS = [('view', 'View'), ('create', 'Create'), ('edit', 'Edit'), ('delete', 'Delete')]
 # grantable permissions outside the resource × action grid, listed under it on the user group pages
 EXTRA_PERMISSIONS = [
+    ('jobs.approve', 'Approve or reject new jobs'),
+    # assigning, reassigning and adding helpers, and starting and completing a job for its assignee
+    ('jobs.assign', 'Assign jobs, and start and complete them for the assignee'),
     ('jobs.close', 'Close jobs'),
     ('jobs.reopen', 'Reopen jobs'),
     # import any type of record, whatever else the group allows. Undoing an import also needs
@@ -63,7 +66,11 @@ ENDPOINT_PERMISSIONS = {
     **_resource('buildings', view=['zones', 'assets', 'jobs', 'job_schedules']),
     **_resource('zones', view=['assets', 'jobs', 'job_schedules']),
     **_resource('assets', view=['export', 'sub_assets', 'jobs', 'job_schedules'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_job_schedules', 'unlink_job_schedules']),
-    **_resource('jobs', view=['export', 'assets'], edit=['link_assets', 'unlink_assets']),
+    **_resource('jobs', view=['export', 'assets', 'follow_up_jobs'], edit=['link_assets', 'unlink_assets']),
+    'jobs.approve': 'jobs.approve',
+    'jobs.reject': 'jobs.approve',
+    # the job's assignee can open it, and start and complete it, without these (jobs.require_job_permission)
+    **{f'jobs.{name}': 'jobs.assign' for name in ['assign', 'reassign', 'add_helpers', 'remove_helper', 'start', 'complete']},
     'jobs.close': 'jobs.close',
     'jobs.reopen': 'jobs.reopen',
     # part of closing a planned job, so it needs close rather than job_schedules.edit

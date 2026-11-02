@@ -44,6 +44,7 @@ def create_app():
     from app.routes.my_organisation import my_organisation_bp
     from app.routes.files import files_bp
     from app.routes.reference_data import reference_data_bp
+    from app.routes.notifications import notifications_bp
 
     app.register_blueprint(sites_bp)
     app.register_blueprint(jobs_bp)
@@ -64,6 +65,7 @@ def create_app():
     app.register_blueprint(my_organisation_bp)
     app.register_blueprint(files_bp)
     app.register_blueprint(reference_data_bp)
+    app.register_blueprint(notifications_bp)
 
     # / goes to the dashboard (which sends signed-out visitors to /login)
     app.add_url_rule('/', endpoint='dashboard.root', view_func=root)
@@ -80,6 +82,10 @@ def create_app():
     # times are stored in UTC and shown as UTC for now
     app.jinja_env.filters['datetime'] = lambda value: value.strftime('%d-%m-%Y %H:%M') if value else '-'
     app.jinja_env.filters['date'] = lambda value: value.strftime('%d-%m-%Y') if value else '-'
+    # a time in UK time (like a job's completed_at, entered in UK time), shown back in UK time
+    from app.services.auth import as_utc
+    from app.services.scheduling import UK_TIMEZONE
+    app.jinja_env.filters['uk_datetime'] = lambda value: as_utc(value).astimezone(UK_TIMEZONE).strftime('%d-%m-%Y %H:%M') if value else '-'
     app.jinja_env.filters['currency'] = lambda value: f'£{value:,.2f}' if value is not None else '-'
     # a number of days, e.g. 0.5 -> '0.5 days', 1 -> '1 day'
     from decimal import Decimal
@@ -95,6 +101,16 @@ def create_app():
     app.jinja_env.globals['PERMISSION_ACTIONS'] = ACTIONS
     app.jinja_env.globals['PERMISSION_EXTRAS'] = EXTRA_PERMISSIONS
     app.jinja_env.globals['PERMISSION_NOT_GRANTABLE'] = NOT_GRANTABLE
+
+    # the navbar's bell: the signed-in person's unread notifications, as (count, the latest few)
+    from app.services.notifications import NAVBAR_LIMIT, notification_url, unread_notifications
+    def navbar_notifications():
+        if not g.get('person'):
+            return 0, []
+        query = unread_notifications(g.person)
+        return query.count(), query.limit(NAVBAR_LIMIT).all()
+    app.jinja_env.globals['navbar_notifications'] = navbar_notifications
+    app.jinja_env.globals['notification_url'] = notification_url
 
     @app.errorhandler(403)
     def forbidden(error):

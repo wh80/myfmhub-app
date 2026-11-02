@@ -21,9 +21,9 @@
     </div>
   </div>
   <div class="col-md-6">
-    <div class="text-muted small">Due</div>
+    <div class="text-muted small">Due By</div>
     <div class="fw-semibold">
-      <p>{{job.due | date}}</p>
+      <p>{{job.due_by | date}}</p>
 
     </div>
   </div>
@@ -35,10 +35,95 @@
     <div class="text-muted small">Status</div>
     <div class="fw-semibold">{% include "jobs/_status_badge.html" %}</div>
   </div>
+  {% if job.parent_job %}
+  <div class="col-md-6">
+    <div class="text-muted small">Parent Job</div>
+    <div class="fw-semibold"><a href="{{ url_for('jobs.view', id=job.parent_job.id) }}">{{ job.parent_job.description }}</a></div>
+  </div>
+  {% endif %}
+  <div class="col-md-6">
+    <div class="text-muted small">Assigned To</div>
+    <div class="fw-semibold">
+      {% if job.assigned_supplier and can('suppliers.view') %}<a href="{{ url_for('suppliers.view', id=job.assigned_supplier.id) }}">{{ job.assignee_name }}</a>
+      {% elif job.assigned_person and can('people.view') %}<a href="{{ url_for('people.view', id=job.assigned_person.id) }}">{{ job.assignee_name }}</a>
+      {% else %}{{ job.assignee_name or '-' }}{% endif %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Helpers</div>
+    <div class="fw-semibold d-flex flex-wrap align-items-center gap-2">
+      {% set can_change_helpers = can('jobs.assign') and job.status in ('assigned', 'in_progress', 'completed') %}
+      {% for helper in job.helpers %}
+      <span class="d-inline-flex align-items-center gap-1">
+        {% if can('people.view') %}<a href="{{ url_for('people.view', id=helper.id) }}">{{ helper.first_name }} {{ helper.last_name }}</a>{% else %}{{ helper.first_name }} {{ helper.last_name }}{% endif %}
+        {% if can_change_helpers %}
+        <form method="POST" action="{{ url_for('jobs.remove_helper', id=job.id, person_id=helper.id) }}" class="m-0 d-inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Remove {{ helper.first_name }} {{ helper.last_name }} as a helper" aria-label="Remove {{ helper.first_name }} {{ helper.last_name }} as a helper"><i class="bi bi-x-circle" aria-hidden="true"></i></button>
+        </form>
+        {% endif %}{{ ',' if not loop.last }}
+      </span>
+      {% else %}
+      <span>-</span>
+      {% endfor %}
+      {% if can_change_helpers %}
+      <a href="{{ url_for('jobs.add_helpers', id=job.id) }}" class="btn btn-outline-primary btn-sm">Add Helpers</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if job.assigned_at %}
+  <div class="col-md-6">
+    <div class="text-muted small">Assigned At</div>
+    <div class="fw-semibold">{{job.assigned_at | datetime}}</div>
+  </div>
+  {% endif %}
+  {% if job.approved_at %}
+  <div class="col-md-6">
+    <div class="text-muted small">Approved At</div>
+    <div class="fw-semibold">{{job.approved_at | datetime}}</div>
+  </div>
+  {% endif %}
+  {% if job.rejected_at %}
+  <div class="col-md-6">
+    <div class="text-muted small">Rejected At</div>
+    <div class="fw-semibold">{{job.rejected_at | datetime}}</div>
+  </div>
+  {% endif %}
+  {% if job.started_at %}
+  <div class="col-md-6">
+    <div class="text-muted small">Started At</div>
+    <div class="fw-semibold">{{job.started_at | uk_datetime}}</div>
+  </div>
+  {% endif %}
+  {% if job.completed_at %}
+  <div class="col-md-6">
+    <div class="text-muted small">Completed At</div>
+    <div class="fw-semibold">{{job.completed_at | uk_datetime}}</div>
+  </div>
+  {% endif %}
+  {% if job.completion_comments %}
+  <div class="col-md-6">
+    <div class="text-muted small">Completion Comments</div>
+    <div class="fw-semibold" style="white-space: pre-line">{{job.completion_comments}}</div>
+  </div>
+  {% endif %}
   {% if job.closed_at %}
   <div class="col-md-6">
     <div class="text-muted small">Closed On</div>
     <div class="fw-semibold">{{job.closed_at | date}}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Closed By</div>
+    <div class="fw-semibold">
+      {% set closer = job.closed_by %}
+      {% if closer and can('people.view') %}<a href="{{ url_for('people.view', id=closer.id) }}">{{ closer.first_name }} {{ closer.last_name }}</a>{% elif closer %}{{ closer.first_name }} {{ closer.last_name }}{% else %}-{% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% if job.rejection_reason %}
+  <div class="col-md-6">
+    <div class="text-muted small">Rejection Reason</div>
+    <div class="fw-semibold" style="white-space: pre-line">{{job.rejection_reason}}</div>
   </div>
   {% endif %}
   <div class="col-md-6">

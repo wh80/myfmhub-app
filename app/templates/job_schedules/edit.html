@@ -44,11 +44,11 @@
     {{ number_field(form.estimated_duration, 'days') }}
 
     <div class="col-md-6 mb-3">
-      {{ form.next_due.label(class="form-label") }} {{
-      form.next_due(class="form-control" ~ (" is-invalid" if
-      form.next_due.errors else "")) }} {% if form.next_due.errors %}
+      {{ form.next_due_by.label(class="form-label") }} {{
+      form.next_due_by(class="form-control" ~ (" is-invalid" if
+      form.next_due_by.errors else "")) }} {% if form.next_due_by.errors %}
       <div class="invalid-feedback d-block">
-        {% for error in form.next_due.errors %}
+        {% for error in form.next_due_by.errors %}
         <div>{{ error }}</div>
         {% endfor %}
       </div>

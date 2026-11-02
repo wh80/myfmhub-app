@@ -1,8 +1,10 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileRequired, FileAllowed, FileSize
-from wtforms import StringField, EmailField, BooleanField, DateField, DecimalField, IntegerField, SelectField, TextAreaField, DateTimeField, DateTimeLocalField
+from wtforms import StringField, EmailField, BooleanField, DateField, DecimalField, IntegerField, SelectField, SelectMultipleField, RadioField, TextAreaField, DateTimeField, DateTimeLocalField
 from wtforms.validators import DataRequired, InputRequired, Email, Length, Optional, NumberRange, ValidationError
-from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, uk_today
+from datetime import datetime
+from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, UK_TIMEZONE, uk_today
+from app.services.addresses import MAX_ADDRESS_LENGTH
 from app.services.files import FILE_TYPES, MAX_FILE_MB
 
 def strip(value):
@@ -14,12 +16,7 @@ def optional_id(value):
 
 class SiteForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
-    address_line_one = StringField('Address Line 1', validators=[Optional(), Length(max=255)])
-    address_line_two = StringField('Address Line 2', validators=[Optional(), Length(max=255)])
-    address_line_three = StringField('Address Line 3', validators=[Optional(), Length(max=100)])
-    town_city = StringField('Town/City', validators=[Optional(), Length(max=255)])
-    county = StringField('County', validators=[Optional(), Length(max=100)])
-    post_code = StringField('Post Code', validators=[Optional(), Length(max=255)])
+    address = TextAreaField('Address', validators=[Optional(), Length(max=MAX_ADDRESS_LENGTH)])
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
     # anyone in the organisation: choices are set by set_main_contact_choices in routes/sites.py
     main_contact_id = SelectField('Main Contact', coerce=optional_id, validators=[Optional()])
@@ -27,7 +24,7 @@ class SiteForm(FlaskForm):
 class JobForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=120)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
-    due = DateField('Due', validators=[Optional()])
+    due_by = DateField('Due By', validators=[Optional()])
     site_id = SelectField('Site', validators=[DataRequired()])
     # optional, and dependent: choices are set by set_location_choices, and check_location makes
     # sure the building is in the site and the zone in the building
@@ -38,34 +35,86 @@ class JobForm(FlaskForm):
     estimated_cost = DecimalField('Estimated Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
     actual_cost = DecimalField('Actual Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
 
-class JobCloseForm(FlaskForm):
-    closed_at = DateField('Closed On', default=uk_today, validators=[DataRequired()])
+class JobRejectForm(FlaskForm):
+    rejection_reason = TextAreaField('Rejection Reason', validators=[DataRequired(), Length(max=2000)], filters=[strip])
+    # only for a planned job whose schedule is waiting on it: rejecting moves the schedule on, like closing
+    next_due_by = DateField('Next Due By', validators=[Optional()])
 
-    # raised_on is job.raised_on: a job can't be closed before it was raised
-    def __init__(self, raised_on, *args, **kwargs):
+    # latest is today plus the schedule's frequency for a planned job, else None (no next due date asked)
+    def __init__(self, latest=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.raised_on = raised_on
+        self.latest = latest
 
-    def validate_closed_at(self, field):
-        if field.data and field.data > uk_today():
-            raise ValidationError("The closed date can't be in the future.")
-        if field.data and field.data < self.raised_on:
-            raise ValidationError(f"The closed date can't be before the job was raised ({self.raised_on:%d-%m-%Y}).")
+    def validate_next_due_by(self, field):
+        if self.latest is None:
+            return
+        if not field.data:
+            raise ValidationError('Choose when the next job is due.')
+        validate_next_due_by_range(field.data, self.latest)
 
-# sets a job schedule's next due date after its job is closed. latest is the close date plus the
-# schedule's frequency (or today, if that's already passed)
+# Assign and Reassign: one supplier or one person, from a single select grouped into Suppliers and People.
+# Values are 'supplier:<id>' or 'person:<id>'; the choices are set in the route (job_assignee_choices),
+# so WTForms refuses anyone else
+class JobReassignForm(FlaskForm):
+    assignee = SelectField('Assign To', validators=[DataRequired(message='Choose a supplier or a person.')])
+
+# Assign also takes any number of helpers (people). The lead can't be one of them
+class JobAssignForm(JobReassignForm):
+    helper_ids = SelectMultipleField('Helpers', validators=[Optional()])
+
+    def validate_helper_ids(self, field):
+        if self.assignee.data and self.assignee.data.removeprefix('person:') in (field.data or []):
+            raise ValidationError("The person the job is assigned to can't also be a helper.")
+
+# Add Helpers: people who aren't on the job already (set in the route)
+class JobHelpersForm(FlaskForm):
+    helper_ids = SelectMultipleField('Helpers', validators=[DataRequired(message='Choose at least one person.')])
+
+def uk_now_minute():
+    return datetime.now(UK_TIMEZONE).replace(tzinfo=None, second=0, microsecond=0)
+
+# when the work was done, in UK time (stored with the time zone), and notes on it
+class JobCompleteForm(FlaskForm):
+    completed_at = DateTimeLocalField('Completed At', format='%Y-%m-%dT%H:%M', validators=[DataRequired()], default=uk_now_minute)
+    completion_comments = TextAreaField('Completion Comments', validators=[DataRequired(), Length(max=5000)], filters=[strip])
+
+    # started_at is the job's (timezone-aware): the work can't be completed before it started
+    def __init__(self, started_at, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.started_at = started_at
+
+    def completed_at_uk(self):
+        return self.completed_at.data.replace(tzinfo=UK_TIMEZONE)
+
+    def validate_completed_at(self, field):
+        if not field.data:
+            return
+        if self.completed_at_uk() > datetime.now(UK_TIMEZONE):
+            raise ValidationError("The completed time can't be in the future.")
+        # the field has no seconds, so compare to the minute the work started
+        if self.started_at and self.completed_at_uk() < self.started_at.replace(second=0, microsecond=0):
+            started = self.started_at.astimezone(UK_TIMEZONE)
+            raise ValidationError(f"The completed time can't be before the work was started ({started:%d-%m-%Y %H:%M}).")
+
+# a planned job's next due date can be brought forward from latest, but not moved later or into the past
+def validate_next_due_by_range(next_due_by, latest):
+    if next_due_by < uk_today():
+        raise ValidationError("The next due date can't be in the past.")
+    if next_due_by > latest:
+        raise ValidationError("You can't make the period to the next jobs due date longer than the frequency period of the schedule")
+
+# sets a job schedule's next due date when its job is closed. latest is the date the work was completed plus
+# the schedule's frequency (or today, if that's already passed)
 class JobScheduleNextDueForm(FlaskForm):
-    next_due = DateField('Next Due', validators=[DataRequired()])
+    next_due_by = DateField('Next Due By', validators=[DataRequired()])
 
     def __init__(self, latest, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.latest = latest
 
-    def validate_next_due(self, field):
-        if field.data and field.data < uk_today():
-            raise ValidationError("The next due date can't be in the past.")
-        if field.data and field.data > self.latest:
-            raise ValidationError("You can't make the period to the next jobs due date longer than the frequency period of the schedule")
+    def validate_next_due_by(self, field):
+        if field.data:
+            validate_next_due_by_range(field.data, self.latest)
 
 class AssetForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=50)])
@@ -92,7 +141,7 @@ class AssetForm(FlaskForm):
 class JobScheduleForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=120)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
-    next_due = DateField('Next Due', validators=[DataRequired()])
+    next_due_by = DateField('Next Due By', validators=[DataRequired()])
     frequency = SelectField('Frequency', choices=[('', '--- Select Frequency ---')] + FREQUENCIES, validators=[DataRequired()])
     notice_days = IntegerField('Notice Days', description='How many days ahead of due date the job is created', validators=[InputRequired(), NumberRange(min=0, max=365)])
     statutory_compliance = BooleanField('Statutory Compliance')
@@ -125,13 +174,9 @@ class ZoneForm(FlaskForm):
 
 class SupplierForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=120)])
-    address_line_one = StringField('Address Line 1', validators=[Optional(), Length(max=255)])
-    address_line_two = StringField('Address Line 2', validators=[Optional(), Length(max=255)])
-    address_line_three = StringField('Address Line 3', validators=[Optional(), Length(max=100)])
-    town_city = StringField('Town/City', validators=[Optional(), Length(max=255)])
-    county = StringField('County', validators=[Optional(), Length(max=100)])
-    post_code = StringField('Post Code', validators=[Optional(), Length(max=255)])
+    address = TextAreaField('Address', validators=[Optional(), Length(max=MAX_ADDRESS_LENGTH)])
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
+    email = EmailField('Email', validators=[Optional(), Email(), Length(max=255)], filters=[strip])
     supplier_category_id = SelectField('Supplier Category', coerce=optional_id, validators=[Optional()])
 
 class RegisterForm(FlaskForm):

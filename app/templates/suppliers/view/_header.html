@@ -10,7 +10,11 @@
       Edit
     </a>
     {% endif %}
-    {% if can('suppliers.delete') %}
+    {% if can('suppliers.delete') and supplier.assigned_jobs %}
+    <button type="button" class="btn btn-danger btn-sm" disabled title="A supplier with jobs assigned to it can't be deleted. They're kept for audit purposes">
+      Delete
+    </button>
+    {% elif can('suppliers.delete') %}
     <a
       href="{{url_for('suppliers.delete', id=supplier.id)}}"
       class="btn btn-danger btn-sm"

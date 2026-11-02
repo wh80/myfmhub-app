@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import Asset, Building, ImportEvent, JobSchedule, Person, Site, Supplier, User, UserGroup, Zone, JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory
+from app.services.addresses import MAX_ADDRESS_LENGTH, clean_address
 from app.services.people import delete_person
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date, uk_today
 
@@ -28,7 +29,7 @@ class RowError(Exception):
 @dataclass
 class Column:
     key: str
-    kind: str  # text, date, money, whole_number, days, yes_no, frequency, site, email, user_group, reference
+    kind: str  # text, address, date, money, whole_number, days, yes_no, frequency, site, email, user_group, reference
     required: bool = False
     max_length: int = None
     notes: str = ''
@@ -46,6 +47,8 @@ class Column:
         """How the value should be written, for the guidance page."""
         if self.kind == 'text':
             return f'Text, up to {self.max_length} characters'
+        if self.kind == 'address':
+            return f'Text, up to {self.max_length} characters. Separate the lines with commas, e.g. 1 High Street, Leeds, LS1 1AA'
         if self.kind == 'reference':
             return f'The description of one of your {self.label.lower().replace("category", "categories").replace("condition", "conditions")} (Reference data)'
         return {
@@ -137,6 +140,15 @@ def parse_value(column, raw, lookups):
         if len(raw) > column.max_length:
             raise RowError(f'{column.label} is longer than {column.max_length} characters')
         return raw
+
+    if column.kind == 'address':
+        # each comma starts a new line, as on the form's textarea, and the commas are dropped
+        address = clean_address(raw, commas=True)
+        if address is None and column.required:
+            raise RowError(f'{column.label} is required')
+        if address and len(address) > column.max_length:
+            raise RowError(f'{column.label} is longer than {column.max_length} characters')
+        return address
 
     if column.kind == 'date':
         for date_format in DATE_FORMATS:
@@ -231,12 +243,7 @@ def taken(model, column, value, organisation_id):
 def address_fields(values):
     return dict(
         name=values['name'],
-        address_line_one=values['address_line_one'],
-        address_line_two=values['address_line_two'],
-        address_line_three=values['address_line_three'],
-        town_city=values['town_city'],
-        county=values['county'],
-        post_code=values['post_code'],
+        address=values['address'],
         telephone=values['telephone'],
     )
 
@@ -308,7 +315,7 @@ def create_zone(values, lookups):
 
 
 def create_supplier(values, lookups):
-    return [Supplier(**address_fields(values), supplier_category_id=reference_id(values['supplier_category']))]
+    return [Supplier(**address_fields(values), email=values['email'], supplier_category_id=reference_id(values['supplier_category']))]
 
 
 def create_asset(values, lookups):
@@ -357,10 +364,10 @@ def create_job_schedule(values, lookups):
         work_required=values['work_required'],
         site_id=values['site'].id,
         **location(values, lookups),
-        next_due=values['next_due'],
+        next_due_by=values['next_due_by'],
         frequency=frequency,
         notice_days=notice_days,
-        next_job_creation_date=job_creation_date(values['next_due'], notice_days),
+        next_job_creation_date=job_creation_date(values['next_due_by'], notice_days),
         statutory_compliance=values['statutory_compliance'],
         is_active=values['active'],
         job_category_id=reference_id(values['job_category']),
@@ -406,12 +413,7 @@ def text(key, max_length, required=False, notes=''):
 
 ADDRESS_COLUMNS = [
     text('name', 100, required=True),
-    text('address_line_one', 100),
-    text('address_line_two', 100),
-    text('address_line_three', 100),
-    text('town_city', 100),
-    text('county', 100),
-    text('post_code', 100),
+    Column('address', 'address', max_length=MAX_ADDRESS_LENGTH),
     text('telephone', 100),
 ]
 
@@ -472,6 +474,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
     ]),
     ImportType('suppliers', 'Suppliers', Supplier, 'suppliers.index', [
         *ADDRESS_COLUMNS,
+        Column('email', 'email', max_length=255),
         reference('supplier_category', SupplierCategory),
     ], create_supplier),
     ImportType('job_schedules', 'Job Schedules', JobSchedule, 'job_schedules.index', [
@@ -479,7 +482,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         text('work_required', 500, required=True),
         Column('site', 'site', required=True, notes='Import sites first'),
         *LOCATION_COLUMNS,
-        Column('next_due', 'date', required=True),
+        Column('next_due_by', 'date', required=True),
         Column('frequency', 'frequency', required=True, notes='The short form also works, e.g. monthly or three_monthly'),
         Column('notice_days', 'whole_number', required=True,
                notes="0 to 365, and no more than the gap between jobs (e.g. 28 for monthly). The next job creation date is worked out from it"),
@@ -560,7 +563,7 @@ def run_import(import_type, filename, rows, person):
         import_type=import_type.key,
         filename=filename[:255],
         organisation_id=person.organisation_id,
-        person_id=person.id,
+        imported_by_name=person.full_name,
     )
     db.session.add(import_event)
     db.session.flush()
@@ -662,6 +665,13 @@ def undo_blockers(import_type, import_event, person):
         if not person.is_org_admin and query.join(UserGroup, Person.user_group_id == UserGroup.id).filter(UserGroup.is_admin.is_(True)).count():
             blockers.append('Only admins can undo an import that put people in the Admin group.')
 
+    # a job's assignee is kept for audit, so a supplier or person with jobs assigned can't be deleted
+    if model in (Person, Supplier):
+        count = query.filter(model.assigned_jobs.any()).count()
+        if count:
+            blockers.append(f'{count} of the imported {import_type.label.lower()} have jobs assigned to them, '
+                            'which are kept for audit purposes.')
+
     return blockers
 
 
@@ -676,6 +686,6 @@ def undo_import(import_type, import_event, person):
             db.session.delete(record)
 
     import_event.undone_at = datetime.now(timezone.utc)
-    import_event.undone_by_id = person.id
+    import_event.undone_by_name = person.full_name
     db.session.commit()
     return len(records)

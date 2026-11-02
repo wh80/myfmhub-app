@@ -59,7 +59,7 @@
         <label for="status" class="form-label">Status</label>
         <select name="status" id="status" class="form-select">
           <option value="" {% if not status %}selected{% endif %}>All statuses</option>
-          <option value="not_closed" {% if status == 'not_closed' %}selected{% endif %}>Not closed</option>
+          <option value="not_closed" {% if status == 'not_closed' %}selected{% endif %}>All Open Jobs</option>
           {% for key, label in statuses %}
           <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ label }}</option>
           {% endfor %}

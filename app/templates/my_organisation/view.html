@@ -27,7 +27,7 @@
         <div class="fw-semibold">
           <p>
             {{ organisation.terms_accepted_at | datetime }}
-            {% if organisation.terms_accepted_by %}by {{ organisation.terms_accepted_by.first_name }} {{ organisation.terms_accepted_by.last_name }}{% endif %}
+            {% if organisation.terms_accepted_by_name %}by {{ organisation.terms_accepted_by_name }} ({{ organisation.terms_accepted_by_email }}){% endif %}
           </p>
         </div>
       </div>

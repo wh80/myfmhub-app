@@ -40,7 +40,8 @@ def register():
         )
         # the form refuses to register without accept_terms ticked
         organisation.terms_accepted_at = datetime.now(timezone.utc)
-        organisation.terms_accepted_by = person
+        organisation.terms_accepted_by_name = person.full_name
+        organisation.terms_accepted_by_email = person.email
         db.session.add_all([organisation, person])
         db.session.commit()
 

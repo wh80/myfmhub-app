@@ -49,6 +49,11 @@ def create_ticket():
 def locations():
     return render_template('support/locations.html')
 
+# the job workflow, from raising to closing
+@support_bp.route('/jobs')
+def jobs():
+    return render_template('support/jobs.html')
+
 @support_bp.route('/job-schedules')
 def job_schedules():
     return render_template('support/job_schedules.html', frequencies=FREQUENCIES)

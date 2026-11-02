@@ -5,7 +5,7 @@
 
 {% if counts %}
 <div class="row g-3 mt-1">
-  <div class="col-12 col-sm-6 col-xl-3">
+  <div class="col-12 col-sm-6 col-xl">
     {% if counts.overdue_compliance %}
     <div class="card h-100 shadow-sm text-bg-danger position-relative">
       <div class="card-body text-center">
@@ -29,7 +29,7 @@
     {% endif %}
   </div>
 
-  <div class="col-12 col-sm-6 col-xl-3">
+  <div class="col-12 col-sm-6 col-xl">
     <div class="card h-100 shadow-sm position-relative">
       <div class="card-body text-center">
         <h6 class="card-title">Compliance Risks</h6>
@@ -43,7 +43,7 @@
     </div>
   </div>
 
-  <div class="col-12 col-sm-6 col-xl-3">
+  <div class="col-12 col-sm-6 col-xl">
     <div class="card h-100 shadow-sm position-relative">
       <div class="card-body text-center">
         <h6 class="card-title">Overdue Jobs</h6>
@@ -57,7 +57,7 @@
     </div>
   </div>
 
-  <div class="col-12 col-sm-6 col-xl-3">
+  <div class="col-12 col-sm-6 col-xl">
     <div class="card h-100 shadow-sm position-relative">
       <div class="card-body text-center">
         <h6 class="card-title">New Jobs</h6>
@@ -65,6 +65,20 @@
         <p class="card-text text-muted mb-0">
           <a href="{{ url_for('jobs.index', status='new') }}" class="stretched-link text-reset text-decoration-none">
             Jobs with status New
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-sm-6 col-xl">
+    <div class="card h-100 shadow-sm position-relative">
+      <div class="card-body text-center">
+        <h6 class="card-title">Unassigned Jobs</h6>
+        <div class="display-3 fw-bold">{{ counts.unassigned }}</div>
+        <p class="card-text text-muted mb-0">
+          <a href="{{ url_for('jobs.index', status='unassigned') }}" class="stretched-link text-reset text-decoration-none">
+            Jobs with status Unassigned
           </a>
         </p>
       </div>

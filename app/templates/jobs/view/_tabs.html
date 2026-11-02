@@ -18,6 +18,15 @@
         </a>
     </li>
 
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'follow_up_jobs' %}active{% endif %}"
+            href="{{ url_for('jobs.follow_up_jobs', id=job.id) }}"
+        >
+            Follow Up Jobs
+        </a>
+    </li>
+
     {% if can('files.view') %}
     <li class="nav-item">
         <a
@@ -28,4 +37,4 @@
         </a>
     </li>
     {% endif %}
-</ul>
+</ul>

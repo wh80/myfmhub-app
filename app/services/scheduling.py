@@ -38,11 +38,11 @@ FREQUENCY_MIN_DAYS = {
 
 
 # the job is raised notice_days before it's due. This can be in the past when the due date is close
-def job_creation_date(next_due, notice_days):
-    return next_due - timedelta(days=notice_days)
+def job_creation_date(next_due_by, notice_days):
+    return next_due_by - timedelta(days=notice_days)
 
 
-# how far each frequency moves next_due on. Months and years are calendar steps, not a fixed number of days
+# how far each frequency moves next_due_by on. Months and years are calendar steps, not a fixed number of days
 FREQUENCY_DAYS = {
     'daily': 1,
     'weekly': 7,

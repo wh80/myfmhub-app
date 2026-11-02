@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% set title = 'Complete Job: ' ~ job.description %}
+{% macro errors(field) %}
+{% if field.errors %}
+<div class="invalid-feedback d-block">
+  {% for error in field.errors %}
+  <div>{{ error }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Complete Job: {{ job.description }}</h4>
+  </div>
+
+  <div class="card-body">
+    {% if on_behalf %}
+    <div class="alert alert-info">You're completing this job for {{ job.assignee_name }}.</div>
+    {% endif %}
+    <p>Started at {{ job.started_at | uk_datetime }} (UK time). Enter when the work was done, in UK time, and what was done.</p>
+
+    <form method="POST" id="complete-form">
+      {{ form.hidden_tag() }}
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.completed_at.label(class="form-label") }}
+          {{ form.completed_at(class="form-control" ~ (" is-invalid" if form.completed_at.errors else "")) }}
+          {{ errors(form.completed_at) }}
+        </div>
+        <div class="col-md-6 mb-3">
+          {{ form.completion_comments.label(class="form-label") }}
+          {{ form.completion_comments(class="form-control" ~ (" is-invalid" if form.completion_comments.errors else ""), rows=5) }}
+          {{ errors(form.completion_comments) }}
+        </div>
+      </div>
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-success" form="complete-form">Complete Job</button>
+      <a href="{{ url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

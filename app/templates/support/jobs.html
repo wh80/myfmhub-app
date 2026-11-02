@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% set title = 'Support - Jobs' %}
+{% block body %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{{ url_for('support.index') }}">Support</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Jobs</li>
+  </ol>
+</nav>
+
+<h1 class="mb-4">Jobs</h1>
+
+<p>
+  A job is a piece of work at one of your sites. This guide follows a job from the moment it's raised to
+  the moment it's closed: who can do each step, who's told, and how the job's status moves along.
+</p>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h6 class="card-title">On this page</h6>
+    <ol class="mb-0">
+      <li><a href="#statuses">Job statuses at a glance</a></li>
+      <li><a href="#raising">Where jobs come from</a></li>
+      <li><a href="#approving">Approving or rejecting a new job</a></li>
+      <li><a href="#assigning">Assigning</a></li>
+      <li><a href="#starting">Starting and completing the work</a></li>
+      <li><a href="#closing">Closing the job</a></li>
+      <li><a href="#reassigning">Reassigning and adding helpers</a></li>
+      <li><a href="#follow-up">Follow-up work</a></li>
+      <li><a href="#permissions">Permissions</a></li>
+      <li><a href="#records">What's kept on record</a></li>
+    </ol>
+  </div>
+</div>
+
+<h4 class="mt-4" id="statuses">1. Job statuses at a glance</h4>
+<p>
+  You never set a job's status yourself. MyFmHub moves it on as each step is done. Normally a job goes
+  New, Unassigned, Assigned, In Progress, Completed and then Closed.
+</p>
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th scope="col">Status</th><th scope="col">What it means</th><th scope="col">What moves it on</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>New</td><td>Just raised, waiting for someone to look at it.</td><td>Approve (to Unassigned) or Reject (to Rejected).</td></tr>
+      <tr><td>Rejected</td><td>Turned down when it was new, with a reason. It's finished.</td><td>Reopen (back to New), for jobs that aren't planned.</td></tr>
+      <tr><td>Unassigned</td><td>Approved, waiting to be given to someone.</td><td>Assign.</td></tr>
+      <tr><td>Assigned</td><td>Given to a supplier or a person, waiting for the work to start.</td><td>Start.</td></tr>
+      <tr><td>In Progress</td><td>The work has started.</td><td>Complete.</td></tr>
+      <tr><td>Completed</td><td>The work is done.</td><td>Close.</td></tr>
+      <tr><td>Closed</td><td>Checked and closed. It's finished.</td><td>Reopen (back to Completed), for jobs that aren't planned.</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>
+  Rejected and Closed jobs are never counted as overdue, and they don't appear in the dashboard's
+  compliance figures or the jobs list's "All Open Jobs" status filter.
+</p>
+
+<h4 class="mt-4" id="raising">2. Where jobs come from</h4>
+<ul>
+  <li>
+    <strong>Reactive jobs</strong> are added by hand with <strong>Create</strong> on the Jobs page, for
+    example when something breaks.
+  </li>
+  <li>
+    <strong>Planned jobs</strong> are raised automatically from a job schedule when it falls due. They
+    follow the same steps as any other job, with a few extra rules because each one sets when the next is
+    due. See <a href="{{ url_for('support.job_schedules') }}">Job Schedules</a>.
+  </li>
+</ul>
+<p>Every job starts as <strong>New</strong>.</p>
+
+<h4 class="mt-4" id="approving">3. Approving or rejecting a new job</h4>
+<p>
+  While a job is New, its page shows <strong>Approve</strong> and <strong>Reject</strong> to anyone whose
+  user group has <strong>Approve or reject new jobs</strong>.
+</p>
+<ul>
+  <li><strong>Approve</strong> moves it to Unassigned, ready to be assigned.</li>
+  <li>
+    <strong>Reject</strong> asks for a reason, then moves it to Rejected. The reason and the time are
+    shown on the job.
+  </li>
+  <li>
+    Rejecting a <strong>planned job</strong> also moves its schedule on, so the schedule doesn't wait for
+    a job that won't be done. MyFmHub suggests today plus the schedule's frequency as the next due date;
+    you can bring it forward but not later.
+  </li>
+  <li>
+    A rejected job that isn't planned has a <strong>Reopen</strong> button (with <strong>Reopen
+    jobs</strong>). It goes back to New, and the reason is cleared, so it can be approved or rejected
+    again.
+  </li>
+</ul>
+
+<h4 class="mt-4" id="assigning">4. Assigning</h4>
+<p>
+  An Unassigned job has an <strong>Assign</strong> button. Choose who'll do the work: one supplier or one
+  person in your organisation. You can also choose any number of <strong>helpers</strong>, people working
+  with them. The job moves to <strong>Assigned</strong>, and its page shows who it's assigned to and the
+  helpers. The jobs list's <strong>Assigned To</strong> column shows it too.
+</p>
+<p>Only the supplier or person it's assigned to is told. Helpers aren't, and neither are you when you assign a job to yourself.</p>
+<ul>
+  <li>
+    <strong>People who can sign in</strong> get a notification under the bell at the top of every page.
+    <strong>View</strong> opens the job. The bell's <strong>See all notifications</strong> lists older
+    ones.
+  </li>
+  <li>
+    <strong>Suppliers, and people who can't sign in</strong>, get an email with the job's details. A
+    supplier with no email address isn't told, so let them know yourself.
+  </li>
+</ul>
+
+<h4 class="mt-4" id="starting">5. Starting and completing the work</h4>
+<p>
+  The person the job is assigned to uses the buttons on the job's page. They don't need any jobs
+  permissions for this, just to be able to sign in. Anyone with <strong>Assign jobs, and start and
+  complete them for the assignee</strong> can press the buttons for them too, for example for a supplier
+  who's phoned in.
+</p>
+<ul>
+  <li><strong>Start</strong> (while Assigned) records that the work started now, and moves the job to In Progress.</li>
+  <li>
+    <strong>Complete</strong> (while In Progress) asks for <strong>Completed At</strong>, the date and time
+    the work was done in UK time (it can't be in the future or before the work started, so it can be
+    filled in afterwards), and <strong>Completion Comments</strong>, what was done. The job moves to
+    Completed.
+  </li>
+</ul>
+
+<h4 class="mt-4" id="closing">6. Closing the job</h4>
+<p>
+  Once a job is Completed, someone with <strong>Close jobs</strong> sees a <strong>Close</strong> button
+  on its page. It closes the job today, and the job's Overview shows when and by whom.
+</p>
+<ul>
+  <li>
+    Closing a planned job takes one more step: setting the schedule's next due date. MyFmHub suggests
+    the date the work was completed plus the schedule's frequency. See
+    <a href="{{ url_for('support.job_schedules') }}">Job Schedules</a>.
+  </li>
+  <li>
+    A closed job can be reopened with <strong>Reopen</strong> (with <strong>Reopen jobs</strong>). It
+    goes back to Completed, and its close date and who closed it are cleared. Planned jobs can't be
+    reopened, because closing them has already moved their schedule on.
+  </li>
+</ul>
+
+<h4 class="mt-4" id="reassigning">7. Reassigning and adding helpers</h4>
+<ul>
+  <li>
+    <strong>Reassign</strong> (once a job is assigned, until it's closed) gives the job to a different
+    supplier or person. Its status, dates and helpers stay as they are. The new assignee is told in the
+    same way; the previous one isn't, so let them know yourself.
+  </li>
+  <li>
+    <strong>Add Helpers</strong>, next to the job's helpers on its Overview, adds more people to help.
+    The <i class="bi bi-x-circle" aria-hidden="true"></i> next to a helper's name removes them. Helpers
+    aren't told either way.
+  </li>
+</ul>
+
+<h4 class="mt-4" id="follow-up">8. Follow-up work</h4>
+<p>
+  If a job shows more work is needed, open its <strong>Follow Up Jobs</strong> tab and use
+  <strong>Create Follow Up Job</strong> (with <strong>Jobs: Create</strong>), at any stage. The new job
+  starts at the same site, building and zone, which you can change. Saving it creates a New job with the
+  source <strong>Follow Up</strong>, which goes through the usual steps.
+</p>
+<p>
+  The tab lists the job's follow-up jobs, and each follow-up job's Overview shows its
+  <strong>Parent Job</strong>.
+</p>
+
+<h4 class="mt-4" id="permissions">9. Permissions</h4>
+<p>Each step needs a permission in your user group (set on the User Groups page):</p>
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th scope="col">To do this</th><th scope="col">You need</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>See jobs</td><td>Jobs: View (or the job being assigned to you)</td></tr>
+      <tr><td>Approve or reject new jobs</td><td>Approve or reject new jobs</td></tr>
+      <tr><td>Assign, reassign, add and remove helpers, and start and complete a job for the person it's assigned to</td><td>Assign jobs, and start and complete them for the assignee</td></tr>
+      <tr><td>Start and complete a job assigned to you</td><td>Nothing extra: just being able to sign in</td></tr>
+      <tr><td>Create a follow-up job</td><td>Jobs: Create</td></tr>
+      <tr><td>Close a job</td><td>Close jobs</td></tr>
+      <tr><td>Reopen a closed or rejected job</td><td>Reopen jobs</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h4 class="mt-4" id="records">10. What's kept on record</h4>
+<ul>
+  <li>
+    The job's Overview shows who it's assigned to and the helpers, and when it was approved or rejected,
+    assigned, started, completed (with the completion comments), and closed and by whom.
+  </li>
+  <li>
+    Who a job is assigned to is kept for audit, so a supplier or person with jobs assigned to them can't
+    be deleted.
+  </li>
+</ul>
+{% endblock body %}

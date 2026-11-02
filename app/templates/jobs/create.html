@@ -3,7 +3,10 @@
 {% from "_location_fields.html" import location_fields %}
 {% from "_number_fields.html" import money_field %}
 {% from "_reference_fields.html" import reference_select %} {% block body %}
-<h3>Create Job</h3>
+<h3>Create {{ 'Follow Up ' if parent }}Job</h3>
+{% if parent %}
+<div class="alert alert-info">Follow-up work for job <a href="{{ url_for('jobs.view', id=parent.id) }}">{{ parent.description }}</a>.</div>
+{% endif %}
 
 <form method="POST">
   {{ form.hidden_tag() }}
@@ -40,11 +43,11 @@
     {{ reference_select(form.job_category_id) }}
 
     <div class="col-md-6 mb-3">
-      {{ form.due.label(class="form-label") }} {{
-      form.due(class="form-control" ~ (" is-invalid" if
-      form.due.errors else "")) }} {% if form.due.errors %}
+      {{ form.due_by.label(class="form-label") }} {{
+      form.due_by(class="form-control" ~ (" is-invalid" if
+      form.due_by.errors else "")) }} {% if form.due_by.errors %}
       <div class="invalid-feedback d-block">
-        {% for error in form.due.errors %}
+        {% for error in form.due_by.errors %}
         <div>{{ error }}</div>
         {% endfor %}
       </div>

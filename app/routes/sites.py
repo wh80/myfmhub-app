@@ -3,6 +3,7 @@ from app import db
 from app.forms import SiteForm
 from app.models import Site, Building, Asset, Job, JobSchedule, Person
 from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, name_taken, files_tab, related, related_page
+from app.services.addresses import clean_address
 from app.services.exports import export_response
 sites_bp = Blueprint('sites', __name__, url_prefix="/sites")
 sites_bp.before_request(require_login)
@@ -73,12 +74,7 @@ def create():
     if form.validate_on_submit() and check_name(form):
         site = Site(
             name=form.name.data,
-            address_line_one=form.address_line_one.data,
-            address_line_two=form.address_line_two.data,
-            address_line_three=form.address_line_three.data,
-            town_city=form.town_city.data,
-            county=form.county.data,
-            post_code=form.post_code.data,
+            address=clean_address(form.address.data),
             telephone=form.telephone.data,
             main_contact_id=parse_uuid(form.main_contact_id.data),
             organisation_id=g.person.organisation_id,
@@ -106,12 +102,7 @@ def edit(id):
     if form.validate_on_submit() and check_name(form, site):
         
         site.name=form.name.data
-        site.address_line_one=form.address_line_one.data
-        site.address_line_two=form.address_line_two.data
-        site.address_line_three=form.address_line_three.data
-        site.town_city=form.town_city.data
-        site.county=form.county.data
-        site.post_code=form.post_code.data
+        site.address=clean_address(form.address.data)
         site.telephone=form.telephone.data
         site.main_contact_id=parse_uuid(form.main_contact_id.data)
         

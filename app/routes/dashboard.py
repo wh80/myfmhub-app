@@ -1,6 +1,6 @@
 from datetime import timedelta
 from flask import Blueprint, render_template, redirect, url_for, g
-from app.models import Job
+from app.models import Job, JOB_FINISHED_STATUSES
 from app.routes.helpers import login_required, org_query
 from app.services.jobs import overdue_conditions
 from app.services.permissions import can
@@ -21,9 +21,10 @@ def index():
 
     counts = {
         'overdue_compliance': jobs.filter(statutory, *overdue_conditions(today)).count(),
-        'compliance_risks': jobs.filter(statutory, Job.due >= today, Job.due <= week_ahead, Job.status != 'closed').count(),
+        'compliance_risks': jobs.filter(statutory, Job.due_by >= today, Job.due_by <= week_ahead, Job.status.notin_(JOB_FINISHED_STATUSES)).count(),
         'overdue': jobs.filter(*overdue_conditions(today)).count(),
         'new': jobs.filter(Job.status == 'new').count(),
+        'unassigned': jobs.filter(Job.status == 'unassigned').count(),
     }
 
     return render_template('dashboard/index.html', counts=counts, today=today, week_ahead=week_ahead)

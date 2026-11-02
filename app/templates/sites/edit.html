@@ -19,74 +19,12 @@
     </div>
 
     <div class="col-md-6 mb-3">
-      {{ form.address_line_one.label(class="form-label") }} {{
-      form.address_line_one(class="form-control" ~ (" is-invalid" if
-      form.address_line_one.errors else "")) }} {% if form.address_line_one.errors
-      %}
+      {{ form.address.label(class="form-label") }}
+      {{ form.address(class="form-control" ~ (" is-invalid" if form.address.errors else ""), rows=4) }}
+      <div class="form-text">Put each line of the address on its own line.</div>
+      {% if form.address.errors %}
       <div class="invalid-feedback d-block">
-        {% for error in form.address_line_one.errors %}
-        <div>{{ error }}</div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="col-md-6 mb-3">
-      {{ form.address_line_two.label(class="form-label") }} {{
-      form.address_line_two(class="form-control" ~ (" is-invalid" if
-      form.address_line_two.errors else "")) }} {% if form.address_line_two.errors
-      %}
-      <div class="invalid-feedback d-block">
-        {% for error in form.address_line_two.errors %}
-        <div>{{ error }}</div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="col-md-6 mb-3">
-      {{ form.address_line_three.label(class="form-label") }} {{
-      form.address_line_three(class="form-control" ~ (" is-invalid" if
-      form.address_line_three.errors else "")) }} {% if form.address_line_three.errors
-      %}
-      <div class="invalid-feedback d-block">
-        {% for error in form.address_line_three.errors %}
-        <div>{{ error }}</div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="col-md-6 mb-3">
-      {{ form.town_city.label(class="form-label") }} {{
-      form.town_city(class="form-control" ~ (" is-invalid" if
-      form.town_city.errors else "")) }} {% if form.town_city.errors %}
-      <div class="invalid-feedback d-block">
-        {% for error in form.town_city.errors %}
-        <div>{{ error }}</div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="col-md-6 mb-3">
-      {{ form.county.label(class="form-label") }} {{
-      form.county(class="form-control" ~ (" is-invalid" if
-      form.county.errors else "")) }} {% if form.county.errors %}
-      <div class="invalid-feedback d-block">
-        {% for error in form.county.errors %}
-        <div>{{ error }}</div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-
-    <div class="col-md-6 mb-3">
-      {{ form.post_code.label(class="form-label") }} {{
-      form.post_code(class="form-control" ~ (" is-invalid" if
-      form.post_code.errors else "")) }} {% if form.post_code.errors %}
-      <div class="invalid-feedback d-block">
-        {% for error in form.post_code.errors %}
+        {% for error in form.address.errors %}
         <div>{{ error }}</div>
         {% endfor %}
       </div>

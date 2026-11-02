@@ -21,7 +21,7 @@
 <h4 class="mt-4">Setting up a schedule</h4>
 <p>When you create a job schedule you give it:</p>
 <ul>
-  <li><strong>Next Due</strong>: the date the next job is due.</li>
+  <li><strong>Next Due By</strong>: the date the next job is due.</li>
   <li><strong>Frequency</strong>: how often the work repeats.</li>
   <li>
     <strong>Notice Days</strong>: how many days before the due date the job is raised, so there's time
@@ -49,31 +49,26 @@
 <h4 class="mt-4">How jobs are raised</h4>
 <p>
   Every day, MyFmHub checks all job schedules. A schedule whose Next Job Creation date is today, or has
-  already passed, has a new job raised, due on the schedule's Next Due date.
+  already passed, has a new job raised, due on the schedule's Next Due By date.
 </p>
 <p>
   The Next Job Creation date can already be in the past when you save a schedule, if the due date is
   closer than the notice days. The job is then raised the next time schedules are checked.
 </p>
 <p>
-  A schedule only has one job open at a time. While that job is open, the schedule's Next Due date
+  A schedule only has one job open at a time. While that job is open, the schedule's Next Due By date
   stays the same and its Next Job Creation shows <strong>Pending current job closure</strong>. No more
   jobs are raised from it until the job is closed.
 </p>
 
 <h4 class="mt-4">Closing a job from a schedule</h4>
-<p>Closing a planned job takes two steps, and the job is only closed once both are done:</p>
-<ol>
-  <li>
-    Enter the date the job was closed. It can't be in the future, or before the date the job was raised.
-    This applies to every job, not just planned ones.
-  </li>
-  <li>
-    Set when the next job is due. MyFmHub suggests the close date plus the schedule's frequency, and you
-    can bring this date forward if needed. When you confirm, the job is closed and the schedule's
-    Next Due and Next Job Creation dates are set.
-  </li>
-</ol>
+<p>
+  Like any job, a planned job can only be closed once it's completed. Its Close button then asks one more thing: when the next job is due. MyFmHub
+  suggests the date the work was completed plus the schedule's frequency, so the schedule follows when the
+  work was actually done, however long the job took to close. You can bring this date forward if needed.
+  When you confirm, the job is closed today and the schedule's Next Due By and Next Job Creation dates are
+  set.
+</p>
 <p>The next due date:</p>
 <ul>
   <li>
@@ -83,12 +78,20 @@
   <li>can't be in the past</li>
   <li>
     can only be today if the suggested date has already passed, for example when a weekly job is closed
-    with a close date a month ago
+    a month after the work was completed
   </li>
 </ul>
 <p>
   If you leave the page before confirming, nothing is saved and the job stays open. Once the job is
   closed you can change the schedule's dates by editing the schedule.
+</p>
+
+<h4 class="mt-4">Rejecting a job from a schedule</h4>
+<p>
+  A new planned job can be rejected, for example when the work isn't needed this time. The schedule is
+  waiting for that job, so rejecting it asks when the next job is due, in the same way as closing, but
+  starting from the day it's rejected: MyFmHub suggests today plus the schedule's frequency. The job is
+  rejected and the schedule moved on together. A rejected planned job can't be reopened.
 </p>
 
 <h4 class="mt-4" id="editing">Editing a schedule</h4>
@@ -98,7 +101,7 @@
 <p>
   This makes sure a schedule never has more than one open job. Editing the dates while a job is open
   could raise a second job for the same schedule, and the jobs would no longer follow each other in
-  sequence: each job's close date sets when the next one is due, so two jobs open at once would break
+  sequence: closing each job sets when the next one is due, so two jobs open at once would break
   that chain.
 </p>
 
@@ -110,7 +113,7 @@
   schedule before the work starts, or to pause one.
 </p>
 <p>
-  To make an inactive schedule active again, edit it and tick Active. Its Next Due date must be in
+  To make an inactive schedule active again, edit it and tick Active. Its Next Due By date must be in
   the future (tomorrow or later) when you do, so it doesn't immediately raise a job that's already due.
   Next Job Creation is then worked out from the new date in the usual way.
 </p>
@@ -121,7 +124,7 @@
 
 <h4 class="mt-4" id="planned-jobs">Rules for planned jobs</h4>
 <p>
-  A job raised from a schedule is a planned job. Each one's close date sets when the next is due, so
+  A job raised from a schedule is a planned job. Closing each one sets when the next is due, so
   these rules keep the jobs in sequence:
 </p>
 <ul>
@@ -131,12 +134,12 @@
   </li>
   <li>
     <strong>An open planned job can't be deleted.</strong> The schedule is waiting for that job to
-    close before it raises the next one, so deleting it would stop the schedule. Close it instead.
-    Once it's closed it can be deleted.
+    close before it raises the next one, so deleting it would stop the schedule. Close or reject it
+    instead. Once it's closed or rejected it can be deleted.
   </li>
   <li>
-    <strong>A closed planned job can't be reopened.</strong> Closing it set the schedule's next due
-    date, so reopening it would leave the schedule with two open jobs. If more work is needed,
+    <strong>A closed or rejected planned job can't be reopened.</strong> Closing or rejecting it set the
+    schedule's next due date, so reopening it would leave the schedule with two open jobs. If more work is needed,
     create a new job.
   </li>
 </ul>
@@ -155,7 +158,7 @@
 </p>
 <ul>
   <li>On 24 November a job is raised, due 1 December. The schedule's Next Job Creation shows Pending current job closure.</li>
-  <li>The job is closed with a close date of 28 November. MyFmHub suggests 28 December as the next due date.</li>
+  <li>The work is completed on 28 November, and someone clicks Close on 2 December. MyFmHub suggests 28 December (the completed date plus a month) as the next due date.</li>
   <li>
     You accept 28 December. The job is closed, and the schedule is next due on 28 December, with its
     next job raised on 21 December.

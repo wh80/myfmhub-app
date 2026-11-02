@@ -17,7 +17,7 @@ JOB_SCHEDULE_COLUMNS = [
     ('building', 'Building', lambda job_schedule: job_schedule.building.name if job_schedule.building else None),
     ('zone', 'Zone', lambda job_schedule: job_schedule.zone.name if job_schedule.zone else None),
     ('category', 'Job Category', lambda job_schedule: job_schedule.job_category.description if job_schedule.job_category else None),
-    ('next_due', 'Next Due', lambda job_schedule: job_schedule.next_due),
+    ('next_due_by', 'Next Due By', lambda job_schedule: job_schedule.next_due_by),
     ('frequency', 'Frequency', lambda job_schedule: job_schedule.frequency_label),
     ('next_job_creation', 'Next Job Creation', lambda job_schedule: job_schedule.next_job_creation_label),
     ('statutory', 'Statutory', lambda job_schedule: job_schedule.statutory_compliance),
@@ -27,8 +27,8 @@ JOB_SCHEDULE_COLUMNS = [
 # making an inactive schedule active again needs a next due date in the future, so it doesn't
 # start by raising a job that's already due. Adds the error to the form
 def check_reactivation(form, job_schedule):
-    if not job_schedule.is_active and form.is_active.data and form.next_due.data <= uk_today():
-        form.next_due.errors.append('To make the schedule active again, the next due date must be in the future.')
+    if not job_schedule.is_active and form.is_active.data and form.next_due_by.data <= uk_today():
+        form.next_due_by.errors.append('To make the schedule active again, the next due date must be in the future.')
         return False
     return True
 
@@ -70,10 +70,10 @@ def filtered_job_schedules():
 
     # the range includes both ends
     if next_due_from:
-        query = query.filter(JobSchedule.next_due >= next_due_from)
+        query = query.filter(JobSchedule.next_due_by >= next_due_from)
 
     if next_due_to:
-        query = query.filter(JobSchedule.next_due <= next_due_to)
+        query = query.filter(JobSchedule.next_due_by <= next_due_to)
 
     query, location = filter_location(query, JobSchedule)
     query, job_category_id = filter_reference(query, JobSchedule, 'job_category_id')
@@ -131,10 +131,10 @@ def create():
         job_schedule = JobSchedule(
             description=form.description.data,
             work_required=form.work_required.data,
-            next_due=form.next_due.data,
+            next_due_by=form.next_due_by.data,
             frequency=form.frequency.data,
             notice_days=form.notice_days.data,
-            next_job_creation_date=job_creation_date(form.next_due.data, form.notice_days.data),
+            next_job_creation_date=job_creation_date(form.next_due_by.data, form.notice_days.data),
             statutory_compliance=form.statutory_compliance.data,
             is_active=form.is_active.data,
             site_id=form.site_id.data,
@@ -185,11 +185,11 @@ def edit(id):
         
         job_schedule.description=form.description.data
         job_schedule.work_required=form.work_required.data
-        job_schedule.next_due=form.next_due.data
+        job_schedule.next_due_by=form.next_due_by.data
         job_schedule.frequency=form.frequency.data
         job_schedule.notice_days=form.notice_days.data
         # there's no open job (checked above), so this also restarts a schedule whose open job was deleted
-        job_schedule.next_job_creation_date=job_creation_date(job_schedule.next_due, job_schedule.notice_days)
+        job_schedule.next_job_creation_date=job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
         job_schedule.statutory_compliance=form.statutory_compliance.data
         job_schedule.is_active=form.is_active.data
         job_schedule.site_id=form.site_id.data

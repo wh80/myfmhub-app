@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% set title = ('Reassign Job: ' if reassign else 'Assign Job: ') ~ job.description %}
+{% macro errors(field) %}
+{% if field.errors %}
+<div class="invalid-feedback d-block">
+  {% for error in field.errors %}
+  <div>{{ error }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">{{ 'Reassign' if reassign else 'Assign' }} Job: {{ job.description }}</h4>
+  </div>
+
+  <div class="card-body">
+    {% if reassign %}
+    <p>
+      This job is assigned to <strong>{{ job.assignee_name }}</strong>. Choose a supplier or a person to give it to
+      instead. Its status and helpers stay as they are. They'll be told, and {{ job.assignee_name }} won't be, so let them know yourself.
+    </p>
+    {% else %}
+    <p>
+      Choose the supplier or person who'll do the job, and anyone helping them. Only they are told: people who can sign
+      in get a notification, and suppliers and everyone else an email. Helpers aren't told.
+    </p>
+    {% endif %}
+
+    <form method="POST" id="assign-form">
+      {{ form.hidden_tag() }}
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.assignee.label(class="form-label") }}
+          {# the choices are grouped: values are supplier:<id> or person:<id> #}
+          <select name="assignee" id="assignee" class="form-select{{ ' is-invalid' if form.assignee.errors }}">
+            <option value="">-</option>
+            {% for group, options in [('Suppliers', suppliers), ('People', people)] if options %}
+            <optgroup label="{{ group }}">
+              {% for value, label in options %}
+              <option value="{{ value }}"{{ ' selected' if form.assignee.data == value }}>{{ label }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endfor %}
+          </select>
+          {{ errors(form.assignee) }}
+        </div>
+
+        {% if form.helper_ids %}
+        <div class="col-md-6 mb-3">
+          {{ form.helper_ids.label(class="form-label") }}
+          {{ form.helper_ids(class="form-select" ~ (" is-invalid" if form.helper_ids.errors else "")) }}
+          <div class="form-text">Optional. People helping on the job.</div>
+          {{ errors(form.helper_ids) }}
+        </div>
+        {% endif %}
+      </div>
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-success" form="assign-form">{{ 'Reassign' if reassign else 'Assign' }}</button>
+      <a href="{{ url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

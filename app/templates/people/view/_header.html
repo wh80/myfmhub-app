@@ -17,7 +17,11 @@
             Edit
         </a>
         {% endif %}
-        {% if can('people.delete') and can_manage and person.id != g.person.id %}
+        {% if can('people.delete') and can_manage and person.id != g.person.id and person.assigned_jobs %}
+        <button type="button" class="btn btn-danger btn-sm" disabled title="A person with jobs assigned to them can't be deleted. They're kept for audit purposes">
+            Delete
+        </button>
+        {% elif can('people.delete') and can_manage and person.id != g.person.id %}
         <a
             href="{{url_for('people.delete', id=person.id)}}"
             class="btn btn-danger btn-sm"

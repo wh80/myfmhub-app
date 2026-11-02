@@ -25,16 +25,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
 // Searchable selects: every .form-select becomes a Tom Select (from the CDN in base.html), so you can
 // type to find a site, person, category... The native select stays in the form and is what's
-// submitted. Add data-no-search to a select to leave it plain. Runs before the location selects below
+// submitted. Add data-no-search to a select to leave it plain. Runs before the location selects below.
+// A multiple select gets a remove button on each chosen item
 document.addEventListener("DOMContentLoaded", function () {
   if (typeof TomSelect === "undefined") return; // the CDN didn't load: plain selects still work
-  document.querySelectorAll("select.form-select:not([data-no-search]):not([multiple])").forEach((select) => {
+  document.querySelectorAll("select.form-select:not([data-no-search])").forEach((select) => {
     new TomSelect(select, {
       // the blank option ("-", "All sites") is a real choice
       allowEmptyOption: true,
       // show every option, not just the first 50
       maxOptions: null,
       create: false,
+      plugins: select.multiple ? ["remove_button"] : [],
     });
   });
 });

@@ -41,15 +41,15 @@
 
     <div class="col-md-6 mb-3">
       {% if job.source == 'planned' %}
-      <label class="form-label" for="due">Due</label>
-      <input type="text" id="due" class="form-control" value="{{ job.due | date }}" disabled />
+      <label class="form-label" for="due_by">Due By</label>
+      <input type="text" id="due_by" class="form-control" value="{{ job.due_by | date }}" disabled />
       <div class="form-text">Set by the job schedule. A planned job's due date can't be changed.</div>
       {% else %}
-      {{ form.due.label(class="form-label") }} {{
-      form.due(class="form-control" ~ (" is-invalid" if
-      form.due.errors else "")) }} {% if form.due.errors %}
+      {{ form.due_by.label(class="form-label") }} {{
+      form.due_by(class="form-control" ~ (" is-invalid" if
+      form.due_by.errors else "")) }} {% if form.due_by.errors %}
       <div class="invalid-feedback d-block">
-        {% for error in form.due.errors %}
+        {% for error in form.due_by.errors %}
         <div>{{ error }}</div>
         {% endfor %}
       </div>

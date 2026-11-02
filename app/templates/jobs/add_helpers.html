@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% set title = 'Add Helpers: ' ~ job.description %}
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Add Helpers: {{ job.description }}</h4>
+  </div>
+
+  <div class="card-body">
+    <p>Choose people to help {{ job.assignee_name }} on this job. Helpers aren't told.</p>
+
+    <form method="POST" id="helpers-form">
+      {{ form.hidden_tag() }}
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.helper_ids.label(class="form-label") }}
+          {{ form.helper_ids(class="form-select" ~ (" is-invalid" if form.helper_ids.errors else "")) }}
+          {% if form.helper_ids.errors %}
+          <div class="invalid-feedback d-block">
+            {% for error in form.helper_ids.errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-success" form="helpers-form">Add Helpers</button>
+      <a href="{{ url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body %}
