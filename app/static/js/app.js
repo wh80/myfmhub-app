@@ -24,68 +24,21 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 // Searchable selects: every .form-select becomes a Tom Select (from the CDN in base.html), so you can
-// type to find a site, person, category... The native select stays in the form and is what's
-// submitted. Add data-no-search to a select to leave it plain. Runs before the location selects below.
-// A multiple select gets a remove button on each chosen item
+// type to find a location, person, category... The native select stays in the form and is what's
+// submitted. Add data-no-search to a select to leave it plain.
+// Every select types its search into a box at the top of the dropdown (dropdown_input), so what you type
+// never sits next to the current choices in the field. A multiple select also gets a remove button on each chosen item
 document.addEventListener("DOMContentLoaded", function () {
   if (typeof TomSelect === "undefined") return; // the CDN didn't load: plain selects still work
   document.querySelectorAll("select.form-select:not([data-no-search])").forEach((select) => {
     new TomSelect(select, {
-      // the blank option ("-", "All sites") is a real choice
+      // the blank option ("-", "All locations") is a real choice
       allowEmptyOption: true,
       // show every option, not just the first 50
       maxOptions: null,
       create: false,
-      plugins: select.multiple ? ["remove_button"] : [],
+      plugins: select.multiple ? ["remove_button", "dropdown_input"] : ["dropdown_input"],
     });
-  });
-});
-
-// Site > building > zone selects (templates/_location_fields.html), on forms and index filters.
-// Every building and zone option has its parent's id as data-parent. Only the ones belonging to
-// the selected site (or building) are shown, and a choice that no longer fits goes back to blank
-document.addEventListener("DOMContentLoaded", function () {
-  // replace a select's options, and its Tom Select's (if it has one) to match
-  function setOptions(select, options, value) {
-    const tomSelect = select.tomselect;
-    if (tomSelect) {
-      tomSelect.clear(true);
-      tomSelect.clearOptions(() => false);
-    }
-    select.replaceChildren(...options);
-    select.value = value;
-    if (tomSelect) {
-      // re-reads the options and the selected one from the native select, without a change event
-      tomSelect.sync();
-    }
-  }
-
-  document.querySelectorAll('select[data-location="site"]').forEach((site) => {
-    const scope = site.closest("form") || document;
-    const building = scope.querySelector('select[data-location="building"]');
-    const zone = scope.querySelector('select[data-location="zone"]');
-    if (!building || !zone) return;
-
-    const allOptions = new Map([
-      [building, Array.from(building.options)],
-      [zone, Array.from(zone.options)],
-    ]);
-
-    function narrow(select, parentId) {
-      const current = select.value;
-      // the blank option has no data-parent, so it's always kept
-      const options = allOptions.get(select).filter((option) => !option.dataset.parent || option.dataset.parent === parentId);
-      setOptions(select, options, options.some((option) => option.value === current) ? current : "");
-    }
-
-    function update() {
-      narrow(building, site.value);
-      narrow(zone, building.value);
-    }
-
-    site.addEventListener("change", update);
-    building.addEventListener("change", update);
-    update();
   });
 });
 

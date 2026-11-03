@@ -1,0 +1,48 @@
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'overview' %}active{% endif %}"
+            href="{{ url_for('locations.view', id=location.id) }}"
+        >
+            Overview
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'jobs' %}active{% endif %}"
+            href="{{ url_for('locations.jobs', id=location.id) }}"
+        >
+            Jobs
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'job_schedules' %}active{% endif %}"
+            href="{{ url_for('locations.job_schedules', id=location.id) }}"
+        >
+           Job Schedules
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'assets' %}active{% endif %}"
+            href="{{ url_for('locations.assets', id=location.id) }}"
+        >
+            Assets
+        </a>
+    </li>
+
+    {% if can('files.view') %}
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
+            href="{{ url_for('locations.files', id=location.id) }}"
+        >
+            Files
+        </a>
+    </li>
+    {% endif %}
+</ul>

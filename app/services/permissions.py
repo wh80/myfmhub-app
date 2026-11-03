@@ -3,9 +3,7 @@ from app.models import Person, UserGroup, UserGroupPermission
 
 # the resources and actions groups can be given. Keys are '<resource>.<action>', for example 'jobs.delete'
 RESOURCES = [
-    ('sites', 'Sites'),
-    ('buildings', 'Buildings'),
-    ('zones', 'Zones'),
+    ('locations', 'Locations'),
     ('assets', 'Assets'),
     ('jobs', 'Jobs'),
     ('job_schedules', 'Job Schedules'),
@@ -62,9 +60,7 @@ def _resource(blueprint, view=(), edit=()):
 # blueprint that isn't listed here is refused, so a new route has to be added before it works.
 # Related tabs and downloads need view, and linking or unlinking needs edit on the record you're on
 ENDPOINT_PERMISSIONS = {
-    **_resource('sites', view=['export', 'buildings', 'assets', 'jobs', 'job_schedules']),
-    **_resource('buildings', view=['zones', 'assets', 'jobs', 'job_schedules']),
-    **_resource('zones', view=['assets', 'jobs', 'job_schedules']),
+    **_resource('locations', view=['export', 'assets', 'jobs', 'job_schedules']),
     **_resource('assets', view=['export', 'sub_assets', 'jobs', 'job_schedules'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_job_schedules', 'unlink_job_schedules']),
     **_resource('jobs', view=['export', 'assets', 'follow_up_jobs'], edit=['link_assets', 'unlink_assets']),
     'jobs.approve': 'jobs.approve',
@@ -79,15 +75,15 @@ ENDPOINT_PERMISSIONS = {
     **_resource('suppliers', view=['export']),
     **_resource('people', view=['export', 'assets'], edit=['resend_invite']),
     **{f'user_groups.{name}': 'user_groups.manage' for name in ['index', 'create', 'view', 'edit', 'delete']},
-    **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'view', 'undo']},
+    **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'template_csv_file', 'view', 'undo']},
     'exports.index': 'exports.manage',
     **{f'reference_data.{name}': 'reference_data.manage' for name in ['index', 'items', 'edit', 'delete', 'bulk']},
     # Download all files: these also check files.view
     'exports.request_files': 'exports.manage',
     'exports.download_files': 'exports.manage',
-    **{f'my_organisation.{name}': 'organisation.manage' for name in ['view', 'delete', 'delete_requested', 'confirm_delete']},
+    **{f'my_organisation.{name}': 'organisation.manage' for name in ['view', 'edit', 'delete', 'delete_requested', 'confirm_delete']},
     # each record's Files tab needs view on the record, and its route checks files.view too
-    **{f'{resource}.files': f'{resource}.view' for resource in ['sites', 'buildings', 'zones', 'assets', 'jobs', 'job_schedules', 'people', 'suppliers']},
+    **{f'{resource}.files': f'{resource}.view' for resource in ['locations', 'assets', 'jobs', 'job_schedules', 'people', 'suppliers']},
     # files.create, link and unlink also check edit on the record the file is added to or removed from
     'files.index': 'files.view',
     'files.view': 'files.view',

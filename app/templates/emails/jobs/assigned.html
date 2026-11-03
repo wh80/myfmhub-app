@@ -10,9 +10,7 @@
     <table cellpadding="6" style="border-collapse: collapse; margin-bottom: 16px;">
         <tr><td style="color: #6c757d;">Description</td><td><strong>{{ job.description }}</strong></td></tr>
         <tr><td style="color: #6c757d; vertical-align: top;">Work Required</td><td style="white-space: pre-line;">{{ job.work_required }}</td></tr>
-        <tr><td style="color: #6c757d;">Site</td><td>{{ job.site.name }}</td></tr>
-        <tr><td style="color: #6c757d;">Building</td><td>{{ job.building.name if job.building else '-' }}</td></tr>
-        <tr><td style="color: #6c757d;">Zone</td><td>{{ job.zone.name if job.zone else '-' }}</td></tr>
+        <tr><td style="color: #6c757d;">Location</td><td>{{ job.location.materialised_path }}</td></tr>
         <tr><td style="color: #6c757d;">Due By</td><td>{{ job.due_by | date }}</td></tr>
     </table>
     <p>Please contact {{ organisation_name }} if you have any questions about it.</p>

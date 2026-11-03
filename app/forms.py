@@ -10,26 +10,28 @@ from app.services.files import FILE_TYPES, MAX_FILE_MB
 def strip(value):
     return value.strip() if value else value
 
-# the building and zone selects: an id as a string, or '' for none (rather than 'None')
+# optional selects: an id as a string, or '' for none (rather than 'None')
 def optional_id(value):
     return str(value) if value else ''
 
-class SiteForm(FlaskForm):
+class LocationForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
+    # optional: blank makes a top-level location. Choices are set by set_parent_choices in routes/locations.py,
+    # and path_problem() refuses a duplicate path or a move inside itself
+    parent_id = SelectField('Parent Location', coerce=optional_id, validators=[Optional()])
     address = TextAreaField('Address', validators=[Optional(), Length(max=MAX_ADDRESS_LENGTH)])
-    telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
-    # anyone in the organisation: choices are set by set_main_contact_choices in routes/sites.py
+    telephone = StringField('Telephone', validators=[Optional(), Length(max=100)], filters=[strip])
+    # an optional category: choices are set by set_reference_choices
+    location_category_id = SelectField('Location Category', coerce=optional_id, validators=[Optional()])
+    # anyone in the organisation: choices are set by set_main_contact_choices in routes/locations.py
     main_contact_id = SelectField('Main Contact', coerce=optional_id, validators=[Optional()])
 
 class JobForm(FlaskForm):
-    description = StringField('Description', validators=[DataRequired(), Length(max=120)])
+    description = StringField('Description', validators=[DataRequired(), Length(max=100)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
     due_by = DateField('Due By', validators=[Optional()])
-    site_id = SelectField('Site', validators=[DataRequired()])
-    # optional, and dependent: choices are set by set_location_choices, and check_location makes
-    # sure the building is in the site and the zone in the building
-    building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
-    zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
+    # choices are the organisation's locations, by path (set_location_choices)
+    location_id = SelectField('Location', coerce=optional_id, validators=[DataRequired(message='Choose a location.')])
     # an optional category or condition: choices are set by set_reference_choices
     job_category_id = SelectField('Job Category', coerce=optional_id, validators=[Optional()])
     estimated_cost = DecimalField('Estimated Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
@@ -128,29 +130,23 @@ class AssetForm(FlaskForm):
     estimated_replacement_date = DateField('Estimated Replacement Date', validators=[Optional()])
     estimated_replacement_cost = DecimalField('Estimated Replacement Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
     
-    site_id = SelectField('Site', validators=[DataRequired()])
-    # optional, and dependent: choices are set by set_location_choices, and check_location makes
-    # sure the building is in the site and the zone in the building
-    building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
-    zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
+    # choices are the organisation's locations, by path (set_location_choices)
+    location_id = SelectField('Location', coerce=optional_id, validators=[DataRequired(message='Choose a location.')])
     # an optional category or condition: choices are set by set_reference_choices
     asset_category_id = SelectField('Asset Category', coerce=optional_id, validators=[Optional()])
     # changing it sets condition_set to today (set_condition)
     asset_condition_id = SelectField('Asset Condition', coerce=optional_id, validators=[Optional()])
 
 class JobScheduleForm(FlaskForm):
-    description = StringField('Description', validators=[DataRequired(), Length(max=120)])
+    description = StringField('Description', validators=[DataRequired(), Length(max=100)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
     next_due_by = DateField('Next Due By', validators=[DataRequired()])
     frequency = SelectField('Frequency', choices=[('', '--- Select Frequency ---')] + FREQUENCIES, validators=[DataRequired()])
     notice_days = IntegerField('Notice Days', description='How many days ahead of due date the job is created', validators=[InputRequired(), NumberRange(min=0, max=365)])
     statutory_compliance = BooleanField('Statutory Compliance')
     is_active = BooleanField('Active', default=True, description="Inactive schedules don't raise any jobs")
-    site_id = SelectField('Site', validators=[DataRequired()])
-    # optional, and dependent: choices are set by set_location_choices, and check_location makes
-    # sure the building is in the site and the zone in the building
-    building_id = SelectField('Building', coerce=optional_id, validators=[Optional()])
-    zone_id = SelectField('Zone', coerce=optional_id, validators=[Optional()])
+    # choices are the organisation's locations, by path (set_location_choices)
+    location_id = SelectField('Location', coerce=optional_id, validators=[DataRequired(message='Choose a location.')])
     # an optional category or condition: choices are set by set_reference_choices
     job_category_id = SelectField('Job Category', coerce=optional_id, validators=[Optional()])
     estimated_cost = DecimalField('Estimated Cost', places=2, validators=[Optional(), NumberRange(min=0, max=9999999999.99)])
@@ -163,24 +159,21 @@ class JobScheduleForm(FlaskForm):
         if field.data is not None and min_days is not None and field.data > min_days:
             raise ValidationError(f"Notice can't be longer than the time between jobs ({min_days} days for {FREQUENCY_LABELS[self.frequency.data].lower()}).")
 
-# the site (or building, for a zone) comes from the page it's created from, and never changes
-class BuildingForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
-    # changing it sets condition_set to today (set_condition)
-    building_condition_id = SelectField('Building Condition', coerce=optional_id, validators=[Optional()])
-
-class ZoneForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
-
 class SupplierForm(FlaskForm):
-    name = StringField('Name', validators=[DataRequired(), Length(max=120)])
+    name = StringField('Name', validators=[DataRequired(), Length(max=100)])
     address = TextAreaField('Address', validators=[Optional(), Length(max=MAX_ADDRESS_LENGTH)])
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)])
     email = EmailField('Email', validators=[Optional(), Email(), Length(max=255)], filters=[strip])
     supplier_category_id = SelectField('Supplier Category', coerce=optional_id, validators=[Optional()])
 
+# My Organisation's Edit page. Names don't have to be unique: other organisations' names are none of its business
+class OrganisationForm(FlaskForm):
+    name = StringField('Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
+    address = TextAreaField('Address', validators=[Optional(), Length(max=MAX_ADDRESS_LENGTH)])
+    telephone = StringField('Telephone', validators=[Optional(), Length(max=100)], filters=[strip])
+
 class RegisterForm(FlaskForm):
-    organisation_name = StringField('Organisation Name', validators=[DataRequired(), Length(max=100)])
+    organisation_name = StringField('Organisation Name', validators=[DataRequired(), Length(max=100)], filters=[strip])
     first_name = StringField('First Name', validators=[DataRequired(), Length(max=100)])
     last_name = StringField('Last Name', validators=[DataRequired(), Length(max=100)])
     email = EmailField('Email', validators=[DataRequired(), Email(), Length(max=255)], filters=[lambda value: value.strip() if value else value])
@@ -251,4 +244,4 @@ class SupportTicketNoteForm(FlaskForm):
     description = TextAreaField('Note', validators=[DataRequired(), Length(max=5000)], filters=[strip])
 
 class ImportForm(FlaskForm):
-    file = FileField('CSV file', validators=[FileRequired('Choose a CSV file to upload.'), FileAllowed(['csv'], 'Upload a .csv file.')])
+    file = FileField('Excel or CSV file', validators=[FileRequired('Choose a file to upload.'), FileAllowed(['xlsx', 'csv'], 'Upload an Excel (.xlsx) or .csv file.')])

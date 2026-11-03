@@ -1,9 +1,0 @@
-{% extends 'base.html' %}
-{% set title = 'Edit Building: ' ~ building.name %}
-
-{% block body %}
-{% set heading = 'Edit Building' %}
-{% set intro = 'At ' ~ building.site.name %}
-{% set back_url = url_for('buildings.view', id=building.id) %}
-{% include "_name_form.html" %}
-{% endblock body %}

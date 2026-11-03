@@ -1,0 +1,59 @@
+{% extends "locations/view/_layout.html" %}
+
+{% block tab_content %}
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <h6 class="text-muted">Name</h6>
+        <p class="mb-0">{{ location.name }}</p>
+    </div>
+    <div class="col-md-4">
+        <h6 class="text-muted">Parent Location</h6>
+        <p class="mb-0">
+            {% if location.parent %}<a href="{{ url_for('locations.view', id=location.parent.id) }}">{{ location.parent.materialised_path }}</a>{% else %}-{% endif %}
+        </p>
+    </div>
+    <div class="col-md-4">
+        <h6 class="text-muted">Location Category</h6>
+        <p class="mb-0">{{ location.location_category or "-" }}</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <h6 class="text-muted">Telephone</h6>
+        <p class="mb-0">{{ location.telephone or "-" }}</p>
+    </div>
+    <div class="col-md-4">
+        <h6 class="text-muted">Main Contact</h6>
+        <p class="mb-0">
+            {% if location.main_contact %}
+            {% set contact = location.main_contact %}
+            {% if can('people.view') %}<a href="{{ url_for('people.view', id=contact.id) }}">{{ contact.full_name }}</a>{% else %}{{ contact.full_name }}{% endif %}
+            {% else %}-{% endif %}
+        </p>
+    </div>
+</div>
+
+<hr />
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="text-muted small">Address</div>
+        <div class="fw-semibold" style="white-space: pre-line">{{ location.address or '-' }}</div>
+    </div>
+    <div class="col-md-6">
+        <div class="text-muted small">Sub-Locations</div>
+        {% if location.children %}
+        <ul class="list-unstyled mb-0">
+            {% for child in location.children %}
+            <li><i class="bi bi-geo-alt text-muted" aria-hidden="true"></i> <a href="{{ url_for('locations.view', id=child.id) }}">{{ child.name }}</a></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="fw-semibold">-</div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock tab_content %}

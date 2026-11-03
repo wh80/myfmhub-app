@@ -2,8 +2,8 @@ import re
 from collections import namedtuple
 from app import db
 from app.models import (
-    JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory, FileCategory,
-    Job, JobSchedule, Asset, Building, Supplier, File,
+    JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, FileCategory,
+    Job, JobSchedule, Asset, Location, Supplier, File,
 )
 from app.services.scheduling import uk_today
 
@@ -13,14 +13,14 @@ from app.services.scheduling import uk_today
 ReferenceType = namedtuple('ReferenceType', 'slug label singular model icon used_by')
 
 REFERENCE_TYPES = {reference_type.slug: reference_type for reference_type in [
+    ReferenceType('location-categories', 'Location Categories', 'location category', LocationCategory, 'bi-geo-alt',
+                  [(Location, 'location_category_id', 'locations')]),
     ReferenceType('job-categories', 'Job Categories', 'job category', JobCategory, 'bi-tools',
                   [(Job, 'job_category_id', 'jobs'), (JobSchedule, 'job_category_id', 'job schedules')]),
     ReferenceType('asset-categories', 'Asset Categories', 'asset category', AssetCategory, 'bi-box-seam',
                   [(Asset, 'asset_category_id', 'assets')]),
     ReferenceType('asset-conditions', 'Asset Conditions', 'asset condition', AssetCondition, 'bi-heart-pulse',
                   [(Asset, 'asset_condition_id', 'assets')]),
-    ReferenceType('building-conditions', 'Building Conditions', 'building condition', BuildingCondition, 'bi-building',
-                  [(Building, 'building_condition_id', 'buildings')]),
     ReferenceType('supplier-categories', 'Supplier Categories', 'supplier category', SupplierCategory, 'bi-truck',
                   [(Supplier, 'supplier_category_id', 'suppliers')]),
     ReferenceType('file-categories', 'File Categories', 'file category', FileCategory, 'bi-folder',
@@ -85,7 +85,7 @@ def add_items(reference_type, organisation_id, text):
 
 
 def set_condition(record, column, condition_id):
-    """Set an asset's or building's condition. condition_set becomes today's UK date when it changes
+    """Set an asset's condition. condition_set becomes today's UK date when it changes
     (or None when it's cleared), and stays as it was when it doesn't."""
     if getattr(record, column) != condition_id:
         setattr(record, column, condition_id)

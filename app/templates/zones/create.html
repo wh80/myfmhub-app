@@ -1,9 +1,0 @@
-{% extends 'base.html' %}
-{% set title = 'Create Zone' %}
-
-{% block body %}
-{% set heading = 'Create Zone' %}
-{% set intro = 'In ' ~ building.name ~ ' at ' ~ building.site.name %}
-{% set back_url = url_for('buildings.zones', id=building.id) %}
-{% include "_name_form.html" %}
-{% endblock body %}

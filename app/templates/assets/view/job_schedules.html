@@ -8,6 +8,11 @@
     <h5 class="mb-0">Job Schedules</h5>
     {% if can('assets.edit') %}
     <div class="d-flex gap-2">
+        {% if can('job_schedules.create') %}
+        <a href="{{ url_for('job_schedules.create', asset_id=asset.id) }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle"></i> Create
+        </a>
+        {% endif %}
         <a href="{{ url_for('assets.link_job_schedules', id=asset.id) }}" class="btn btn-primary btn-sm">
             Link Job Schedules
         </a>

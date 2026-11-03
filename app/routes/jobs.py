@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g, current_app, abort
 from app import db
 from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, JobScheduleNextDueForm
-from app.models import Job, Site, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
+from app.models import Job, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.auth import as_utc
 from app.services.jobs import overdue_conditions, notify_assignee
 from app.services.notifications import mark_read
 from app.services.scheduling import job_creation_date, next_due_date, uk_today
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.exports import export_response
 jobs_bp = Blueprint('jobs', __name__, url_prefix="/jobs")
 jobs_bp.before_request(require_login)
@@ -29,9 +29,7 @@ jobs_bp.before_request(require_job_permission)
 # the index table's columns, for downloads. Keys match data-col in jobs/job_list.html
 JOB_COLUMNS = [
     ('description', 'Description', lambda job: job.description),
-    ('site', 'Site', lambda job: job.site.name),
-    ('building', 'Building', lambda job: job.building.name if job.building else None),
-    ('zone', 'Zone', lambda job: job.zone.name if job.zone else None),
+    ('location', 'Location', lambda job: job.location.materialised_path),
     ('category', 'Job Category', lambda job: job.job_category.description if job.job_category else None),
     ('due_by', 'Due By', lambda job: job.due_by),
     ('source', 'Source', lambda job: job.source_label),
@@ -44,7 +42,6 @@ JOB_COLUMNS = [
 # the index filters, shared by the page and its downloads
 def filtered_jobs():
     search = request.args.get('search', '').strip()
-    site_id = request.args.get('site_id', '').strip()
     statutory = request.args.get('statutory') == '1'
     overdue = request.args.get('overdue') == '1'
     # unknown values are ignored rather than matching nothing.
@@ -64,6 +61,11 @@ def filtered_jobs():
         db.selectinload(Job.assigned_person),
     )
 
+    # set by "View imported items" on an import
+    import_id = parse_uuid(request.args.get('import_id'))
+    if import_id:
+        query = query.filter(Job.import_event_id == import_id)
+
     if search:
         query = query.filter(
             db.or_(
@@ -71,9 +73,6 @@ def filtered_jobs():
                 Job.work_required.ilike(f'%{search}%')
             )
         )
-
-    if site_id:
-        query = query.filter(Job.site_id == site_id)
 
     if statutory:
         query = query.filter(Job.statutory_compliance.is_(True))
@@ -108,7 +107,7 @@ def filtered_jobs():
     filters = dict(
         job_category_id=job_category_id,
         search=search,
-        site_id=site_id,
+        import_id=import_id,
         statutory=statutory,
         overdue=overdue,
         status=status,
@@ -142,7 +141,7 @@ def index():
 @jobs_bp.route('/export/<any(csv, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_jobs()
-    jobs = query.options(db.joinedload(Job.site)).all()
+    jobs = query.options(db.joinedload(Job.location)).all()
     return export_response(file_format, 'jobs', 'Jobs', JOB_COLUMNS, jobs)
 
 @jobs_bp.route('/create', methods=['GET', 'POST'])
@@ -153,37 +152,48 @@ def create():
     if request.args.get('parent_id'):
         parent = org_get_or_404(Job, parse_uuid(request.args['parent_id']))
 
+    # ?asset_id= (an asset's Jobs tab) links the new job to the asset, and ?location_id= (a location's Jobs
+    # tab) puts it there. Either fixes the location: the select is hidden and what's posted is ignored
+    asset, fixed_location = create_from()
+
     form = JobForm()
     set_location_choices(form)
     set_reference_choices(form)
-    if parent and request.method == 'GET':
-        form.site_id.data = str(parent.site_id)
-        form.building_id.data = str(parent.building_id or '')
-        form.zone_id.data = str(parent.zone_id or '')
+    if fixed_location:
+        form.location_id.data = str(fixed_location.id)
+    elif parent and request.method == 'GET':
+        form.location_id.data = str(parent.location_id)
 
-    if form.validate_on_submit() and check_location(form):
+    # where saving (and the Back button) goes: the tab or page the create was started from
+    if asset:
+        back_url = url_for('assets.jobs', id=asset.id)
+    elif fixed_location:
+        back_url = url_for('locations.jobs', id=fixed_location.id)
+    elif parent:
+        back_url = url_for('jobs.follow_up_jobs', id=parent.id)
+    else:
+        back_url = url_for('jobs.index')
+
+    if form.validate_on_submit():
         job = Job(
             description=form.description.data,
             work_required=form.work_required.data,
             due_by=form.due_by.data,
             source='follow_up' if parent else 'reactive',
             parent_job=parent,
-            site_id=form.site_id.data,
-            building_id=parse_uuid(form.building_id.data),
-            zone_id=parse_uuid(form.zone_id.data),
+            location_id=parse_uuid(form.location_id.data),
             job_category_id=parse_uuid(form.job_category_id.data),
-            estimated_cost=form.estimated_cost.data,
-            actual_cost=form.actual_cost.data,
+            # costs aren't on the create page: they're added on edit
             organisation_id=g.person.organisation_id,
         )
+        if asset:
+            job.assets.append(asset)
         db.session.add(job)
         db.session.commit()
         flash(f"Job '{job.description}' created successfully!", 'success')
-        if parent:
-            return redirect(url_for('jobs.follow_up_jobs', id=parent.id))
-        return redirect(url_for('jobs.index'))
+        return redirect(back_url)
 
-    return render_template('jobs/create.html', form=form, parent=parent)
+    return render_template('jobs/create.html', form=form, parent=parent, from_asset=asset, fixed_location=fixed_location, back_url=back_url)
 
 @jobs_bp.route('/<uuid:id>', methods=['GET'])
 def view(id):
@@ -203,16 +213,14 @@ def edit(id):
     set_location_choices(form)
     set_reference_choices(form)
 
-    if form.validate_on_submit() and check_location(form):
+    if form.validate_on_submit():
         
         job.description=form.description.data
         job.work_required=form.work_required.data
         # a planned job is due when its schedule said, so its due date can't be changed
         if job.source != 'planned':
             job.due_by=form.due_by.data
-        job.site_id=form.site_id.data
-        job.building_id=parse_uuid(form.building_id.data)
-        job.zone_id=parse_uuid(form.zone_id.data)
+        job.location_id=parse_uuid(form.location_id.data)
         job.job_category_id=parse_uuid(form.job_category_id.data)
         job.estimated_cost=form.estimated_cost.data
         job.actual_cost=form.actual_cost.data
@@ -576,9 +584,9 @@ def assets(id):
 def link_assets(id):
     job = org_get_or_404(Job, id)
 
-    # assets on the job's site that aren't already linked to it
+    # assets in the same top-level location (site) as the job that aren't already linked to it
     query = org_query(Asset).filter(
-        Asset.site_id == job.site_id,
+        same_top_location(Asset, job.location),
         ~Asset.jobs.any(Job.id == job.id)
     )
 

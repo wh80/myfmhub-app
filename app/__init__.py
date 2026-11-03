@@ -25,7 +25,7 @@ def create_app():
         from app import models  
         
 
-    from app.routes.sites import sites_bp
+    from app.routes.locations import locations_bp
     from app.routes.jobs import jobs_bp
     from app.routes.assets import assets_bp
     from app.routes.job_schedules import job_schedules_bp
@@ -39,14 +39,12 @@ def create_app():
     from app.routes.imports import imports_bp
     from app.routes.exports import exports_bp
     from app.routes.support import support_bp
-    from app.routes.buildings import buildings_bp
-    from app.routes.zones import zones_bp
     from app.routes.my_organisation import my_organisation_bp
     from app.routes.files import files_bp
     from app.routes.reference_data import reference_data_bp
     from app.routes.notifications import notifications_bp
 
-    app.register_blueprint(sites_bp)
+    app.register_blueprint(locations_bp)
     app.register_blueprint(jobs_bp)
     app.register_blueprint(assets_bp)
     app.register_blueprint(job_schedules_bp)
@@ -60,8 +58,6 @@ def create_app():
     app.register_blueprint(imports_bp)
     app.register_blueprint(exports_bp)
     app.register_blueprint(support_bp)
-    app.register_blueprint(buildings_bp)
-    app.register_blueprint(zones_bp)
     app.register_blueprint(my_organisation_bp)
     app.register_blueprint(files_bp)
     app.register_blueprint(reference_data_bp)

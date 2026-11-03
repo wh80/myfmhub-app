@@ -4,18 +4,18 @@ import zipfile
 from collections import namedtuple
 
 from app.extensions import db
-from app.models import Asset, Building, Job, JobSchedule, Person, Site, Supplier, Zone
+from app.models import Asset, Job, JobSchedule, Location, Person, Supplier
 from app.services.exports import csv_value
 from app.services.auth import as_utc
 from app.services.scheduling import UK_TIMEZONE
 
 # the "Export data" page: an organisation downloads all of its records as a zip of CSVs, one per type.
 # Unlike the index downloads, every field is included, with ids so records can be matched up again
-# (a job's Site ID, Job Schedule ID and Asset IDs). Users aren't exported, only the people records.
+# (a job's Location ID, Job Schedule ID and Asset IDs). Users aren't exported, only the people records.
 # Dates and times are as stored, so created and updated are UTC
 
 # permission is the view permission needed to export the type, on top of exports.manage. options
-# returns the loader options, as a function because backrefs like Asset.site don't exist until the mappers are configured
+# returns the loader options, as a function because backrefs like Asset.location don't exist until the mappers are configured
 ExportType = namedtuple('ExportType', 'key label model permission columns options')
 
 
@@ -32,12 +32,10 @@ ADDRESS_COLUMNS = [
     ('Address', lambda record: record.address),
     ('Telephone', lambda record: record.telephone),
 ]
-# a record's optional building and zone, after its site
+# a record's location, by its path
 LOCATION_COLUMNS = [
-    ('Building', lambda record: record.building.name if record.building else None),
-    ('Building ID', lambda record: record.building_id),
-    ('Zone', lambda record: record.zone.name if record.zone else None),
-    ('Zone ID', lambda record: record.zone_id),
+    ('Location', lambda record: record.location.materialised_path),
+    ('Location ID', lambda record: record.location_id),
 ]
 # a category or condition (services/reference_data.py): its description, and its id
 def reference_columns(label, attribute):
@@ -51,37 +49,20 @@ TIMESTAMP_COLUMNS = [
 ]
 
 EXPORT_TYPES = {export_type.key: export_type for export_type in [
-    ExportType('sites', 'Sites', Site, 'sites.view', [
-        ('ID', lambda site: site.id),
-        ('Name', lambda site: site.name),
+    ExportType('locations', 'Locations', Location, 'locations.view', [
+        ('ID', lambda location: location.id),
+        ('Name', lambda location: location.name),
+        ('Path', lambda location: location.materialised_path),
+        ('Parent Location ID', lambda location: location.parent_id),
+        *reference_columns('Location Category', 'location_category'),
+        ('Main Contact', lambda location: location.main_contact.full_name if location.main_contact else None),
+        ('Main Contact ID', lambda location: location.main_contact_id),
         *ADDRESS_COLUMNS,
-        ('Main Contact', lambda site: f'{site.main_contact.first_name} {site.main_contact.last_name}' if site.main_contact else None),
-        ('Main Contact ID', lambda site: site.main_contact_id),
         *TIMESTAMP_COLUMNS,
     ], lambda: []),
-    ExportType('buildings', 'Buildings', Building, 'buildings.view', [
-        ('ID', lambda building: building.id),
-        ('Name', lambda building: building.name),
-        ('Site', lambda building: building.site.name),
-        ('Site ID', lambda building: building.site_id),
-        *reference_columns('Building Condition', 'building_condition'),
-        ('Condition Set', lambda building: building.condition_set),
-        *TIMESTAMP_COLUMNS,
-    ], lambda: [db.joinedload(Building.site)]),
-    ExportType('zones', 'Zones', Zone, 'zones.view', [
-        ('ID', lambda zone: zone.id),
-        ('Name', lambda zone: zone.name),
-        ('Building', lambda zone: zone.building.name),
-        ('Building ID', lambda zone: zone.building_id),
-        ('Site', lambda zone: zone.building.site.name),
-        ('Site ID', lambda zone: zone.building.site_id),
-        *TIMESTAMP_COLUMNS,
-    ], lambda: [db.joinedload(Zone.building).joinedload(Building.site)]),
     ExportType('assets', 'Assets', Asset, 'assets.view', [
         ('ID', lambda asset: asset.id),
         ('Description', lambda asset: asset.description),
-        ('Site', lambda asset: asset.site.name),
-        ('Site ID', lambda asset: asset.site_id),
         *LOCATION_COLUMNS,
         ('Asset Number', lambda asset: asset.asset_number),
         ('Make', lambda asset: asset.make),
@@ -99,13 +80,11 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         *reference_columns('Asset Condition', 'asset_condition'),
         ('Condition Set', lambda asset: asset.condition_set),
         *TIMESTAMP_COLUMNS,
-    ], lambda: [db.joinedload(Asset.site)]),
+    ], lambda: [db.joinedload(Asset.location)]),
     ExportType('jobs', 'Jobs', Job, 'jobs.view', [
         ('ID', lambda job: job.id),
         ('Description', lambda job: job.description),
         ('Work Required', lambda job: job.work_required),
-        ('Site', lambda job: job.site.name),
-        ('Site ID', lambda job: job.site_id),
         *LOCATION_COLUMNS,
         ('Due By', lambda job: job.due_by),
         ('Source', lambda job: job.source_label),
@@ -133,13 +112,11 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Actual Cost', lambda job: job.actual_cost),
         ('Asset IDs', lambda job: ids(job.assets)),
         *TIMESTAMP_COLUMNS,
-    ], lambda: [db.joinedload(Job.site), db.selectinload(Job.assets)]),
+    ], lambda: [db.joinedload(Job.location), db.selectinload(Job.assets)]),
     ExportType('job_schedules', 'Job Schedules', JobSchedule, 'job_schedules.view', [
         ('ID', lambda job_schedule: job_schedule.id),
         ('Description', lambda job_schedule: job_schedule.description),
         ('Work Required', lambda job_schedule: job_schedule.work_required),
-        ('Site', lambda job_schedule: job_schedule.site.name),
-        ('Site ID', lambda job_schedule: job_schedule.site_id),
         *LOCATION_COLUMNS,
         ('Frequency', lambda job_schedule: job_schedule.frequency_label),
         ('Next Due By', lambda job_schedule: job_schedule.next_due_by),
@@ -152,7 +129,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Estimated Duration (days)', lambda job_schedule: job_schedule.estimated_duration),
         ('Asset IDs', lambda job_schedule: ids(job_schedule.assets)),
         *TIMESTAMP_COLUMNS,
-    ], lambda: [db.joinedload(JobSchedule.site), db.selectinload(JobSchedule.assets)]),
+    ], lambda: [db.joinedload(JobSchedule.location), db.selectinload(JobSchedule.assets)]),
     ExportType('suppliers', 'Suppliers', Supplier, 'suppliers.view', [
         ('ID', lambda supplier: supplier.id),
         ('Name', lambda supplier: supplier.name),

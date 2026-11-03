@@ -20,8 +20,8 @@
       </dd>
       <dt class="col-sm-3">Frequency</dt>
       <dd class="col-sm-9">{{ job_schedule.frequency_label }}</dd>
-      <dt class="col-sm-3">Site</dt>
-      <dd class="col-sm-9">{{ job_schedule.site.name }}</dd>
+      <dt class="col-sm-3">Location</dt>
+      <dd class="col-sm-9">{{ job_schedule.location.materialised_path }}</dd>
     </dl>
     <p>
       Based on the job being rejected today, the next job would be due by <strong>{{ calculated | date }}</strong>.

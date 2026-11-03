@@ -1,5 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g, current_app
-from app.models import Site, Building, Zone, Asset, Job, JobSchedule, Supplier, Person, UserGroup, ImportEvent, File, JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory, FileCategory
+from app import db
+from app.forms import OrganisationForm
+from app.services.addresses import clean_address
+from app.models import Location, Asset, Job, JobSchedule, Supplier, Person, UserGroup, ImportEvent, File, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, FileCategory
 from app.services.files import storage_text, storage_used_mb
 from app.routes.helpers import require_login, require_permission, org_query
 from app.services.auth import clear_session_cookie
@@ -15,9 +18,7 @@ my_organisation_bp.before_request(require_permission)
 # what deleting removes, each with a box to tick on the warning page: (key, label, model). Support tickets
 # aren't listed: they're the platform's records, so they go with the organisation without a box
 DELETE_ITEMS = [
-    ('sites', 'Sites', Site),
-    ('buildings', 'Buildings', Building),
-    ('zones', 'Zones', Zone),
+    ('locations', 'Locations', Location),
     ('assets', 'Assets', Asset),
     ('jobs', 'Jobs', Job),
     ('job_schedules', 'Job Schedules', JobSchedule),
@@ -29,7 +30,7 @@ DELETE_ITEMS = [
     ('job_categories', 'Job Categories', JobCategory),
     ('asset_categories', 'Asset Categories', AssetCategory),
     ('asset_conditions', 'Asset Conditions', AssetCondition),
-    ('building_conditions', 'Building Conditions', BuildingCondition),
+    ('location_categories', 'Location Categories', LocationCategory),
     ('supplier_categories', 'Supplier Categories', SupplierCategory),
     ('file_categories', 'File Categories', FileCategory),
 ]
@@ -45,6 +46,21 @@ def delete_items():
 def view():
     return render_template('my_organisation/view.html', organisation=g.organisation, items=delete_items(),
                            storage_used=storage_text(storage_used_mb(g.organisation.id)))
+
+@my_organisation_bp.route('/edit', methods=['GET', 'POST'])
+def edit():
+    organisation = g.organisation
+    form = OrganisationForm(obj=organisation)
+
+    if form.validate_on_submit():
+        organisation.name = form.name.data
+        organisation.address = clean_address(form.address.data)
+        organisation.telephone = form.telephone.data or None
+        db.session.commit()
+        flash('Organisation details updated.', 'success')
+        return redirect(url_for('my_organisation.view'))
+
+    return render_template('my_organisation/edit.html', organisation=organisation, form=form)
 
 @my_organisation_bp.route('/delete', methods=['GET', 'POST'])
 def delete():

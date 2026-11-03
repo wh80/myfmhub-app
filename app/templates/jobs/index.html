@@ -15,7 +15,7 @@
 
 <form method="get" class="mb-4">
   {# the search box shows on its own. Advanced opens the other filters, and starts open when one is set #}
-  {% set advanced_open = site_id or building_id or zone_id or job_category_id or status or source or due_from or due_to or closed_from or closed_to or overdue or statutory %}
+  {% set advanced_open = location_id or job_category_id or status or source or due_from or due_to or closed_from or closed_to or overdue or statutory %}
   <div class="row g-2">
     <div class="col-md-6">
       <label for="search" class="form-label">Search</label>
@@ -51,7 +51,7 @@
 
   <div class="collapse{{ ' show' if advanced_open }}" id="advanced-filters">
     <div class="row g-2 mt-1">
-      {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
+      {{ location_filters(locations, location_id) }}
 
       {{ reference_filter('Job Category', 'job_category_id', job_categories, job_category_id, 'All categories', col='col-md-2') }}
 
@@ -124,13 +124,15 @@
   </div>
 </form>
 
+{% include "_import_filter_notice.html" %}
+
 {% if pagination.total %}
 
  {% set export_endpoint = 'jobs.export' %}
 {% include "jobs/job_list.html" %}
 
 {{ pagination_nav(pagination) }}
-{% elif search or site_id or job_category_id or statutory or overdue or status or source or due_from or due_to or closed_from or closed_to or building_id or zone_id %}
+{% elif search or import_id or location_id or job_category_id or statutory or overdue or status or source or due_from or due_to or closed_from or closed_to %}
 <p>No jobs match your search.</p>
 {% else %}
 <p>No jobs yet.</p>

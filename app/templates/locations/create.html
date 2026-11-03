@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% set title = 'Create Location' %}
+
+{% block body %}
+<h3>Create Location</h3>
+<p class="text-muted">Choose a parent location to put this one inside it, or leave it blank for a top-level location such as a site.</p>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+  {% include "locations/_form_fields.html" %}
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('locations.index') }}" class="btn btn-secondary">Back</a>
+</form>
+{% endblock body %}

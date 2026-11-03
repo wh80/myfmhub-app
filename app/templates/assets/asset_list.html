@@ -11,9 +11,7 @@
     <thead>
       <tr>
         <th scope="col" data-col="description" data-col-fixed>Description</th>
-        <th scope="col" data-col="site">Site</th>
-        <th scope="col" data-col="building">Building</th>
-        <th scope="col" data-col="zone">Zone</th>
+        <th scope="col" data-col="location">Location</th>
         <th scope="col" data-col="category">Asset Category</th>
         <th scope="col" data-col="condition">Asset Condition</th>
         <th scope="col" data-col="condition_set">Condition Set</th>
@@ -32,9 +30,7 @@
       {% for asset in assets %}
       <tr class="position-relative">
         <td><a href="{{url_for('assets.view', id=asset.id)}}" class="stretched-link text-reset text-decoration-none">{{asset.description}}</a></td>
-        <td>{{asset.site.name}}</td>
-        <td>{{ asset.building.name if asset.building else '-' }}</td>
-        <td>{{ asset.zone.name if asset.zone else '-' }}</td>
+        <td>{{ asset.location.materialised_path }}</td>
         <td>{{ asset.asset_category or '-' }}</td>
         <td>{{ asset.asset_condition or '-' }}</td>
         <td>{{ asset.condition_set | date }}</td>

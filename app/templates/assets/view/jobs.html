@@ -8,6 +8,11 @@
     <h5 class="mb-0">Jobs</h5>
     {% if can('assets.edit') %}
     <div class="d-flex gap-2">
+        {% if can('jobs.create') %}
+        <a href="{{ url_for('jobs.create', asset_id=asset.id) }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-plus-circle"></i> Create
+        </a>
+        {% endif %}
         <a href="{{ url_for('assets.link_jobs', id=asset.id) }}" class="btn btn-primary btn-sm">
             Link Jobs
         </a>

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% set title = 'Edit Location: ' ~ location.materialised_path %}
+
+{% block body %}
+<h3>Edit Location</h3>
+<p class="text-muted">Renaming or moving a location also changes the path of every location inside it.</p>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+  {% include "locations/_form_fields.html" %}
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('locations.view', id=location.id) }}" class="btn btn-secondary">Back</a>
+</form>
+{% endblock body %}

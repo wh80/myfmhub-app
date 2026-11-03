@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% set title = 'Create Sub-Asset' if parent else 'Create Asset' %}
-{% from "_location_fields.html" import location_fields %}
+{% from "_location_fields.html" import location_fields, location_notice %}
 {% from "_reference_fields.html" import reference_select %} {% block body %}
 <h3>{{ 'Create Sub-Asset' if parent else 'Create Asset' }}</h3>
+{{ location_notice('asset', fixed_location) }}
 {% if parent %}
 <p class="text-muted">
   Part of <a href="{{ url_for('assets.view', id=parent.id) }}">{{ parent.description }}</a>. It starts at the same location, which you can change.
@@ -27,7 +28,7 @@
       {% endif %}
     </div>
 
-    {{ location_fields(form) }}
+    {{ location_fields(form, fixed_location) }}
 
     {{ reference_select(form.asset_category_id) }}
     {{ reference_select(form.asset_condition_id) }}

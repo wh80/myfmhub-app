@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% set title = 'Locations' %}
+{% from "pagination.html" import pagination_nav %}
+{% from "_reference_fields.html" import reference_filter %}
+
+{# a branch of the tree: each location links to its page, with the locations inside it nested under it #}
+{% macro location_branch(branch, top=False) %}
+<ul class="list-unstyled {{ 'mb-0' if top else 'ms-2 border-start ps-3' }}">
+  {% for location, children in branch %}
+  <li class="py-1">
+    <i class="bi {{ 'bi-geo-alt-fill' if top else 'bi-geo-alt' }} text-muted" aria-hidden="true"></i>
+    <a href="{{ url_for('locations.view', id=location.id) }}">{{ location.name }}</a>
+    {% if location.location_category %}<span class="text-muted small">({{ location.location_category }})</span>{% endif %}
+    {% if children %}
+    {{ location_branch(children) }}
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+{% block body %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="mb-0">Locations</h1>
+  {% if can('locations.create') %}
+  <a href="{{url_for('locations.create')}}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Create
+  </a>
+  {% endif %}
+</div>
+
+<form method="get" class="mb-4">
+  <div class="row g-2">
+    <div class="col-md-6">
+      <label for="search" class="form-label">Search</label>
+      <input
+        type="text"
+        id="search"
+        name="search"
+        value="{{search}}"
+        class="form-control"
+        placeholder="Name or path, e.g. Head Office > Main Building ..."
+      />
+    </div>
+
+    {{ reference_filter('Category', 'location_category_id', location_categories, location_category_id, 'All categories') }}
+
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="submit" class="btn btn-primary w-100">
+        <i class="bi bi-search"></i> Search
+      </button>
+      <a href="{{url_for('locations.index')}}" class="btn btn-secondary w-100">
+        <i class="bi bi-x-circle"></i> Cancel
+      </a>
+    </div>
+  </div>
+</form>
+
+{% include "_import_filter_notice.html" %}
+
+{% if tree is not none %}
+  {# no search: every location, as a tree #}
+  {% if tree %}
+  <div class="card shadow-sm">
+    <div class="card-body">
+      {{ location_branch(tree, top=True) }}
+    </div>
+  </div>
+  {% else %}
+  <p>No locations yet.</p>
+  {% endif %}
+
+{% elif pagination.total %}
+
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('locations', 'locations.export') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap" data-columns="locations">
+    <thead>
+      <tr>
+        <th scope="col" data-col="path" data-col-fixed>Location</th>
+        <th scope="col" data-col="name">Name</th>
+        <th scope="col" data-col="category">Location Category</th>
+        <th scope="col" data-col="telephone">Telephone</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for location in locations %}
+      <tr class="position-relative">
+        <td><a href="{{url_for('locations.view', id=location.id)}}" class="stretched-link text-reset text-decoration-none">{{location.materialised_path}}</a></td>
+        <td>{{location.name}}</td>
+        <td>{{location.location_category or "-"}}</td>
+        <td>{{location.telephone or "-"}}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for location in locations %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><a href="{{url_for('locations.view', id=location.id)}}" class="stretched-link text-reset text-decoration-none">{{location.materialised_path}}</a></h5>
+          <p class="card-text">
+            <strong>Tel:</strong> {{location.telephone or "-"}}
+            {% if location.location_category %}<br /><strong>Category:</strong> {{ location.location_category }}{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{{ pagination_nav(pagination) }}
+{% else %}
+<p>No locations match your search.</p>
+{% endif %}
+{% endblock body %}

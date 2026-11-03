@@ -9,7 +9,7 @@ files_bp = Blueprint('files', __name__, url_prefix="/files")
 files_bp.before_request(require_login)
 files_bp.before_request(require_permission)
 
-# files belong to the organisation and link to any number of sites, buildings, zones, assets, jobs,
+# files belong to the organisation and link to any number of locations, assets, jobs,
 # job schedules, people and suppliers (FILE_PARENTS). Each of those has a Files tab ('<resource>.files')
 # whose Add New, Link Existing and Remove File buttons come here with the resource and the record's id.
 # Linking and unlinking need edit on that record, like linking assets to a job

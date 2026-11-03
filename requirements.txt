@@ -24,5 +24,9 @@ tzdata==2026.5
 # file storage: DigitalOcean Spaces speaks the S3 API
 boto3==1.43.119
 
+# Excel (.xlsx) import files and templates. openpyxl parses the XML through defusedxml when it's installed
+openpyxl==3.1.5
+defusedxml==0.7.1
+
 # production web server (Linux only; locally use run.py)
 gunicorn==26.2.0

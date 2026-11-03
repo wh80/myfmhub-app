@@ -13,8 +13,8 @@
 <p>
   A job schedule is planned maintenance that repeats, such as an annual boiler service or a monthly
   emergency lighting test. The schedule raises a job each time the work is due. Each job is a
-  planned job, with the schedule's description, work required, site, building and zone, statutory
-  compliance and linked assets. See <a href="{{ url_for('support.locations') }}">Sites, Buildings and Zones</a>
+  planned job, with the schedule's description, work required, location, statutory
+  compliance and linked assets. See <a href="{{ url_for('support.locations') }}">Locations</a>
   for how locations work.
 </p>
 
@@ -147,8 +147,8 @@
 <h4 class="mt-4" id="deleting">Deleting a schedule</h4>
 <p>
   A job schedule can only be deleted if it has never raised a job. Once it has, it's kept so its jobs
-  stay linked to it and the history of the sequence isn't lost. Deleting a site still deletes
-  everything at that site, including its schedules and their jobs.
+  stay linked to it and the history of the sequence isn't lost. Deleting a location still deletes
+  everything at it and inside it, including its schedules and their jobs.
 </p>
 
 <h4 class="mt-4">Example</h4>

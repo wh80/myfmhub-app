@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% set title = 'Location: ' ~ location.materialised_path %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+
+  {% include "locations/view/_header.html" %}
+
+  <div class="card-body">
+
+    {% include "locations/view/_tabs.html" %}
+
+    {% block tab_content %}{% endblock tab_content %}
+
+  </div>
+</div>
+
+{% endblock body %}

@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import AssetForm, AssetAssignForm
-from app.models import Asset, Site, Job, JobSchedule, Person, AssetCategory, AssetCondition
-from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.models import Asset, Job, JobSchedule, Person, AssetCategory, AssetCondition
+from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.reference_data import set_condition
 from app.services.exports import export_response
 assets_bp = Blueprint('assets', __name__, url_prefix="/assets")
@@ -31,9 +31,7 @@ def check_unique(form, asset=None):
 # the index table's columns, for downloads. Keys match data-col in assets/asset_list.html
 ASSET_COLUMNS = [
     ('description', 'Description', lambda asset: asset.description),
-    ('site', 'Site', lambda asset: asset.site.name),
-    ('building', 'Building', lambda asset: asset.building.name if asset.building else None),
-    ('zone', 'Zone', lambda asset: asset.zone.name if asset.zone else None),
+    ('location', 'Location', lambda asset: asset.location.materialised_path),
     ('category', 'Asset Category', lambda asset: asset.asset_category.description if asset.asset_category else None),
     ('condition', 'Asset Condition', lambda asset: asset.asset_condition.description if asset.asset_condition else None),
     ('condition_set', 'Condition Set', lambda asset: asset.condition_set),
@@ -51,7 +49,6 @@ ASSET_COLUMNS = [
 # the index filters, shared by the page and its downloads
 def filtered_assets():
     search = request.args.get('search', '').strip()
-    site_id = request.args.get('site_id', '').strip()
 
     query = org_query(Asset)
 
@@ -71,14 +68,11 @@ def filtered_assets():
             )
         )
 
-    if site_id:
-        query = query.filter(Asset.site_id == site_id)
-
     query, location = filter_location(query, Asset)
     query, asset_category_id = filter_reference(query, Asset, 'asset_category_id')
     query, asset_condition_id = filter_reference(query, Asset, 'asset_condition_id')
 
-    return query.order_by(Asset.description, Asset.id), dict(search=search, site_id=site_id, import_id=import_id,
+    return query.order_by(Asset.description, Asset.id), dict(search=search, import_id=import_id,
                                                              asset_category_id=asset_category_id, asset_condition_id=asset_condition_id, **location)
 
 @assets_bp.route('/')
@@ -101,7 +95,7 @@ def index():
 @assets_bp.route('/export/<any(csv, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_assets()
-    assets = query.options(db.joinedload(Asset.site)).all()
+    assets = query.options(db.joinedload(Asset.location)).all()
     return export_response(file_format, 'assets', 'Assets', ASSET_COLUMNS, assets)
 
 @assets_bp.route('/create', methods=['GET', 'POST'])
@@ -111,15 +105,18 @@ def create():
     if request.args.get('parent_id'):
         parent = org_get_or_404(Asset, parse_uuid(request.args['parent_id']))
 
+    # ?location_id= (a location's Assets tab) puts it there: the select is hidden and what's posted is ignored
+    _, fixed_location = create_from(allow_asset=False)
+
     form = AssetForm()
     set_location_choices(form)
     set_reference_choices(form)
-    if parent and request.method == 'GET':
-        form.site_id.data = str(parent.site_id)
-        form.building_id.data = str(parent.building_id or '')
-        form.zone_id.data = str(parent.zone_id or '')
+    if fixed_location:
+        form.location_id.data = str(fixed_location.id)
+    elif parent and request.method == 'GET':
+        form.location_id.data = str(parent.location_id)
 
-    if form.validate_on_submit() and check_location(form) and check_unique(form):
+    if form.validate_on_submit() and check_unique(form):
         asset = Asset(
             description=form.description.data,
             asset_number=form.asset_number.data,
@@ -131,9 +128,7 @@ def create():
             purchased_from=form.purchased_from.data,
             estimated_replacement_date=form.estimated_replacement_date.data,
             estimated_replacement_cost=form.estimated_replacement_cost.data,
-            site_id=form.site_id.data,
-            building_id=parse_uuid(form.building_id.data),
-            zone_id=parse_uuid(form.zone_id.data),
+            location_id=parse_uuid(form.location_id.data),
             asset_category_id=parse_uuid(form.asset_category_id.data),
             parent=parent,
             organisation_id=g.person.organisation_id,
@@ -142,11 +137,13 @@ def create():
         db.session.add(asset)
         db.session.commit()
         flash(f"Asset '{asset.description}' created successfully!", 'success')
+        if fixed_location:
+            return redirect(url_for('locations.assets', id=fixed_location.id))
         if parent:
             return redirect(url_for('assets.sub_assets', id=parent.id))
         return redirect(url_for('assets.index'))
 
-    return render_template('assets/create.html', form=form, parent=parent)
+    return render_template('assets/create.html', form=form, parent=parent, fixed_location=fixed_location)
 
 @assets_bp.route('/<uuid:id>', methods=['GET'])
 def view(id):
@@ -162,7 +159,7 @@ def edit(id):
     set_location_choices(form)
     set_reference_choices(form)
 
-    if form.validate_on_submit() and check_location(form) and check_unique(form, asset):
+    if form.validate_on_submit() and check_unique(form, asset):
 
         asset.description=form.description.data
         asset.asset_number=form.asset_number.data
@@ -174,9 +171,7 @@ def edit(id):
         asset.purchased_from=form.purchased_from.data
         asset.estimated_replacement_date=form.estimated_replacement_date.data
         asset.estimated_replacement_cost=form.estimated_replacement_cost.data
-        asset.site_id=form.site_id.data
-        asset.building_id=parse_uuid(form.building_id.data)
-        asset.zone_id=parse_uuid(form.zone_id.data)
+        asset.location_id=parse_uuid(form.location_id.data)
         asset.asset_category_id=parse_uuid(form.asset_category_id.data)
         # a changed condition sets condition_set to today
         set_condition(asset, 'asset_condition_id', parse_uuid(form.asset_condition_id.data))
@@ -236,9 +231,9 @@ def jobs(id):
 def link_jobs(id):
     asset = org_get_or_404(Asset, id)
 
-    # jobs on the asset's site that aren't already linked to it
+    # jobs in the same top-level location (site) as the asset that aren't already linked to it
     query = org_query(Job).filter(
-        Job.site_id == asset.site_id,
+        same_top_location(Job, asset.location),
         ~Job.assets.any(Asset.id == asset.id)
     )
 
@@ -268,9 +263,9 @@ def job_schedules(id):
 def link_job_schedules(id):
     asset = org_get_or_404(Asset, id)
 
-    # job schedules on the asset's site that aren't already linked to it
+    # job schedules in the same top-level location (site) as the asset that aren't already linked to it
     query = org_query(JobSchedule).filter(
-        JobSchedule.site_id == asset.site_id,
+        same_top_location(JobSchedule, asset.location),
         ~JobSchedule.assets.any(Asset.id == asset.id)
     )
 

@@ -38,7 +38,7 @@
       <div class="row">
         <div class="col-md-6 mb-3">
           {{ form.file.label(class="form-label") }}
-          {{ form.file(class="form-control" ~ (" is-invalid" if form.file.errors else ""), accept=".csv") }}
+          {{ form.file(class="form-control" ~ (" is-invalid" if form.file.errors else ""), accept=".xlsx,.csv") }}
           {% if form.file.errors %}
           <div class="invalid-feedback d-block">
             {% for error in form.file.errors %}
@@ -50,15 +50,22 @@
       </div>
       <button type="submit" class="btn btn-primary"><i class="bi bi-upload" aria-hidden="true"></i> Import</button>
       <a href="{{ url_for('imports.template', slug=import_type.slug) }}" class="btn btn-outline-secondary">
-        <i class="bi bi-download" aria-hidden="true"></i> Download a template
+        <i class="bi bi-download" aria-hidden="true"></i> Download the Excel template
       </a>
+      <a href="{{ url_for('imports.template_csv_file', slug=import_type.slug) }}" class="btn btn-link">or a CSV template</a>
     </form>
   </div>
 </div>
 
 <h5>How to prepare the file</h5>
 <ul>
-  <li>Save it as CSV. From Excel, "CSV UTF-8" is best, but "CSV (Comma delimited)" works too.</li>
+  <li>
+    The Excel template is the easiest way: the columns that have a set of choices (your locations,
+    categories, Yes/No and so on) have a dropdown in each cell, and each header has a note saying what goes in it.
+    The lists are your records when you download it, so download a fresh one when you've added more.
+    You can still type a value that isn't in a list, or paste values in, and they're checked when you import.
+  </li>
+  <li>Upload an Excel Workbook (.xlsx), whose first sheet is read, or a CSV file. From Excel, "CSV UTF-8" is best, but "CSV (Comma delimited)" works too.</li>
   <li>The first row must be the headers below, in any order. Headers aren't case sensitive, and spaces count as underscores. Columns that aren't required can be left out.</li>
   <li>Each row after that is one new record. Blank rows are skipped.</li>
   <li>Rows that pass every check are imported. Rows with a problem are skipped, and the results page lists each one with the reason, so you can fix them and import just those rows again.</li>

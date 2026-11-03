@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import JobScheduleForm
-from app.models import JobSchedule, Site, Asset, Job, JobCategory
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, check_location, location_options, filter_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.models import JobSchedule, Asset, Job, JobCategory
+from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.exports import export_response
 from app.services.permissions import can
 from app.services.scheduling import job_creation_date, uk_today
@@ -13,9 +13,7 @@ job_schedules_bp.before_request(require_permission)
 # the index table's columns, for downloads. Keys match data-col in job_schedules/job_schedule_list.html
 JOB_SCHEDULE_COLUMNS = [
     ('description', 'Description', lambda job_schedule: job_schedule.description),
-    ('site', 'Site', lambda job_schedule: job_schedule.site.name),
-    ('building', 'Building', lambda job_schedule: job_schedule.building.name if job_schedule.building else None),
-    ('zone', 'Zone', lambda job_schedule: job_schedule.zone.name if job_schedule.zone else None),
+    ('location', 'Location', lambda job_schedule: job_schedule.location.materialised_path),
     ('category', 'Job Category', lambda job_schedule: job_schedule.job_category.description if job_schedule.job_category else None),
     ('next_due_by', 'Next Due By', lambda job_schedule: job_schedule.next_due_by),
     ('frequency', 'Frequency', lambda job_schedule: job_schedule.frequency_label),
@@ -35,7 +33,6 @@ def check_reactivation(form, job_schedule):
 # the index filters, shared by the page and its downloads
 def filtered_job_schedules():
     search = request.args.get('search', '').strip()
-    site_id = request.args.get('site_id', '').strip()
     statutory = request.args.get('statutory') == '1'
     next_due_from = parse_date(request.args.get('next_due_from'))
     next_due_to = parse_date(request.args.get('next_due_to'))
@@ -59,9 +56,6 @@ def filtered_job_schedules():
             )
         )
 
-    if site_id:
-        query = query.filter(JobSchedule.site_id == site_id)
-
     if statutory:
         query = query.filter(JobSchedule.statutory_compliance.is_(True))
 
@@ -79,7 +73,7 @@ def filtered_job_schedules():
     query, job_category_id = filter_reference(query, JobSchedule, 'job_category_id')
 
     return query.order_by(JobSchedule.description, JobSchedule.id), dict(
-        job_category_id=job_category_id, search=search, site_id=site_id, statutory=statutory, import_id=import_id,
+        job_category_id=job_category_id, search=search, statutory=statutory, import_id=import_id,
         next_due_from=next_due_from, next_due_to=next_due_to, active=active, **location,
     )
 
@@ -102,14 +96,20 @@ def index():
 @job_schedules_bp.route('/export/<any(csv, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_job_schedules()
-    job_schedules = query.options(db.joinedload(JobSchedule.site)).all()
+    job_schedules = query.options(db.joinedload(JobSchedule.location)).all()
     return export_response(file_format, 'job-schedules', 'Job Schedules', JOB_SCHEDULE_COLUMNS, job_schedules)
 
 @job_schedules_bp.route('/create', methods=['GET', 'POST'])
 def create():
+    # ?asset_id= (an asset's Job Schedules tab) links the new schedule to the asset, and ?location_id= (a
+    # location's tab) puts it there. Either fixes the location: the select is hidden and what's posted is ignored
+    asset, fixed_location = create_from()
+
     form = JobScheduleForm()
     set_location_choices(form)
     set_reference_choices(form)
+    if fixed_location:
+        form.location_id.data = str(fixed_location.id)
 
     # Copy (?copy_from=<id>) pre-fills the scheduling fields. Next due, location and linked records
     # aren't copied (the due date should be chosen, not carried over), and the new schedule has no tie to the old one
@@ -127,7 +127,7 @@ def create():
             form.estimated_cost.data = copy_from.estimated_cost
             form.estimated_duration.data = copy_from.estimated_duration
 
-    if form.validate_on_submit() and check_location(form):
+    if form.validate_on_submit():
         job_schedule = JobSchedule(
             description=form.description.data,
             work_required=form.work_required.data,
@@ -137,23 +137,29 @@ def create():
             next_job_creation_date=job_creation_date(form.next_due_by.data, form.notice_days.data),
             statutory_compliance=form.statutory_compliance.data,
             is_active=form.is_active.data,
-            site_id=form.site_id.data,
-            building_id=parse_uuid(form.building_id.data),
-            zone_id=parse_uuid(form.zone_id.data),
+            location_id=parse_uuid(form.location_id.data),
             job_category_id=parse_uuid(form.job_category_id.data),
             estimated_cost=form.estimated_cost.data,
             estimated_duration=form.estimated_duration.data,
             organisation_id=g.person.organisation_id,
         )
+        if asset:
+            job_schedule.assets.append(asset)
         db.session.add(job_schedule)
         db.session.commit()
+        # back to the tab it was created from
+        if asset or fixed_location:
+            flash(f"Job Schedule '{job_schedule.description}' created successfully!", 'success')
+            if asset:
+                return redirect(url_for('assets.job_schedules', id=asset.id))
+            return redirect(url_for('locations.job_schedules', id=fixed_location.id))
         # offer to link assets straight away, if the user can (the page says it's saved)
         if can(g.person, 'job_schedules.edit'):
             return redirect(url_for('job_schedules.created', id=job_schedule.id))
         flash(f"Job Schedule '{job_schedule.description}' created successfully!", 'success')
         return redirect(url_for('job_schedules.index'))
 
-    return render_template('job_schedules/create.html', form=form, copy_from=copy_from)
+    return render_template('job_schedules/create.html', form=form, copy_from=copy_from, from_asset=asset, fixed_location=fixed_location)
 
 @job_schedules_bp.route('/<uuid:id>/created', methods=['GET'])
 def created(id):
@@ -181,7 +187,7 @@ def edit(id):
     set_location_choices(form)
     set_reference_choices(form)
 
-    if form.validate_on_submit() and check_location(form) and check_reactivation(form, job_schedule):
+    if form.validate_on_submit() and check_reactivation(form, job_schedule):
         
         job_schedule.description=form.description.data
         job_schedule.work_required=form.work_required.data
@@ -192,9 +198,7 @@ def edit(id):
         job_schedule.next_job_creation_date=job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
         job_schedule.statutory_compliance=form.statutory_compliance.data
         job_schedule.is_active=form.is_active.data
-        job_schedule.site_id=form.site_id.data
-        job_schedule.building_id=parse_uuid(form.building_id.data)
-        job_schedule.zone_id=parse_uuid(form.zone_id.data)
+        job_schedule.location_id=parse_uuid(form.location_id.data)
         job_schedule.job_category_id=parse_uuid(form.job_category_id.data)
         job_schedule.estimated_cost=form.estimated_cost.data
         job_schedule.estimated_duration=form.estimated_duration.data
@@ -241,9 +245,9 @@ def assets(id):
 def link_assets(id):
     job_schedule = org_get_or_404(JobSchedule, id)
 
-    # assets on the job schedule's site that aren't already linked to it
+    # assets in the same top-level location (site) as the job schedule that aren't already linked to it
     query = org_query(Asset).filter(
-        Asset.site_id == job_schedule.site_id,
+        same_top_location(Asset, job_schedule.location),
         ~Asset.job_schedules.any(JobSchedule.id == job_schedule.id)
     )
 

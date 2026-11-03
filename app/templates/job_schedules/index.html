@@ -15,7 +15,7 @@
 
 <form method="get" class="mb-4">
   {# the search box shows on its own. Advanced opens the other filters, and starts open when one is set #}
-  {% set advanced_open = site_id or building_id or zone_id or job_category_id or next_due_from or next_due_to or active or statutory %}
+  {% set advanced_open = location_id or job_category_id or next_due_from or next_due_to or active or statutory %}
   <div class="row g-2">
     <div class="col-md-6">
       <label for="search" class="form-label">Search</label>
@@ -51,7 +51,7 @@
 
   <div class="collapse{{ ' show' if advanced_open }}" id="advanced-filters">
     <div class="row g-2 mt-1">
-      {{ location_filters(sites, buildings, zones, site_id, building_id, zone_id) }}
+      {{ location_filters(locations, location_id) }}
 
       {{ reference_filter('Job Category', 'job_category_id', job_categories, job_category_id, 'All categories') }}
 
@@ -99,7 +99,7 @@
 {% include "job_schedules/job_schedule_list.html" %}
 
 {{ pagination_nav(pagination) }}
-{% elif search or site_id or job_category_id or statutory or import_id or next_due_from or next_due_to or active or building_id or zone_id %}
+{% elif search or location_id or job_category_id or statutory or import_id or next_due_from or next_due_to or active %}
 <p>No job schedules match your search.</p>
 {% else %}
 <p>No job schedules yet.</p>

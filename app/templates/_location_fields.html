@@ -1,75 +1,50 @@
-{# Site > building > zone selects for assets, jobs and job schedules. app.js narrows the building
-   options to the selected site and the zone options to the selected building, using data-parent #}
+{# the location of an asset, job or job schedule: one searchable select of every location, by its path
+   ('Head Office > Main Building > Ground Floor') #}
+{% from "_reference_fields.html" import reference_select %}
 
-{% macro select_field(field, role) %}
-  <div class="col-md-6 mb-3">
-    {{ field.label(class="form-label") }}
-    {{ field(class="form-select" ~ (" is-invalid" if field.errors else ""), data_location=role) }}
-    {% if field.errors %}
-    <div class="invalid-feedback d-block">
-      {% for error in field.errors %}
-      <div>{{ error }}</div>
-      {% endfor %}
-    </div>
-    {% endif %}
-  </div>
+{# on create and edit forms, as one column of the form's row. The choices come from set_location_choices.
+   fixed is the location a create page was opened from (create_from): then there's no select, the page
+   says where the record will be (location_notice) and the route sets the location itself #}
+{% macro location_fields(form, fixed=None) %}
+  {% if not fixed %}{{ reference_select(form.location_id) }}{% endif %}
 {% endmacro %}
 
-{# on create and edit forms. The choices come from set_location_choices #}
-{% macro location_fields(form) %}
-  {{ select_field(form.site_id, 'site') }}
-  {{ select_field(form.building_id, 'building') }}
-  {{ select_field(form.zone_id, 'zone') }}
+{# what a create page opened from an asset's or location's tab will do. noun is e.g. 'job' #}
+{% macro location_notice(noun, fixed, asset=None) %}
+{% if asset %}
+<div class="alert alert-info">
+  This {{ noun }} will be linked to asset <a href="{{ url_for('assets.view', id=asset.id) }}">{{ asset.description }}</a>,
+  at its location <strong>{{ fixed.materialised_path }}</strong>.
+</div>
+{% elif fixed %}
+<div class="alert alert-info">This {{ noun }} will be at <strong>{{ fixed.materialised_path }}</strong>.</div>
+{% endif %}
 {% endmacro %}
 
-{# on index page filters, as three columns of the filter row. The options come from location_options() #}
-{% macro location_filters(sites, buildings, zones, site_id, building_id, zone_id, col='col-md-4') %}
+{# on index page filters, as one column of the filter row. The options come from location_options().
+   It matches records at the location and at every location inside it #}
+{% macro location_filters(locations, location_id, col='col-md-6') %}
     <div class="{{ col }}">
-      <label for="site_id" class="form-label">Site</label>
-      <select name="site_id" id="site_id" class="form-select" data-location="site">
-        <option value="">All sites</option>
-        {% for site in sites %}
-        <option value="{{ site.id }}" {% if site_id == site.id|string %}selected{% endif %}>{{ site.name }}</option>
+      <label for="location_id" class="form-label">Location</label>
+      <select name="location_id" id="location_id" class="form-select">
+        <option value="">All locations</option>
+        {% for location in locations %}
+        <option value="{{ location.id }}" {% if location_id == location.id %}selected{% endif %}>{{ location.materialised_path }}</option>
         {% endfor %}
       </select>
-    </div>
-
-    <div class="{{ col }}">
-      <label for="building_id" class="form-label">Building</label>
-      <select name="building_id" id="building_id" class="form-select" data-location="building">
-        <option value="">All buildings</option>
-        {% for building in buildings %}
-        <option value="{{ building.id }}" data-parent="{{ building.site_id }}" {% if building_id == building.id %}selected{% endif %}>{{ building.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="{{ col }}">
-      <label for="zone_id" class="form-label">Zone</label>
-      <select name="zone_id" id="zone_id" class="form-select" data-location="zone">
-        <option value="">All zones</option>
-        {% for zone in zones %}
-        <option value="{{ zone.id }}" data-parent="{{ zone.building_id }}" {% if zone_id == zone.id %}selected{% endif %}>{{ zone.name }}</option>
-        {% endfor %}
-      </select>
+      <div class="form-text">Includes the locations inside it.</div>
     </div>
 {% endmacro %}
 
-{# "Site › Building › Zone" for a record, for list cards #}
+{# the record's location path, for list cards #}
 {% macro location_text(record) -%}
-  {{ record.site.name }}
-  {%- if record.building %} &rsaquo; {{ record.building.name }}
-    {%- if record.zone %} &rsaquo; {{ record.zone.name }}{% endif %}
-  {%- endif %}
+  {{ record.location.materialised_path }}
 {%- endmacro %}
 
-{# Site, Building and Zone on separate lines for an overview, each linking to its page if the user can view it #}
-{% macro location_link(endpoint, item, permission) -%}
-  {%- if not item %}-{% elif can(permission) %}<a href="{{ url_for(endpoint, id=item.id) }}">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}
-{%- endmacro %}
-
+{# the record's location path for an overview, under its Location heading, linking to its page if the user can view it #}
 {% macro location_lines(record) %}
-<p class="mb-1"><strong>Site:</strong> {{ location_link('sites.view', record.site, 'sites.view') }}</p>
-<p class="mb-1"><strong>Building:</strong> {{ location_link('buildings.view', record.building, 'buildings.view') }}</p>
-<p class="mb-0"><strong>Zone:</strong> {{ location_link('zones.view', record.zone, 'zones.view') }}</p>
+<p class="mb-0">
+  {%- if can('locations.view') %}<a href="{{ url_for('locations.view', id=record.location.id) }}">{{ record.location.materialised_path }}</a>
+  {%- else %}{{ record.location.materialised_path }}{% endif -%}
+</p>
 {% endmacro %}

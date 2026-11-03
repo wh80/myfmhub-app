@@ -4,7 +4,8 @@ from functools import wraps
 from flask import request, g, redirect, url_for, flash, abort, render_template
 from app import db
 from sqlalchemy.orm import with_parent
-from app.models import Site, Building, Zone, Asset, Job, JobSchedule, File, JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory, FileCategory
+from app.models import Location, Asset, Job, JobSchedule, File, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, FileCategory
+from app.services.locations import SEPARATOR, subtree_ids
 from app.services.auth import revoke_session, clear_session_cookie
 from app.services.permissions import ENDPOINT_PERMISSIONS, can
 
@@ -116,64 +117,64 @@ def name_taken(query, column, name, record=None):
 
 
 ### LOCATION ###
-# assets, jobs and job schedules have a required site and an optional building and zone. The selects
-# are dependent: every building and zone is listed with its parent's id as data-parent, and app.js
-# shows only the buildings at the chosen site and the zones in the chosen building
+# assets, jobs and job schedules are each at one location, chosen from a searchable select of every
+# location in the organisation by its path ('Head Office > Main Building > Ground Floor')
+
+def org_locations():
+    """The organisation's locations, by path, so each one sorts under the location it's in."""
+    return org_query(Location).order_by(db.func.lower(Location.materialised_path), Location.id).all()
+
 
 def set_location_choices(form):
-    """Fill a form's site, building and zone selects with the organisation's records."""
-    form.site_id.choices = [('', '--- Select Site ---')] + [
-        (str(site.id), site.name) for site in org_query(Site).order_by(Site.name)
+    """Fill a form's location select. WTForms refuses anything else, including another organisation's."""
+    form.location_id.choices = [('', '--- Select Location ---')] + [
+        (str(location.id), location.materialised_path) for location in org_locations()
     ]
-    form.building_id.choices = [('', '--- No building ---')] + [
-        (str(building.id), building.name, {'data-parent': str(building.site_id)})
-        for building in org_query(Building).order_by(Building.name)
-    ]
-    form.zone_id.choices = [('', '--- No zone ---')] + [
-        (str(zone.id), zone.name, {'data-parent': str(zone.building_id)})
-        for zone in org_query(Zone).order_by(Zone.name)
-    ]
-
-
-def check_location(form):
-    """The building has to be at the chosen site, and the zone in the chosen building. The selects only
-    offer the organisation's records, but any of them can be posted. Adds errors to the form."""
-    building_id, zone_id = location_ids(form)
-    building = org_query(Building).filter_by(id=building_id).first() if building_id else None
-    zone = org_query(Zone).filter_by(id=zone_id).first() if zone_id else None
-    ok = True
-    if building and str(building.site_id) != str(form.site_id.data):
-        form.building_id.errors.append("This building isn't at the chosen site.")
-        ok = False
-    if zone and (building is None or zone.building_id != building.id):
-        form.zone_id.errors.append("This zone isn't in the chosen building.")
-        ok = False
-    return ok
-
-
-def location_ids(form):
-    """The form's building and zone as UUIDs, or None."""
-    return parse_uuid(form.building_id.data), parse_uuid(form.zone_id.data)
 
 
 def location_options():
-    """The sites, buildings and zones for an index page's location filters."""
-    return dict(
-        sites=org_query(Site).order_by(Site.name).all(),
-        buildings=org_query(Building).order_by(Building.name).all(),
-        zones=org_query(Zone).order_by(Zone.name).all(),
-    )
+    """The locations for an index page's location filter."""
+    return dict(locations=org_locations())
 
 
 def filter_location(query, model):
-    """Apply ?building_id= and ?zone_id= to an index query. Returns the query and the values, for the template."""
-    building_id = parse_uuid(request.args.get('building_id'))
-    zone_id = parse_uuid(request.args.get('zone_id'))
-    if building_id:
-        query = query.filter(model.building_id == building_id)
-    if zone_id:
-        query = query.filter(model.zone_id == zone_id)
-    return query, dict(building_id=building_id, zone_id=zone_id)
+    """Apply ?location_id= to an index query: records at that location or any location inside it.
+    Returns the query and the value, for the template."""
+    location_id = parse_uuid(request.args.get('location_id'))
+    location = org_query(Location).filter_by(id=location_id).first() if location_id else None
+    if location:
+        query = query.filter(model.location_id.in_(subtree_ids(location)))
+    return query, dict(location_id=location.id if location else None)
+
+
+def create_from(allow_asset=True):
+    """The record a create page was opened from, by the Create buttons on an asset's or a location's tabs:
+    ?asset_id= (a job or job schedule for that asset, linked to it on save) or ?location_id=. Returns
+    (asset, location): the new record is fixed at that location, so the form's location select is hidden
+    and the route overrides whatever is posted for it. Linking needs edit on the asset, like its link pages."""
+    if allow_asset and request.args.get('asset_id'):
+        asset = org_get_or_404(Asset, parse_uuid(request.args['asset_id']))
+        if not can(g.person, 'assets.edit'):
+            abort(403)
+        return asset, asset.location
+    if request.args.get('location_id'):
+        return None, org_get_or_404(Location, parse_uuid(request.args['location_id']))
+    return None, None
+
+
+def in_location(model, location):
+    """A query for the records at the location or any location inside it, for its tabs."""
+    return org_query(model).filter(model.location_id.in_(subtree_ids(location)))
+
+
+def same_top_location(model, location):
+    """A condition for records whose location is in the same top-level location as this one, for link
+    pages: a job can be linked to assets anywhere at its site."""
+    top = location.materialised_path.split(SEPARATOR)[0]
+    return model.location.has(db.or_(
+        Location.materialised_path == top,
+        Location.materialised_path.startswith(top + SEPARATOR, autoescape=True),
+    ))
 
 
 ### SESSION AND USER ACTIONS ###
@@ -225,14 +226,12 @@ RELATED_LISTS = {
     Asset: ([Asset.description, Asset.asset_number, Asset.make, Asset.model, Asset.serial_number], Asset.description),
     Job: ([Job.description, Job.work_required], Job.description),
     JobSchedule: ([JobSchedule.description, JobSchedule.work_required], JobSchedule.description),
-    Building: ([Building.name], Building.name),
-    Zone: ([Zone.name], Zone.name),
     File: ([File.description, File.filename], File.description),
 }
 
 
 def related(record, relationship, model):
-    """A query for the records in one of record's relationships, e.g. related(site, Site.jobs, Job)."""
+    """A query for the records in one of record's relationships, e.g. related(asset, Asset.jobs, Job)."""
     return org_query(model).filter(with_parent(record, relationship))
 
 
@@ -254,7 +253,7 @@ REFERENCE_FIELDS = {
     'job_category_id': JobCategory,
     'asset_category_id': AssetCategory,
     'asset_condition_id': AssetCondition,
-    'building_condition_id': BuildingCondition,
+    'location_category_id': LocationCategory,
     'supplier_category_id': SupplierCategory,
     'file_category_id': FileCategory,
 }

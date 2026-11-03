@@ -27,7 +27,7 @@
         </div>
       </form>
     {% else %}
-      <p class="text-muted">{% if search %}No assets match your search.{% else %}No unlinked assets found for {{job_schedule.site.name}}.{% endif %}</p>
+      <p class="text-muted">{% if search %}No assets match your search.{% else %}No unlinked assets found at {{ job_schedule.location.materialised_path.split(' > ')[0] }}.{% endif %}</p>
       <a href="{{url_for('job_schedules.assets', id=job_schedule.id)}}" class="btn btn-secondary">Back</a>
     {% endif %}
 

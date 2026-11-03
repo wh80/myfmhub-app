@@ -1,6 +1,6 @@
 import re
 
-# Sites and suppliers have one address, stored as lines separated by \n. Forms take it from a textarea,
+# Locations and suppliers have one address, stored as lines separated by \n. Forms take it from a textarea,
 # one line per row; imports take it from one CSV cell, where commas separate the lines
 
 MAX_ADDRESS_LENGTH = 500

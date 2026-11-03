@@ -1,13 +1,14 @@
 {% extends 'base.html' %}
 {% set title = 'Create Job Schedule' %}
-{% from "_location_fields.html" import location_fields %}
+{% from "_location_fields.html" import location_fields, location_notice %}
 {% from "_reference_fields.html" import reference_select %}
 {% from "_number_fields.html" import money_field, number_field %} {% block body %}
 <h3>Create Job Schedule</h3>
+{{ location_notice('job schedule', fixed_location, from_asset) }}
 {% if copy_from %}
 <p class="text-muted">
   Copied from <a href="{{ url_for('job_schedules.view', id=copy_from.id) }}">{{ copy_from.description }}</a>.
-  Choose the next due date, site, building and zone. Assets aren't copied, so link them after saving.
+  Choose the next due date and location. Assets aren't copied, so link them after saving.
 </p>
 {% endif %}
 
@@ -41,7 +42,7 @@
       {% endif %}
     </div>
 
-    {{ location_fields(form) }}
+    {{ location_fields(form, fixed_location) }}
 
     {{ reference_select(form.job_category_id) }}
 

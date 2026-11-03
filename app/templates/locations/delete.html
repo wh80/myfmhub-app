@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% set title = 'Delete Location: ' ~ location.materialised_path %} {% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Confirm Delete</h4>
+  </div>
+
+  <div class="card-body">
+    <div class="alert alert-danger">
+      <strong>Warning:</strong> deleting <strong>{{ location.materialised_path }}</strong> will also delete every
+      location inside it, and all the assets, jobs and job schedules at this location and those locations.
+      This can't be undone, and you may need these records for compliance audits.
+    </div>
+
+    <p>This will delete:</p>
+    <ul>
+      <li>{{ counts.sub_locations }} location(s) inside this one</li>
+      <li>{{ counts.assets }} asset(s)</li>
+      <li>{{ counts.jobs }} job(s)</li>
+      <li>{{ counts.job_schedules }} job schedule(s)</li>
+    </ul>
+    <p class="mb-4 text-muted">Files linked to these locations aren't deleted, only unlinked.</p>
+
+    <form method="post" id="delete-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-danger" form="delete-form">Confirm Delete</button>
+      <a href="{{url_for('locations.view', id=location.id)}}" class="btn btn-secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+{% endblock body%}

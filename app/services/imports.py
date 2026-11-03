@@ -1,5 +1,7 @@
 import csv
 import io
+import re
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -8,18 +10,24 @@ from email_validator import EmailNotValidError, validate_email
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import Asset, Building, ImportEvent, JobSchedule, Person, Site, Supplier, User, UserGroup, Zone, JobCategory, AssetCategory, AssetCondition, BuildingCondition, SupplierCategory
+from app.models import ASSIGNED_JOB_STATUSES, JOB_STATUSES, Asset, ImportEvent, Job, JobSchedule, Location, Person, Supplier, User, UserGroup, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory
 from app.services.addresses import MAX_ADDRESS_LENGTH, clean_address
+from app.services.locations import MAX_PATH_LENGTH, build_path, normalise_path
 from app.services.people import delete_person
+from app.services.permissions import can
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date, uk_today
+from app.services.spreadsheets import SpreadsheetError, read_xlsx, template_xlsx
 
-# CSV imports. Each import type lists its columns; the header row must use the column keys.
+# CSV and Excel (.xlsx) imports. Each import type lists its columns; the header row must use the column keys.
 # A file is refused outright if its headers are wrong. Otherwise every row is checked and saved
 # on its own, so good rows are imported and bad ones are reported with the reason
 
 MAX_BYTES = 5 * 1024 * 1024
 MAX_ROWS = 5000
 DATE_FORMATS = ('%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d')
+# a person written as "Sam Jones (sam@example.com)", as the Excel template's dropdowns show them. The email
+# picks the person when two people share a name
+PERSON_WITH_EMAIL = re.compile(r'^(.*?)\s*\(\s*([^()\s]+@[^()\s]+)\s*\)$')
 
 
 class RowError(Exception):
@@ -29,7 +37,7 @@ class RowError(Exception):
 @dataclass
 class Column:
     key: str
-    kind: str  # text, address, date, money, whole_number, days, yes_no, frequency, site, email, user_group, reference
+    kind: str  # text, address, date, money, whole_number, days, yes_no, frequency, location, email, user_group, reference, job_status, assignee, helpers, person
     required: bool = False
     max_length: int = None
     notes: str = ''
@@ -58,9 +66,15 @@ class Column:
             'days': 'Number of days, e.g. 0.5 for half a day',
             'yes_no': f"Yes or No. Blank means {'Yes' if self.blank_means_yes else 'No'}",
             'frequency': 'One of: ' + ', '.join(label for _, label in FREQUENCIES),
-            'site': 'The name of an existing site',
+            'location': "A location's full path, e.g. Head Office > Main Building",
             'email': f'Email address, up to {self.max_length} characters',
             'user_group': 'The name of an existing user group',
+            'job_status': 'One of: ' + ', '.join(label for _, label in JOB_STATUSES) + '. Blank means New',
+            'assignee': 'The name of an existing supplier, or the full name of someone in People, '
+                        'optionally with their email in brackets, e.g. Sam Jones (sam@example.com)',
+            'person': 'The full name of someone in People, optionally with their email in brackets, e.g. Sam Jones (sam@example.com)',
+            'helpers': 'Full names of people in People, separated by commas, e.g. Sam Jones, Alex Smith. '
+                       'A name can have the email in brackets, e.g. Sam Jones (sam@example.com)',
         }[self.kind]
 
 
@@ -74,6 +88,8 @@ class ImportType:
     columns: list
     create: object
     notes: list = field(default_factory=list)
+    # called with a row's records and the lookups once the row is saved, so later rows can refer to them
+    saved: object = None
 
     @property
     def slug(self):
@@ -91,22 +107,20 @@ class Lookups:
     def __init__(self, person):
         # the signed-in user's person in the organisation being imported into
         self.person = person
-        self.sites = {}
-        for site in Site.query.filter_by(organisation_id=person.organisation_id):
-            self.sites.setdefault(site.name.strip().lower(), []).append(site)
+        # by lower-case path, which is unique. Locations imported earlier in the file are added as they're saved
+        self.locations = {
+            location.materialised_path.lower(): location
+            for location in Location.query.filter_by(organisation_id=person.organisation_id)
+        }
         self.user_groups = {
             user_group.name.strip().lower(): user_group
             for user_group in UserGroup.query.filter_by(organisation_id=person.organisation_id)
         }
-        # by (site id, lower-case name) and (building id, lower-case name). Names are unique there
-        self.buildings = {
-            (building.site_id, building.name.strip().lower()): building
-            for building in Building.query.filter_by(organisation_id=person.organisation_id)
-        }
-        self.zones = {
-            (zone.building_id, zone.name.strip().lower()): zone
-            for zone in Zone.query.filter_by(organisation_id=person.organisation_id)
-        }
+        # suppliers and people by lower-case name (a person's full name), loaded when first needed.
+        # Names aren't unique, so each is a list
+        self.suppliers_by_name = None
+        self.people_by_name = None
+        self.people_by_email = None
         self.seen = {}
         # each kind of category and condition, by lower-case description, loaded when first needed
         self.references = {}
@@ -119,6 +133,39 @@ class Lookups:
                 for item in model.query.filter_by(organisation_id=self.person.organisation_id)
             }
         return items.get(description.lower())
+
+    def by_name(self, kind, name):
+        """The suppliers ('suppliers') or people ('people') with this name, ignoring case and spacing."""
+        attribute = f'{kind}_by_name'
+        if getattr(self, attribute) is None:
+            names = {}
+            if kind == 'suppliers':
+                for supplier in Supplier.query.filter_by(organisation_id=self.person.organisation_id):
+                    names.setdefault(' '.join(supplier.name.lower().split()), []).append(supplier)
+            else:
+                for person in Person.query.filter_by(organisation_id=self.person.organisation_id):
+                    names.setdefault(' '.join(person.full_name.lower().split()), []).append(person)
+            setattr(self, attribute, names)
+        return getattr(self, attribute).get(' '.join(name.lower().split()), [])
+
+    def person_by_email(self, email):
+        if self.people_by_email is None:
+            self.people_by_email = {
+                person.email.lower(): person
+                for person in Person.query.filter_by(organisation_id=self.person.organisation_id)
+            }
+        return self.people_by_email.get(email.lower())
+
+    def people_matching(self, text):
+        """The people text names: a full name, or "Name (email)", where the email decides. Raises RowError
+        for an email that isn't anyone's here."""
+        match = PERSON_WITH_EMAIL.match(text)
+        if match is None:
+            return self.by_name('people', text)
+        person = self.person_by_email(match.group(2))
+        if person is None:
+            raise RowError(f"There's nobody in People with email '{match.group(2)}'")
+        return [person]
 
     def first_in_file(self, key, value):
         """False if an earlier row in this file already used this value for key."""
@@ -195,13 +242,12 @@ def parse_value(column, raw, lookups):
                 return key
         raise RowError(f"{column.label} '{raw}' isn't a frequency")
 
-    if column.kind == 'site':
-        sites = lookups.sites.get(raw.lower(), [])
-        if not sites:
-            raise RowError(f"There's no site called '{raw}'")
-        if len(sites) > 1:
-            raise RowError(f"More than one site is called '{raw}'")
-        return sites[0]
+    if column.kind == 'location':
+        # spaces around each '>' and capitals don't matter
+        location = lookups.locations.get(normalise_path(raw).lower())
+        if location is None:
+            raise RowError(f"There's no location '{normalise_path(raw)}'")
+        return location
 
     if column.kind == 'email':
         try:
@@ -211,6 +257,46 @@ def parse_value(column, raw, lookups):
         if len(email) > column.max_length:
             raise RowError(f'{column.label} is longer than {column.max_length} characters')
         return email
+
+    if column.kind == 'job_status':
+        # the key (in_progress) or the label (In Progress), ignoring case
+        for key, label in JOB_STATUSES:
+            if raw.lower() in (key, label.lower()):
+                return key
+        raise RowError(f"{column.label} '{raw}' isn't a job status")
+
+    if column.kind == 'assignee':
+        if PERSON_WITH_EMAIL.match(raw):
+            return lookups.people_matching(raw)[0]
+        suppliers, people = lookups.by_name('suppliers', raw), lookups.by_name('people', raw)
+        matches = suppliers + people
+        if not matches:
+            raise RowError(f"There's no supplier or person called '{raw}'")
+        if len(matches) > 1:
+            raise RowError(f"More than one supplier or person is called '{raw}'. For a person, add their email in brackets, "
+                           f"e.g. {raw} (name@example.com), or assign the job after importing")
+        return matches[0]
+
+    if column.kind == 'person':
+        people = lookups.people_matching(raw)
+        if not people:
+            raise RowError(f"There's nobody in People called '{raw}'")
+        if len(people) > 1:
+            raise RowError(f"More than one person is called '{raw}'. Add their email in brackets, e.g. {raw} (name@example.com)")
+        return people[0]
+
+    if column.kind == 'helpers':
+        helpers = []
+        # emails have no commas, so "Sam Jones (sam@example.com), Alex Smith" splits into two
+        for name in [part.strip() for part in raw.split(',') if part.strip()]:
+            people = lookups.people_matching(name)
+            if not people:
+                raise RowError(f"There's nobody in People called '{name}'")
+            if len(people) > 1:
+                raise RowError(f"More than one person is called '{name}'. Add their email in brackets, e.g. {name} (name@example.com)")
+            if people[0] not in helpers:
+                helpers.append(people[0])
+        return helpers or None
 
     if column.kind == 'user_group':
         user_group = lookups.user_groups.get(raw.lower())
@@ -248,35 +334,32 @@ def address_fields(values):
     )
 
 
-def create_site(values, lookups):
-    # names are unique in the organisation, ignoring case, as on the site form
-    name = values['name']
-    if lookups.sites.get(name.lower()):
-        raise RowError(f"There's already a site called '{name}'")
-    if not lookups.first_in_file('site', name.lower()):
-        raise RowError(f"Site '{name}' is used by an earlier row in the file")
-    return [Site(**address_fields(values))]
+def create_location(values, lookups):
+    name, parent = values['name'], values['parent']
+    if '>' in name:
+        raise RowError("Name can't contain '>', which separates the names in a location's path")
+    path = build_path(parent, name)
+    # paths are unique in the organisation, ignoring case, as on the location form
+    if path.lower() in lookups.locations:
+        raise RowError(f"There's already a location '{path}'")
+    if len(path) > MAX_PATH_LENGTH:
+        raise RowError(f'The path is longer than {MAX_PATH_LENGTH} characters')
+    # the id is set now so a later row can name this one as its parent
+    return [Location(
+        id=uuid.uuid4(),
+        name=name,
+        parent_id=parent.id if parent else None,
+        materialised_path=path,
+        address=values['address'],
+        telephone=values['telephone'],
+        location_category_id=reference_id(values['location_category']),
+        main_contact_id=reference_id(values['main_contact']),
+    )]
 
 
-def find_building(site, name, lookups):
-    building = lookups.buildings.get((site.id, name.lower()))
-    if building is None:
-        raise RowError(f"{site.name} has no building called '{name}'")
-    return building
-
-
-def location(values, lookups):
-    """The row's optional building (at its site) and zone (in that building) as ids, or raise RowError."""
-    building = zone = None
-    if values['building']:
-        building = find_building(values['site'], values['building'], lookups)
-    if values['zone']:
-        if building is None:
-            raise RowError('A zone needs a building as well')
-        zone = lookups.zones.get((building.id, values['zone'].lower()))
-        if zone is None:
-            raise RowError(f"{building.name} has no zone called '{values['zone']}'")
-    return dict(building_id=building.id if building else None, zone_id=zone.id if zone else None)
+def location_saved(records, lookups):
+    location = records[0]
+    lookups.locations[location.materialised_path.lower()] = location
 
 
 def reference_id(item):
@@ -284,7 +367,7 @@ def reference_id(item):
 
 
 def condition_fields(values, key):
-    """An asset's or building's condition (column key, e.g. 'asset_condition') and condition_set. A
+    """An asset's condition (column key, e.g. 'asset_condition') and condition_set. A
     condition without a condition_set date was set on the import date, like changing it on the form."""
     condition, condition_set = values[key], values['condition_set']
     if condition_set and condition is None:
@@ -292,26 +375,6 @@ def condition_fields(values, key):
     if condition_set and condition_set > uk_today():
         raise RowError("Condition set can't be in the future")
     return {f'{key}_id': reference_id(condition), 'condition_set': condition_set or (uk_today() if condition else None)}
-
-
-def create_building(values, lookups):
-    site, name = values['site'], values['name']
-    # unique within the site, ignoring case, as on the building form
-    if (site.id, name.lower()) in lookups.buildings:
-        raise RowError(f"{site.name} already has a building called '{name}'")
-    if not lookups.first_in_file('building', (site.id, name.lower())):
-        raise RowError(f"Building '{name}' at {site.name} is used by an earlier row in the file")
-    return [Building(name=name, site_id=site.id, **condition_fields(values, 'building_condition'))]
-
-
-def create_zone(values, lookups):
-    building, name = find_building(values['site'], values['building'], lookups), values['name']
-    # unique within the building, ignoring case, as on the zone form
-    if (building.id, name.lower()) in lookups.zones:
-        raise RowError(f"{building.name} already has a zone called '{name}'")
-    if not lookups.first_in_file('zone', (building.id, name.lower())):
-        raise RowError(f"Zone '{name}' in {building.name} is used by an earlier row in the file")
-    return [Zone(name=name, building_id=building.id)]
 
 
 def create_supplier(values, lookups):
@@ -334,8 +397,7 @@ def create_asset(values, lookups):
 
     return [Asset(
         description=values['description'],
-        site_id=values['site'].id,
-        **location(values, lookups),
+        location_id=values['location'].id,
         asset_number=values['asset_number'],
         make=values['make'],
         model=values['model'],
@@ -347,6 +409,7 @@ def create_asset(values, lookups):
         estimated_replacement_cost=values['estimated_replacement_cost'],
         asset_category_id=reference_id(values['asset_category']),
         **condition_fields(values, 'asset_condition'),
+        assigned_to_id=reference_id(values['assigned_to']),
     )]
 
 
@@ -362,8 +425,7 @@ def create_job_schedule(values, lookups):
     return [JobSchedule(
         description=values['description'],
         work_required=values['work_required'],
-        site_id=values['site'].id,
-        **location(values, lookups),
+        location_id=values['location'].id,
         next_due_by=values['next_due_by'],
         frequency=frequency,
         notice_days=notice_days,
@@ -374,6 +436,46 @@ def create_job_schedule(values, lookups):
         estimated_cost=values['estimated_cost'],
         estimated_duration=values['estimated_duration'],
     )]
+
+
+def create_job(values, lookups):
+    """An imported job is reactive (it isn't raised from a schedule). The status can be any of the job
+    statuses, but it has to make sense with the assignee: assigned, in progress, completed and closed jobs
+    need one, and new, unassigned and rejected jobs can't have one, or helpers. Nobody is notified, and the
+    dates the workflow buttons normally record (approved, assigned, started, completed, closed) are left blank."""
+    status = values['status'] or 'new'
+    assignee, helpers = values['assigned_to'], values['helpers'] or []
+    has_assignee = status in ASSIGNED_JOB_STATUSES or status == 'closed'
+    if has_assignee and assignee is None:
+        raise RowError(f"A job with status {dict(JOB_STATUSES)[status]} needs assigned to")
+    if not has_assignee and (assignee is not None or helpers):
+        raise RowError(f"A job with status {dict(JOB_STATUSES)[status]} can't have assigned to or helpers. Use Assigned (or later) as the status")
+    if isinstance(assignee, Person) and assignee in helpers:
+        raise RowError(f"{assignee.full_name} is assigned the job, so can't also be a helper")
+
+    job = Job(
+        description=values['description'],
+        work_required=values['work_required'],
+        location_id=values['location'].id,
+        due_by=values['due_by'],
+        status=status,
+        source='reactive',
+        statutory_compliance=values['statutory_compliance'],
+        job_category_id=reference_id(values['job_category']),
+        estimated_cost=values['estimated_cost'],
+        actual_cost=values['actual_cost'],
+        assigned_supplier_id=assignee.id if isinstance(assignee, Supplier) else None,
+        assigned_person_id=assignee.id if isinstance(assignee, Person) else None,
+    )
+    # added by job_saved once the job is saved: setting the relationship now would put the job in the
+    # session before its row's savepoint
+    job.import_helpers = helpers
+    return [job]
+
+
+def job_saved(records, lookups):
+    job = records[0]
+    job.helpers = job.import_helpers
 
 
 def create_person(values, lookups):
@@ -423,32 +525,26 @@ def reference(key, model, notes=''):
 
 CONDITION_SET_NOTES = 'Optional. The date the condition was set. Blank means the import date, when there is a condition'
 
-LOCATION_COLUMNS = [
-    text('building', 100, notes="Optional. The name of a building at the row's site. Import buildings first"),
-    text('zone', 100, notes='Optional. The name of a zone in that building. Needs a building'),
-]
+LOCATION_COLUMN = Column('location', 'location', required=True,
+                         notes='The full path of an existing location, e.g. Head Office > Main Building. Spaces around > and capitals don\'t matter. Import locations first')
 
-# in the order they're offered. Sites, buildings and zones come first because the others refer to them
+# in the order they're offered. Locations come first because the others refer to them
 IMPORT_TYPES = {import_type.key: import_type for import_type in [
-    ImportType('sites', 'Sites', Site, 'sites.index', [
-        text('name', 100, required=True, notes='Unique within your organisation, ignoring case'),
+    ImportType('locations', 'Locations', Location, 'locations.index', [
+        text('name', 100, required=True, notes="Can't contain >"),
+        Column('parent', 'location', notes='Optional: the full path of the location this one is inside, e.g. Head Office > Main Building. '
+                                           'It can be a location added by an earlier row in the file. Blank makes a top-level location'),
         *ADDRESS_COLUMNS[1:],
-    ], create_site),
-    ImportType('buildings', 'Buildings', Building, 'buildings.index', [
-        text('name', 100, required=True, notes='Unique within the site, ignoring case'),
-        Column('site', 'site', required=True, notes='Import sites first'),
-        reference('building_condition', BuildingCondition),
-        Column('condition_set', 'date', notes=CONDITION_SET_NOTES),
-    ], create_building),
-    ImportType('zones', 'Zones', Zone, 'zones.index', [
-        text('name', 100, required=True, notes='Unique within the building, ignoring case'),
-        Column('site', 'site', required=True, notes='The site the building is at'),
-        text('building', 100, required=True, notes='The name of a building at that site. Import buildings first'),
-    ], create_zone),
+        reference('location_category', LocationCategory),
+        Column('main_contact', 'person', notes='Optional. Someone in People, ignoring capitals. Add the email in brackets '
+                                               'when two people share a name, as the Excel template\'s dropdown does. Import people first'),
+    ], create_location, notes=[
+        "A location's path (its parent's path, then its name) must be new to your organisation, ignoring capitals.",
+        'Put each location after the row for its parent location.',
+    ], saved=location_saved),
     ImportType('assets', 'Assets', Asset, 'assets.index', [
         text('description', 50, required=True),
-        Column('site', 'site', required=True, notes='Import sites first'),
-        *LOCATION_COLUMNS,
+        LOCATION_COLUMN,
         text('asset_number', 50, notes='Unique within your organisation, ignoring case'),
         text('make', 50),
         text('model', 50),
@@ -461,6 +557,8 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         reference('asset_category', AssetCategory),
         reference('asset_condition', AssetCondition),
         Column('condition_set', 'date', notes=CONDITION_SET_NOTES),
+        Column('assigned_to', 'person', notes='Optional. The person the asset is assigned to: someone in People, ignoring capitals. '
+                                              'Add the email in brackets when two people share a name, as the Excel template\'s dropdown does. Import people first'),
     ], create_asset),
     ImportType('people', 'People', Person, 'people.index', [
         text('first_name', 100, required=True),
@@ -480,8 +578,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
     ImportType('job_schedules', 'Job Schedules', JobSchedule, 'job_schedules.index', [
         text('description', 100, required=True),
         text('work_required', 500, required=True),
-        Column('site', 'site', required=True, notes='Import sites first'),
-        *LOCATION_COLUMNS,
+        LOCATION_COLUMN,
         Column('next_due_by', 'date', required=True),
         Column('frequency', 'frequency', required=True, notes='The short form also works, e.g. monthly or three_monthly'),
         Column('notice_days', 'whole_number', required=True,
@@ -492,6 +589,25 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         Column('estimated_cost', 'money', notes='Optional. Jobs raised from the schedule get it too'),
         Column('estimated_duration', 'days'),
     ], create_job_schedule),
+    ImportType('jobs', 'Jobs', Job, 'jobs.index', [
+        text('description', 100, required=True),
+        text('work_required', 500, required=True),
+        LOCATION_COLUMN,
+        Column('due_by', 'date'),
+        Column('status', 'job_status', notes='Optional. Assigned, In Progress, Completed and Closed jobs need assigned to; New, Unassigned and Rejected jobs must leave assigned to and helpers blank'),
+        Column('assigned_to', 'assignee', notes='Optional. Must match exactly one supplier or person, ignoring capitals. '
+                                                'Add the email in brackets when two people share a name. Import suppliers and people first'),
+        Column('helpers', 'helpers', notes="Optional. Each name must match exactly one person, ignoring capitals, and can't be the person in assigned to. "
+                                           "The Excel template has no dropdown here, as a cell can hold several names"),
+        reference('job_category', JobCategory),
+        Column('statutory_compliance', 'yes_no'),
+        Column('estimated_cost', 'money'),
+        Column('actual_cost', 'money'),
+    ], create_job, notes=[
+        'Imported jobs are reactive jobs. Jobs raised from a job schedule come from the schedule, so they can\'t be imported.',
+        "Nobody is notified about imported jobs, including the people and suppliers they're assigned to.",
+        "The dates the job's buttons normally record (approved, assigned, started, completed and closed) are left blank.",
+    ], saved=job_saved),
 ]}
 
 
@@ -507,19 +623,33 @@ def normalise_header(header):
     return header.strip().lower().replace(' ', '_')
 
 
-def read_csv(import_type, data):
-    """Return (rows, problems). rows is a list of (row number, {key: cell}); problems is a list of
-    (header, problem) that stop the import."""
+def file_extension(filename):
+    return filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+
+
+def read_file(import_type, filename, data):
+    """Return (rows, problems) for an uploaded .csv or .xlsx (the first sheet). rows is a list of
+    (row number, {key: cell}); problems is a list of (header, problem) that stop the import."""
     if len(data) > MAX_BYTES:
         return [], [('', f'The file is bigger than {MAX_BYTES // (1024 * 1024)} MB. Split it into smaller files.')]
 
-    reader = csv.reader(io.StringIO(decode(data)))
+    if file_extension(filename) == 'xlsx':
+        try:
+            lines = read_xlsx(data)
+        except SpreadsheetError as error:
+            return [], [('', str(error))]
+        return read_rows(import_type, iter(lines), 'Excel')
+    return read_rows(import_type, csv.reader(io.StringIO(decode(data))), 'CSV')
+
+
+def read_rows(import_type, reader, file_kind):
+    """The header checks and rows for read_file. reader gives each line as a list of cells."""
     try:
         headers = next(reader)
     except StopIteration:
         return [], [('', 'The file is empty.')]
     except csv.Error as error:
-        return [], [('', f"The file couldn't be read as CSV: {error}")]
+        return [], [('', f"The file couldn't be read as {file_kind}: {error}")]
 
     keys = [normalise_header(header) for header in headers]
     known = {column.key for column in import_type.columns}
@@ -549,7 +679,7 @@ def read_csv(import_type, data):
             cells += [''] * (len(keys) - len(cells))
             rows.append((row_number, dict(zip(keys, cells))))
     except csv.Error as error:
-        return [], [('', f"The file couldn't be read as CSV: {error}")]
+        return [], [('', f"The file couldn't be read as {file_kind}: {error}")]
 
     if not rows:
         return [], [('', 'The file has headers but no rows.')]
@@ -586,7 +716,7 @@ def run_import(import_type, filename, rows, person):
         try:
             records = import_type.create(values, lookups)
             # a savepoint per row, so a row the database refuses doesn't undo the others.
-            # Records link to sites and groups by id, so nothing joins the session before this
+            # Records link to locations and groups by id, so nothing joins the session before this
             with db.session.begin_nested():
                 for record in records:
                     # a new User (for a person) belongs to no organisation
@@ -601,6 +731,8 @@ def run_import(import_type, filename, rows, person):
         except IntegrityError:
             errors.append({'row': row_number, 'error': "The database refused this row. It may duplicate an existing record."})
             continue
+        if import_type.saved:
+            import_type.saved(records, lookups)
         imported += 1
 
     import_event.rows_imported = imported
@@ -614,6 +746,83 @@ def template_csv(import_type):
     output = io.StringIO()
     csv.writer(output).writerow([column.key for column in import_type.columns])
     return '﻿' + output.getvalue()
+
+
+# the Excel format typed values get in each kind of template column. '@' is text, so 00123 or a phone
+# number keeps its leading zeros
+TEMPLATE_FORMATS = {'date': 'dd/mm/yyyy', 'money': '#,##0.00', 'whole_number': '0', 'days': '0.00', 'yes_no': 'General'}
+
+
+def column_choices(column, person):
+    """The template dropdown for a column, as (choices, strict), or (None, False) for none. Lists of the
+    organisation's records only include what the user can already see, and only warn, since the list can be
+    out of date by the time the file is imported (the import checks every value anyway)."""
+    organisation_id = person.organisation_id
+    if column.kind == 'yes_no':
+        return ['Yes', 'No'], True
+    if column.kind == 'frequency':
+        return [label for _, label in FREQUENCIES], True
+    if column.kind == 'job_status':
+        return [label for _, label in JOB_STATUSES], True
+    if column.kind == 'location':
+        if not can(person, 'locations.view'):
+            return None, False
+        locations = Location.query.filter_by(organisation_id=organisation_id).order_by(db.func.lower(Location.materialised_path))
+        return [location.materialised_path for location in locations], False
+    if column.kind == 'reference':
+        model = column.reference
+        items = model.query.filter_by(organisation_id=organisation_id).order_by(db.func.lower(model.description))
+        return [item.description for item in items], False
+    if column.kind == 'user_group':
+        groups = UserGroup.query.filter_by(organisation_id=organisation_id).order_by(db.func.lower(UserGroup.name))
+        # only admins can put people in the Admin group
+        return [group.name for group in groups if person.is_org_admin or not group.is_admin], False
+    if column.kind == 'person':
+        if not can(person, 'people.view'):
+            return None, False
+        return people_choices(organisation_id), False
+    if column.kind == 'assignee':
+        choices = []
+        if can(person, 'suppliers.view'):
+            suppliers = Supplier.query.filter_by(organisation_id=organisation_id).order_by(db.func.lower(Supplier.name))
+            choices += [supplier.name for supplier in suppliers]
+        if can(person, 'people.view'):
+            choices += people_choices(organisation_id)
+        return choices, False
+    return None, False
+
+
+def people_choices(organisation_id):
+    """Everyone in the organisation as "Name (email)", so people who share a name can be told apart."""
+    people = Person.query.filter_by(organisation_id=organisation_id).order_by(
+        db.func.lower(Person.first_name), db.func.lower(Person.last_name))
+    return [f'{p.full_name} ({p.email})' for p in people]
+
+
+def template_width(column):
+    if column.kind in ('location', 'assignee', 'helpers', 'person', 'address') or (column.max_length or 0) >= 500:
+        return 50
+    return max(len(column.key) + 4, 18)
+
+
+def template_workbook(import_type, person):
+    """The .xlsx template: the header row with a note on each header, column formats, and dropdowns of
+    the choices (see column_choices). person is the signed-in user's person."""
+    columns = []
+    for column in import_type.columns:
+        choices, strict = column_choices(column, person)
+        comment = ('Required. ' if column.required else 'Optional. ') + column.format
+        if column.notes:
+            comment += '\n\n' + column.notes
+        columns.append(dict(
+            key=column.key,
+            comment=comment,
+            width=template_width(column),
+            number_format=TEMPLATE_FORMATS.get(column.kind, '@'),
+            choices=choices,
+            strict=strict,
+        ))
+    return template_xlsx(import_type.label, columns)
 
 
 ### UNDO ###
@@ -630,25 +839,20 @@ def undo_blockers(import_type, import_event, person):
     query = model.query.filter_by(import_event_id=import_event.id)
     blockers = []
 
-    if model is Site:
-        # deleting a site deletes its buildings, assets, jobs and job schedules, imported or not
-        count = query.filter(db.or_(Site.buildings.any(), Site.assets.any(), Site.jobs.any(), Site.job_schedules.any())).count()
+    if model is Location:
+        # deleting a location deletes the locations in it and the assets, jobs and job schedules at them.
+        # Imported locations inside an imported one are checked themselves
+        count = query.filter(db.or_(Location.assets.any(), Location.jobs.any(), Location.job_schedules.any())).count()
         if count:
-            blockers.append(f'{count} of the imported sites now have buildings, assets, jobs or job schedules. '
-                            'Delete those first, or undo the imports that added them.')
-
-    if model is Building:
-        # deleting a building deletes its zones, and takes it off assets, jobs and job schedules
-        count = query.filter(db.or_(Building.zones.any(), Building.assets.any(), Building.jobs.any(), Building.job_schedules.any())).count()
-        if count:
-            blockers.append(f'{count} of the imported buildings now have zones, assets, jobs or job schedules. '
+            blockers.append(f'{count} of the imported locations now have assets, jobs or job schedules. '
                             'Delete or move those first, or undo the imports that added them.')
-
-    if model is Zone:
-        count = query.filter(db.or_(Zone.assets.any(), Zone.jobs.any(), Zone.job_schedules.any())).count()
-        if count:
-            blockers.append(f'{count} of the imported zones now have assets, jobs or job schedules in them. '
-                            'Move those first, or undo the imports that added them.')
+        other = Location.query.filter(
+            Location.parent_id.in_(db.session.query(Location.id).filter(Location.import_event_id == import_event.id)),
+            db.or_(Location.import_event_id.is_(None), Location.import_event_id != import_event.id),
+        ).count()
+        if other:
+            blockers.append(f"{other} location(s) that weren't in this import have been added inside the imported ones. "
+                            'Delete or move those first.')
 
     if model is JobSchedule:
         # Job.job_schedule_id is ondelete RESTRICT

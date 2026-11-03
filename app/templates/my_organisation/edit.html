@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% set title = 'Edit My Organisation' %}
+
+{% block body %}
+<h3>Edit My Organisation: {{ organisation.name }}</h3>
+
+<form method="POST">
+  {{ form.hidden_tag() }}
+
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      {{ form.name.label(class="form-label") }}
+      {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else "")) }}
+      {% if form.name.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.name.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-md-6 mb-3">
+      {{ form.address.label(class="form-label") }}
+      {{ form.address(class="form-control" ~ (" is-invalid" if form.address.errors else ""), rows=4) }}
+      <div class="form-text">Put each line of the address on its own line.</div>
+      {% if form.address.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.address.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="col-md-6 mb-3">
+      {{ form.telephone.label(class="form-label") }}
+      {{ form.telephone(class="form-control" ~ (" is-invalid" if form.telephone.errors else "")) }}
+      {% if form.telephone.errors %}
+      <div class="invalid-feedback d-block">
+        {% for error in form.telephone.errors %}
+        <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{{ url_for('my_organisation.view') }}" class="btn btn-secondary">Back</a>
+</form>
+{% endblock body %}

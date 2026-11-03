@@ -9,7 +9,7 @@ from flask import current_app, redirect, send_file
 from sqlalchemy import func
 
 from app import db
-from app.models import File, Site, Building, Zone, Job, Asset, JobSchedule, Person, Supplier
+from app.models import File, Location, Job, Asset, JobSchedule, Person, Supplier
 
 # Files are stored privately in DigitalOcean Spaces (the S3 API) as '<organisation id>/<file id>.<ext>',
 # and viewed through a link that's signed for a few minutes. With no DO_SPACES_BUCKET (dev and tests)
@@ -50,9 +50,7 @@ class FileParent:
 
 
 FILE_PARENTS = {parent.key: parent for parent in [
-    FileParent('sites', Site, 'Site', 'Sites', lambda site: site.name),
-    FileParent('buildings', Building, 'Building', 'Buildings', lambda building: building.name),
-    FileParent('zones', Zone, 'Zone', 'Zones', lambda zone: zone.name),
+    FileParent('locations', Location, 'Location', 'Locations', lambda location: location.materialised_path),
     FileParent('assets', Asset, 'Asset', 'Assets', lambda asset: asset.description),
     FileParent('jobs', Job, 'Job', 'Jobs', lambda job: job.description),
     FileParent('job_schedules', JobSchedule, 'Job Schedule', 'Job Schedules', lambda job_schedule: job_schedule.description),

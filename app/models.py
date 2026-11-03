@@ -60,9 +60,7 @@ def file_link_table(name, column, target):
         db.Column('file_id', UUID(as_uuid=True), db.ForeignKey('file.id', ondelete='CASCADE'), primary_key=True),
     )
 
-site_files = file_link_table('site_files', 'site_id', 'site')
-building_files = file_link_table('building_files', 'building_id', 'building')
-zone_files = file_link_table('zone_files', 'zone_id', 'zone')
+location_files = file_link_table('location_files', 'location_id', 'location')
 job_files = file_link_table('job_files', 'job_id', 'job')
 asset_files = file_link_table('asset_files', 'asset_id', 'asset')
 job_schedule_files = file_link_table('job_schedule_files', 'job_schedule_id', 'job_schedule')
@@ -75,6 +73,10 @@ class Organisation(db.Model):
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     name = db.Column(db.String(100), nullable=False)
+    # the organisation's own contact details, edited on My Organisation. One line per row, separated by
+    # newlines, see services/addresses.py
+    address = db.Column(db.String(500))
+    telephone = db.Column(db.String(100))
     # set by a platform admin. Nobody can sign in to a suspended organisation
     suspended_at = db.Column(db.DateTime(timezone=True))
     # set when the person who registered it first enters a code. Anyone can register with any email,
@@ -87,7 +89,7 @@ class Organisation(db.Model):
     terms_accepted_by_name = db.Column(db.String(201))
     terms_accepted_by_email = db.Column(db.String(255))
 
-    sites =db.relationship('Site', backref='organisation', lazy=True, cascade='delete')
+    locations = db.relationship('Location', backref='organisation', lazy=True, cascade='delete')
     jobs = db.relationship('Job', backref='organisation', lazy=True, cascade='delete')
     assets = db.relationship('Asset', backref='organisation', lazy=True, cascade='delete')
     job_schedules = db.relationship('JobSchedule', backref='organisation', lazy=True, cascade='delete')
@@ -95,14 +97,12 @@ class Organisation(db.Model):
     user_groups = db.relationship('UserGroup', backref='organisation', lazy=True, cascade='delete')
     people = db.relationship('Person', backref='organisation', lazy=True, cascade='delete')
     import_events = db.relationship('ImportEvent', backref='organisation', lazy=True, cascade='delete')
-    buildings = db.relationship('Building', backref='organisation', lazy=True, cascade='delete')
-    zones = db.relationship('Zone', backref='organisation', lazy=True, cascade='delete')
     files = db.relationship('File', backref='organisation', lazy=True, cascade='delete')
     file_exports = db.relationship('FileExport', backref='organisation', lazy=True, cascade='delete')
     job_categories = db.relationship('JobCategory', backref='organisation', lazy=True, cascade='delete')
     asset_categories = db.relationship('AssetCategory', backref='organisation', lazy=True, cascade='delete')
     asset_conditions = db.relationship('AssetCondition', backref='organisation', lazy=True, cascade='delete')
-    building_conditions = db.relationship('BuildingCondition', backref='organisation', lazy=True, cascade='delete')
+    location_categories = db.relationship('LocationCategory', backref='organisation', lazy=True, cascade='delete')
     supplier_categories = db.relationship('SupplierCategory', backref='organisation', lazy=True, cascade='delete')
     file_categories = db.relationship('FileCategory', backref='organisation', lazy=True, cascade='delete')
     support_tickets = db.relationship('SupportTicket', backref='organisation', lazy=True, cascade='delete')
@@ -147,11 +147,12 @@ class AssetCondition(ReferenceItem, db.Model):
     pass
 
 
-class BuildingCondition(ReferenceItem, db.Model):
+class SupplierCategory(ReferenceItem, db.Model):
     pass
 
 
-class SupplierCategory(ReferenceItem, db.Model):
+# what kind of place a location is (Site, Building, Floor...), since locations nest freely
+class LocationCategory(ReferenceItem, db.Model):
     pass
 
 
@@ -159,86 +160,50 @@ class FileCategory(ReferenceItem, db.Model):
     pass
 
 
-class Site(db.Model):
+# where things are: a site, a building in it, a floor or room in that... Locations nest to any depth through
+# parent_id. Assets, jobs and job schedules are each at one location. materialised_path is the names from the
+# top down, joined with ' > ' (services/locations.py keeps it up to date), and is unique per organisation,
+# ignoring case
+class Location(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
+    # can't contain '>', the path separator
     name = db.Column(db.String(100), nullable=False)
     # one line per row, separated by newlines, see services/addresses.py
     address = db.Column(db.String(500))
     telephone = db.Column(db.String(100))
+    # e.g. 'Head Office > Main Building > Ground Floor'. Set by the app (set_path), never a form
+    materialised_path = db.Column(db.String(1000), nullable=False)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     # set when the record came from a CSV import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
-    # someone in the organisation to contact about the site. Cleared if they're deleted
+    # the location this one is in, or None for a top-level location. Deleting a location deletes the
+    # locations in it, and everything at them
+    parent_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'))
+    parent = db.relationship('Location', remote_side='Location.id', backref=db.backref(
+        'children', lazy=True, order_by='Location.name', cascade='delete'))
+    # what kind of place it is. Chosen on the location form only, and filtered on the locations index
+    location_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location_category.id', ondelete='SET NULL'))
+    location_category = db.relationship('LocationCategory', lazy=True)
+    # someone in the organisation to contact about the location. Cleared if they're deleted
     main_contact_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
-    main_contact = db.relationship('Person', backref=db.backref('main_contact_sites', lazy=True, order_by='Site.name'), lazy=True)
+    main_contact = db.relationship('Person', lazy=True, backref=db.backref(
+        'main_contact_locations', lazy=True, order_by='Location.materialised_path'))
 
-    jobs = db.relationship('Job', backref='site', lazy=True, cascade='delete')
-    assets = db.relationship('Asset', backref='site', lazy=True, cascade='delete')
-    job_schedules = db.relationship('JobSchedule', backref='site', lazy=True, cascade='delete')
-    buildings = db.relationship('Building', backref='site', lazy=True, cascade='delete', order_by='Building.name')
+    jobs = db.relationship('Job', backref='location', lazy=True, cascade='delete')
+    assets = db.relationship('Asset', backref='location', lazy=True, cascade='delete')
+    job_schedules = db.relationship('JobSchedule', backref='location', lazy=True, cascade='delete')
 
-    # unique per organisation. The routes and imports also check case-insensitively
+    # the routes and imports also check case-insensitively
     __table_args__ = (
-        db.UniqueConstraint('organisation_id', 'name'),
+        db.UniqueConstraint('organisation_id', 'materialised_path'),
     )
 
-
-# a building at a site. Assets, jobs and job schedules can optionally say which building (and zone) they're in
-class Building(db.Model):
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-
-    name = db.Column(db.String(100), nullable=False)
-
-    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
-    import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
-    # never changes after creation, so the records in it always stay in its site
-    site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
-    building_condition_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building_condition.id', ondelete='SET NULL'))
-    building_condition = db.relationship('BuildingCondition', lazy=True)
-    # the UK date the condition was last changed, set by the app (or by an import)
-    condition_set = db.Column(db.Date())
-
-    zones = db.relationship('Zone', backref='building', lazy=True, cascade='delete', order_by='Zone.name')
-    # deleting the building clears building_id (and zone_id, through the zones) on these
-    assets = db.relationship('Asset', backref='building', lazy=True)
-    jobs = db.relationship('Job', backref='building', lazy=True)
-    job_schedules = db.relationship('JobSchedule', backref='building', lazy=True)
-
-    # unique within the site. The routes and imports also check case-insensitively
-    __table_args__ = (
-        db.UniqueConstraint('site_id', 'name'),
-    )
-
-
-# an area of a building, such as a floor or plant room
-class Zone(db.Model):
-    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-
-    name = db.Column(db.String(100), nullable=False)
-
-    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
-    import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
-    # never changes after creation, like Building.site_id
-    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='CASCADE'), nullable=False)
-
-    assets = db.relationship('Asset', backref='zone', lazy=True)
-    jobs = db.relationship('Job', backref='zone', lazy=True)
-    job_schedules = db.relationship('JobSchedule', backref='zone', lazy=True)
-
-    # unique within the building. The routes and imports also check case-insensitively
-    __table_args__ = (
-        db.UniqueConstraint('building_id', 'name'),
-    )
+    def __str__(self):
+        return self.materialised_path
 
 
 class Job(db.Model):
@@ -273,10 +238,10 @@ class Job(db.Model):
     source = db.Column(db.String(20), nullable=False)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
-    # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
-    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
-    zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
+    # set when the record came from a CSV import
+    import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
+    # deleting the location deletes the record
+    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
     job_schedule_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_schedule.id', ondelete='RESTRICT'))
     # copied from the job schedule when a job is raised from one
     job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
@@ -413,10 +378,8 @@ class Asset(db.Model):
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     # set when the record came from a CSV import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
-    site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
-    # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
-    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
-    zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
+    # deleting the location deletes the record
+    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
     # the person in this organisation the asset is assigned to, set on the Assign page. Cleared if they're deleted
     assigned_to_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
     assigned_to = db.relationship('Person', backref=db.backref('assigned_assets', lazy=True, order_by='Asset.description'))
@@ -464,10 +427,8 @@ class JobSchedule(db.Model):
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
     # set when the record came from a CSV import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
-    site_id = db.Column(UUID(as_uuid=True), db.ForeignKey('site.id'), nullable=False)
-    # optional, and always in the record's site (zone in the building). Cleared if the building or zone is deleted
-    building_id = db.Column(UUID(as_uuid=True), db.ForeignKey('building.id', ondelete='SET NULL'))
-    zone_id = db.Column(UUID(as_uuid=True), db.ForeignKey('zone.id', ondelete='SET NULL'))
+    # deleting the location deletes the record
+    location_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
     # raise_job() copies it to the job
     job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
     job_category = db.relationship('JobCategory', lazy=True)
@@ -704,9 +665,7 @@ class File(db.Model):
     file_category = db.relationship('FileCategory', lazy=True)
 
     # the records it's linked to. Each also has .files
-    sites = db.relationship('Site', secondary=site_files, backref=db.backref('files', order_by='File.description'), lazy=True)
-    buildings = db.relationship('Building', secondary=building_files, backref=db.backref('files', order_by='File.description'), lazy=True)
-    zones = db.relationship('Zone', secondary=zone_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    locations = db.relationship('Location', secondary=location_files, backref=db.backref('files', order_by='File.description'), lazy=True)
     jobs = db.relationship('Job', secondary=job_files, backref=db.backref('files', order_by='File.description'), lazy=True)
     assets = db.relationship('Asset', secondary=asset_files, backref=db.backref('files', order_by='File.description'), lazy=True)
     job_schedules = db.relationship('JobSchedule', secondary=job_schedule_files, backref=db.backref('files', order_by='File.description'), lazy=True)

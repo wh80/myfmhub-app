@@ -49,7 +49,7 @@ def delete_organisation(organisation):
         {Job.assigned_person_id: None, Job.assigned_supplier_id: None}, synchronize_session=False)
     for person in Person.query.filter_by(organisation_id=organisation.id).all():
         delete_person(person)
-    # people must go first: the rest (sites, jobs, groups, imports...) cascades from the organisation
+    # people must go first: the rest (locations, jobs, groups, imports...) cascades from the organisation
     db.session.flush()
     # forget any people list loaded earlier, so the cascade doesn't try to delete them again
     db.session.expire(organisation)

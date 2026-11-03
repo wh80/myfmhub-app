@@ -9,7 +9,7 @@
       <tr>
         <th scope="col"></th>
         <th scope="col" data-col="description" data-col-fixed>Description</th>
-        <th scope="col" data-col="site">Site</th>
+        <th scope="col" data-col="location">Location</th>
         <th scope="col" data-col="asset_number">Asset Number</th>
         <th scope="col" data-col="make">Make</th>
         <th scope="col" data-col="model">Model</th>
@@ -38,7 +38,7 @@
             >{{asset.description}}</label
           >
         </td>
-        <td>{{asset.site.name}}</td>
+        <td>{{ asset.location.materialised_path }}</td>
         <td>{{asset.asset_number or '-'}}</td>
         <td>{{asset.make or '-'}}</td>
         <td>{{asset.model or '-'}}</td>

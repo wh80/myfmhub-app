@@ -10,6 +10,7 @@ UK_TIMEZONE = ZoneInfo('Europe/London')
 FREQUENCIES = [
     ('daily', 'Every Day'),
     ('weekly', 'Every Week'),
+    ('two_weekly', 'Every 2 Weeks'),
     ('six_weekly', 'Every 6 Weeks'),
     ('monthly', 'Every Month'),
     ('three_monthly', 'Every 3 Months'),
@@ -26,6 +27,7 @@ FREQUENCY_LABELS = dict(FREQUENCIES)
 FREQUENCY_MIN_DAYS = {
     'daily': 1,
     'weekly': 7,
+    'two_weekly': 14,
     'six_weekly': 42,
     'monthly': 28,
     'three_monthly': 89,
@@ -46,6 +48,7 @@ def job_creation_date(next_due_by, notice_days):
 FREQUENCY_DAYS = {
     'daily': 1,
     'weekly': 7,
+    'two_weekly': 14,
     'six_weekly': 42,
 }
 FREQUENCY_MONTHS = {

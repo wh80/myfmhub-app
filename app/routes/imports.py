@@ -3,7 +3,7 @@ from app.forms import ImportForm
 from app.models import ImportEvent
 from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404
 from app.services.permissions import can
-from app.services.imports import IMPORT_TYPES, MAX_BYTES, MAX_ROWS, read_csv, remaining_records, run_import, template_csv, undo_blockers, undo_import
+from app.services.imports import IMPORT_TYPES, MAX_BYTES, MAX_ROWS, read_file, remaining_records, run_import, template_csv, template_workbook, undo_blockers, undo_import
 imports_bp = Blueprint('imports', __name__, url_prefix="/imports")
 imports_bp.before_request(require_login)
 imports_bp.before_request(require_permission)
@@ -39,10 +39,11 @@ def upload(slug):
 
     if form.validate_on_submit():
         upload = form.file.data
-        # read one byte past the limit, so read_csv can tell the file is too big without reading it all
-        rows, problems = read_csv(import_type, upload.read(MAX_BYTES + 1))
+        filename = upload.filename or 'upload.csv'
+        # read one byte past the limit, so read_file can tell the file is too big without reading it all
+        rows, problems = read_file(import_type, filename, upload.read(MAX_BYTES + 1))
         if not problems:
-            import_event = run_import(import_type, upload.filename or 'upload.csv', rows, g.person)
+            import_event = run_import(import_type, filename, rows, g.person)
             return redirect(url_for('imports.view', id=import_event.id))
 
     return render_template(
@@ -54,8 +55,19 @@ def upload(slug):
         max_mb=MAX_BYTES // (1024 * 1024),
     )
 
-@imports_bp.route('/new/<slug>/template.csv')
+# the Excel template has dropdowns of the organisation's locations, categories and so on, limited to what
+# the user can see (column_choices), so it's made fresh for each download
+@imports_bp.route('/new/<slug>/template.xlsx')
 def template(slug):
+    import_type = import_type_or_404(slug)
+    return Response(
+        template_workbook(import_type, g.person),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename="{import_type.slug}-import-template.xlsx"'},
+    )
+
+@imports_bp.route('/new/<slug>/template.csv')
+def template_csv_file(slug):
     import_type = import_type_or_404(slug)
     return Response(
         template_csv(import_type),
