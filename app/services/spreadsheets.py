@@ -4,14 +4,18 @@ from datetime import date, datetime, time
 from decimal import Decimal
 
 from openpyxl import Workbook, load_workbook
+from openpyxl.cell import WriteOnlyCell
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 from openpyxl.comments import Comment
-from openpyxl.styles import Font
+from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
-# Excel (.xlsx) files for imports: reading an uploaded workbook's first sheet as text cells, and writing
-# a template with a dropdown on the columns that have a list of choices. openpyxl parses the workbook's XML
-# through defusedxml (in requirements.txt), which refuses XML entity tricks
+# Excel (.xlsx) files: reading an uploaded import's first sheet as text cells, writing an import template
+# with a dropdown on the columns that have a list of choices, and writing downloads. openpyxl parses the
+# workbook's XML through defusedxml (in requirements.txt), which refuses XML entity tricks
+
+EXCEL_MIMETYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 # a .xlsx is a zip of XML. Refuse one that unzips to more than this, so a small file can't expand to fill
 # the server's memory (a "zip bomb")
@@ -21,6 +25,11 @@ MAX_COLUMNS = 200
 # the rows the template's dropdowns and formats cover, under the header
 TEMPLATE_ROWS = 5000
 LISTS_SHEET = 'Lists'
+# formats for downloads, matching how pages show dates
+DATE_FORMAT = 'dd-mm-yyyy'
+DATETIME_FORMAT = 'dd-mm-yyyy hh:mm'
+NUMBER_FORMAT = '0.00'
+MAX_COLUMN_WIDTH = 60
 
 
 class SpreadsheetError(Exception):
@@ -28,7 +37,7 @@ class SpreadsheetError(Exception):
 
 
 def cell_text(value):
-    """An Excel cell's value as the text a CSV cell would have, so both go through the same checks."""
+    """An Excel cell's value as text, so every import column is parsed and checked the same way."""
     if value is None:
         return ''
     if isinstance(value, bool):
@@ -60,13 +69,13 @@ def read_xlsx(data):
     except zipfile.BadZipFile:
         # an old .xls, a password-protected workbook or something renamed .xlsx
         raise SpreadsheetError("The file couldn't be read as an Excel workbook. Save it as an Excel Workbook (.xlsx) "
-                               "without a password, or as CSV.")
+                               "without a password.")
 
     try:
         # data_only: a formula cell gives the value Excel last calculated, never the formula
         workbook = load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     except Exception:
-        raise SpreadsheetError("The file couldn't be read as an Excel workbook. Save it as an Excel Workbook (.xlsx), or as CSV.")
+        raise SpreadsheetError("The file couldn't be read as an Excel workbook. Save it as an Excel Workbook (.xlsx).")
 
     try:
         if not workbook.worksheets:
@@ -90,7 +99,7 @@ def read_xlsx(data):
     except SpreadsheetError:
         raise
     except Exception:
-        raise SpreadsheetError("The file couldn't be read as an Excel workbook. Save it as an Excel Workbook (.xlsx), or as CSV.")
+        raise SpreadsheetError("The file couldn't be read as an Excel workbook. Save it as an Excel Workbook (.xlsx).")
     finally:
         workbook.close()
 
@@ -152,6 +161,73 @@ def template_xlsx(sheet_title, columns):
         sheet.add_data_validation(validation)
 
     sheet.freeze_panes = 'A2'
+    output = io.BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def export_cell(sheet, value):
+    """A cell for a download. Dates and numbers are real ones, so Excel can sort and add them up. Everything
+    else is text, so a value like =HYPERLINK(...) typed into a record can never run as a formula."""
+    cell = WriteOnlyCell(sheet)
+    if value is None:
+        return cell
+    if isinstance(value, bool):
+        cell.value = 'Yes' if value else 'No'
+    elif isinstance(value, datetime):
+        # Excel has no time zones (openpyxl refuses them), so this keeps the time as it reads
+        cell.value = value.replace(tzinfo=None)
+        cell.number_format = DATETIME_FORMAT
+    elif isinstance(value, date):
+        cell.value = value
+        cell.number_format = DATE_FORMAT
+    elif isinstance(value, Decimal):
+        cell.value = value
+        cell.number_format = NUMBER_FORMAT
+    elif isinstance(value, (int, float)):
+        cell.value = value
+    else:
+        # openpyxl refuses control characters, which can arrive in pasted text
+        text = ILLEGAL_CHARACTERS_RE.sub('', str(value))
+        set_text(cell, text)
+        if '\n' in text:
+            cell.alignment = Alignment(wrap_text=True, vertical='top')
+    return cell
+
+
+def column_width(header, values):
+    longest = len(header)
+    for value in values:
+        if isinstance(value, datetime):
+            longest = max(longest, 16)
+        elif isinstance(value, date):
+            longest = max(longest, 10)
+        elif value is not None:
+            longest = max(longest, *(len(line) for line in str(value).split('\n')))
+    return min(longest + 3, MAX_COLUMN_WIDTH)
+
+
+def export_xlsx(sheets):
+    """A workbook's bytes for a download. sheets is a list of (title, headers, rows), where rows is a list of
+    lists of values. Write-only mode, so a big export doesn't hold every cell object in memory."""
+    workbook = Workbook(write_only=True)
+    for title, headers, rows in sheets:
+        sheet = workbook.create_sheet(title[:31])
+        sheet.freeze_panes = 'A2'
+        # with the widths, these have to be set before the first row is added
+        for number, header in enumerate(headers, start=1):
+            sheet.column_dimensions[get_column_letter(number)].width = column_width(header, [row[number - 1] for row in rows])
+        if headers:
+            sheet.auto_filter.ref = f'A1:{get_column_letter(len(headers))}{len(rows) + 1}'
+        header_cells = []
+        for header in headers:
+            cell = WriteOnlyCell(sheet)
+            set_text(cell, header)
+            cell.font = Font(bold=True)
+            header_cells.append(cell)
+        sheet.append(header_cells)
+        for row in rows:
+            sheet.append([export_cell(sheet, value) for value in row])
     output = io.BytesIO()
     workbook.save(output)
     return output.getvalue()

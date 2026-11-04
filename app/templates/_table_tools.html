@@ -12,8 +12,8 @@
       <i class="bi bi-download" aria-hidden="true"></i> Download
     </button>
     <ul class="dropdown-menu dropdown-menu-end">
-      <li><a class="dropdown-item" href="{{ url_for(export_endpoint, file_format='csv', **args) }}" data-export-for="{{ key }}"><i class="bi bi-filetype-csv" aria-hidden="true"></i> CSV</a></li>
-      <li><a class="dropdown-item" href="{{ url_for(export_endpoint, file_format='pdf', **args) }}" data-export-for="{{ key }}"><i class="bi bi-filetype-pdf" aria-hidden="true"></i> PDF</a></li>
+      <li><a class="dropdown-item" href="{{ url_for(export_endpoint, file_format='xlsx', **args) }}" data-export-for="{{ key }}" data-busy="Preparing your download..."><i class="bi bi-filetype-xlsx" aria-hidden="true"></i> Excel</a></li>
+      <li><a class="dropdown-item" href="{{ url_for(export_endpoint, file_format='pdf', **args) }}" data-export-for="{{ key }}" data-busy="Preparing your download..."><i class="bi bi-filetype-pdf" aria-hidden="true"></i> PDF</a></li>
     </ul>
   </div>
   {% endif %}

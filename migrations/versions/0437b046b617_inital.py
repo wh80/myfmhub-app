@@ -1,8 +1,8 @@
-"""initial
+"""inital
 
-Revision ID: 5b99767e7880
+Revision ID: 0437b046b617
 Revises: 
-Create Date: 2026-11-03 10:16:53.189100
+Create Date: 2026-11-04 10:16:01.386605
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '5b99767e7880'
+revision = '0437b046b617'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,6 +23,8 @@ def upgrade():
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('address', sa.String(length=500), nullable=True),
+    sa.Column('telephone', sa.String(length=100), nullable=True),
     sa.Column('suspended_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('verified_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('terms_accepted_at', sa.DateTime(timezone=True), nullable=True),
@@ -50,7 +52,7 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('organisation_id', 'description')
     )
-    op.create_table('file_category',
+    op.create_table('document_category',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -76,6 +78,16 @@ def upgrade():
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('job_category',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.String(length=100), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'description')
+    )
+    op.create_table('location_category',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -118,7 +130,7 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('organisation_id', 'name')
     )
-    op.create_table('file',
+    op.create_table('document',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -129,28 +141,11 @@ def upgrade():
     sa.Column('content_type', sa.String(length=100), nullable=False),
     sa.Column('storage_key', sa.String(length=255), nullable=False),
     sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('file_category_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['file_category_id'], ['file_category.id'], ondelete='SET NULL'),
+    sa.Column('document_category_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['document_category_id'], ['document_category.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('storage_key')
-    )
-    op.create_table('location',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('name', sa.String(length=100), nullable=False),
-    sa.Column('address', sa.String(length=500), nullable=True),
-    sa.Column('telephone', sa.String(length=100), nullable=True),
-    sa.Column('materialised_path', sa.String(length=1000), nullable=False),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('import_event_id', sa.UUID(), nullable=True),
-    sa.Column('parent_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['parent_id'], ['location.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('organisation_id', 'materialised_path')
     )
     op.create_table('person',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -195,6 +190,105 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_group_id'], ['user_group.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('user_group_id', 'permission')
     )
+    op.create_table('document_export',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('status', sa.String(length=20), nullable=False),
+    sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('storage_key', sa.String(length=255), nullable=True),
+    sa.Column('document_count', sa.Integer(), nullable=True),
+    sa.Column('size_mb', sa.Numeric(precision=12, scale=4), nullable=True),
+    sa.Column('error', sa.String(length=255), nullable=True),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('person_id', sa.UUID(), nullable=True),
+    sa.CheckConstraint("status IN ('running', 'ready', 'failed', 'expired')", name='ck_document_export_status'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('location',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('name', sa.String(length=100), nullable=False),
+    sa.Column('address', sa.String(length=500), nullable=True),
+    sa.Column('telephone', sa.String(length=100), nullable=True),
+    sa.Column('materialised_path', sa.String(length=1000), nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('import_event_id', sa.UUID(), nullable=True),
+    sa.Column('parent_id', sa.UUID(), nullable=True),
+    sa.Column('location_category_id', sa.UUID(), nullable=True),
+    sa.Column('main_contact_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['location_category_id'], ['location_category.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['main_contact_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['parent_id'], ['location.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('organisation_id', 'materialised_path')
+    )
+    op.create_table('otp',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('code_hash', sa.String(length=64), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('attempts', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('person_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('person_documents',
+    sa.Column('person_id', sa.UUID(), nullable=False),
+    sa.Column('document_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('person_id', 'document_id')
+    )
+    op.create_table('supplier_documents',
+    sa.Column('supplier_id', sa.UUID(), nullable=False),
+    sa.Column('document_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['supplier_id'], ['supplier.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('supplier_id', 'document_id')
+    )
+    op.create_table('support_ticket',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('description', sa.Text(), nullable=False),
+    sa.Column('status', sa.String(length=20), server_default='open', nullable=False),
+    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('created_by_id', sa.UUID(), nullable=True),
+    sa.CheckConstraint("status IN ('open', 'closed')", name='ck_support_ticket_status'),
+    sa.ForeignKeyConstraint(['created_by_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('user_session',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.Column('token_hash', sa.String(length=64), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('user_agent', sa.String(length=255), nullable=True),
+    sa.Column('ip_address', sa.String(length=45), nullable=True),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('person_id', sa.UUID(), nullable=True),
+    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('token_hash')
+    )
     op.create_table('asset',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -228,27 +322,14 @@ def upgrade():
     sa.UniqueConstraint('organisation_id', 'asset_number'),
     sa.UniqueConstraint('organisation_id', 'serial_number')
     )
-    op.create_table('file_export',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('status', sa.String(length=20), nullable=False),
-    sa.Column('email', sa.String(length=255), nullable=False),
-    sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('finished_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('storage_key', sa.String(length=255), nullable=True),
-    sa.Column('file_count', sa.Integer(), nullable=True),
-    sa.Column('size_mb', sa.Numeric(precision=12, scale=4), nullable=True),
-    sa.Column('error', sa.String(length=255), nullable=True),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
-    sa.Column('person_id', sa.UUID(), nullable=True),
-    sa.CheckConstraint("status IN ('running', 'ready', 'failed', 'expired')", name='ck_file_export_status'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
-    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
-    sa.PrimaryKeyConstraint('id')
+    op.create_table('location_documents',
+    sa.Column('location_id', sa.UUID(), nullable=False),
+    sa.Column('document_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['location_id'], ['location.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('location_id', 'document_id')
     )
-    op.create_table('job_schedule',
+    op.create_table('planned_job_schedule',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
@@ -272,77 +353,23 @@ def upgrade():
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('location_files',
-    sa.Column('location_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['location_id'], ['location.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('location_id', 'file_id')
-    )
-    op.create_table('otp',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('code_hash', sa.String(length=64), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('attempts', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('person_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('person_files',
-    sa.Column('person_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('person_id', 'file_id')
-    )
-    op.create_table('supplier_files',
-    sa.Column('supplier_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['supplier_id'], ['supplier.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('supplier_id', 'file_id')
-    )
-    op.create_table('support_ticket',
+    op.create_table('support_ticket_note',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('status', sa.String(length=20), server_default='open', nullable=False),
-    sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('support_ticket_id', sa.UUID(), nullable=False),
     sa.Column('created_by_id', sa.UUID(), nullable=True),
-    sa.CheckConstraint("status IN ('open', 'closed')", name='ck_support_ticket_status'),
-    sa.ForeignKeyConstraint(['created_by_id'], ['person.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
+    sa.ForeignKeyConstraint(['created_by_id'], ['user.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['support_ticket_id'], ['support_ticket.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('user_session',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('token_hash', sa.String(length=64), nullable=False),
-    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.Column('revoked_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('user_agent', sa.String(length=255), nullable=True),
-    sa.Column('ip_address', sa.String(length=45), nullable=True),
-    sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('person_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['person_id'], ['person.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['user_id'], ['user.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('token_hash')
-    )
-    op.create_table('asset_files',
+    op.create_table('asset_documents',
     sa.Column('asset_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
+    sa.Column('document_id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['asset_id'], ['asset.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('asset_id', 'file_id')
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('asset_id', 'document_id')
     )
     op.create_table('job',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -364,8 +391,9 @@ def upgrade():
     sa.Column('completion_comments', sa.Text(), nullable=True),
     sa.Column('source', sa.String(length=20), nullable=False),
     sa.Column('organisation_id', sa.UUID(), nullable=False),
+    sa.Column('import_event_id', sa.UUID(), nullable=True),
     sa.Column('location_id', sa.UUID(), nullable=False),
-    sa.Column('job_schedule_id', sa.UUID(), nullable=True),
+    sa.Column('planned_job_schedule_id', sa.UUID(), nullable=True),
     sa.Column('job_category_id', sa.UUID(), nullable=True),
     sa.Column('parent_job_id', sa.UUID(), nullable=True),
     sa.Column('estimated_cost', sa.Numeric(precision=12, scale=2), nullable=True),
@@ -378,40 +406,30 @@ def upgrade():
     sa.ForeignKeyConstraint(['assigned_person_id'], ['person.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['assigned_supplier_id'], ['supplier.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['closed_by_id'], ['person.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['import_event_id'], ['import_event.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['job_category_id'], ['job_category.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['location_id'], ['location.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['organisation_id'], ['organisation.id'], ),
     sa.ForeignKeyConstraint(['parent_job_id'], ['job.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['planned_job_schedule_id'], ['planned_job_schedule.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('job', schema=None) as batch_op:
-        batch_op.create_index('uq_job_open_per_schedule', ['job_schedule_id'], unique=True, postgresql_where=sa.text("status NOT IN ('closed', 'rejected')"), sqlite_where=sa.text("status NOT IN ('closed', 'rejected')"))
+        batch_op.create_index('uq_job_open_per_schedule', ['planned_job_schedule_id'], unique=True, postgresql_where=sa.text("status NOT IN ('closed', 'rejected')"), sqlite_where=sa.text("status NOT IN ('closed', 'rejected')"))
 
-    op.create_table('job_schedule_assets',
-    sa.Column('job_schedule_id', sa.UUID(), nullable=False),
+    op.create_table('planned_job_schedule_assets',
+    sa.Column('planned_job_schedule_id', sa.UUID(), nullable=False),
     sa.Column('asset_id', sa.UUID(), nullable=False),
     sa.ForeignKeyConstraint(['asset_id'], ['asset.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('job_schedule_id', 'asset_id')
+    sa.ForeignKeyConstraint(['planned_job_schedule_id'], ['planned_job_schedule.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('planned_job_schedule_id', 'asset_id')
     )
-    op.create_table('job_schedule_files',
-    sa.Column('job_schedule_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['job_schedule_id'], ['job_schedule.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('job_schedule_id', 'file_id')
-    )
-    op.create_table('support_ticket_note',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('support_ticket_id', sa.UUID(), nullable=False),
-    sa.Column('created_by_id', sa.UUID(), nullable=True),
-    sa.ForeignKeyConstraint(['created_by_id'], ['user.id'], ondelete='SET NULL'),
-    sa.ForeignKeyConstraint(['support_ticket_id'], ['support_ticket.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id')
+    op.create_table('planned_job_schedule_documents',
+    sa.Column('planned_job_schedule_id', sa.UUID(), nullable=False),
+    sa.Column('document_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['planned_job_schedule_id'], ['planned_job_schedule.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('planned_job_schedule_id', 'document_id')
     )
     op.create_table('job_assets',
     sa.Column('job_id', sa.UUID(), nullable=False),
@@ -420,12 +438,12 @@ def upgrade():
     sa.ForeignKeyConstraint(['job_id'], ['job.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('job_id', 'asset_id')
     )
-    op.create_table('job_files',
+    op.create_table('job_documents',
     sa.Column('job_id', sa.UUID(), nullable=False),
-    sa.Column('file_id', sa.UUID(), nullable=False),
-    sa.ForeignKeyConstraint(['file_id'], ['file.id'], ondelete='CASCADE'),
+    sa.Column('document_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['document_id'], ['document.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['job_id'], ['job.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('job_id', 'file_id')
+    sa.PrimaryKeyConstraint('job_id', 'document_id')
     )
     op.create_table('job_helpers',
     sa.Column('job_id', sa.UUID(), nullable=False),
@@ -455,36 +473,37 @@ def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('notification')
     op.drop_table('job_helpers')
-    op.drop_table('job_files')
+    op.drop_table('job_documents')
     op.drop_table('job_assets')
-    op.drop_table('support_ticket_note')
-    op.drop_table('job_schedule_files')
-    op.drop_table('job_schedule_assets')
+    op.drop_table('planned_job_schedule_documents')
+    op.drop_table('planned_job_schedule_assets')
     with op.batch_alter_table('job', schema=None) as batch_op:
         batch_op.drop_index('uq_job_open_per_schedule', postgresql_where=sa.text("status NOT IN ('closed', 'rejected')"), sqlite_where=sa.text("status NOT IN ('closed', 'rejected')"))
 
     op.drop_table('job')
-    op.drop_table('asset_files')
+    op.drop_table('asset_documents')
+    op.drop_table('support_ticket_note')
+    op.drop_table('planned_job_schedule')
+    op.drop_table('location_documents')
+    op.drop_table('asset')
     op.drop_table('user_session')
     op.drop_table('support_ticket')
-    op.drop_table('supplier_files')
-    op.drop_table('person_files')
+    op.drop_table('supplier_documents')
+    op.drop_table('person_documents')
     op.drop_table('otp')
-    op.drop_table('location_files')
-    op.drop_table('job_schedule')
-    op.drop_table('file_export')
-    op.drop_table('asset')
+    op.drop_table('location')
+    op.drop_table('document_export')
     op.drop_table('user_group_permission')
     op.drop_table('supplier')
     op.drop_table('person')
-    op.drop_table('location')
-    op.drop_table('file')
+    op.drop_table('document')
     op.drop_table('user_group')
     op.drop_table('user')
     op.drop_table('supplier_category')
+    op.drop_table('location_category')
     op.drop_table('job_category')
     op.drop_table('import_event')
-    op.drop_table('file_category')
+    op.drop_table('document_category')
     op.drop_table('asset_condition')
     op.drop_table('asset_category')
     op.drop_table('organisation')

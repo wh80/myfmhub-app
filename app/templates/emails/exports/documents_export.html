@@ -7,7 +7,7 @@
 <body style="font-family: Arial, sans-serif; color: #212529;">
     <p>Hi{% if export.person %} {{ export.person.first_name }}{% endif %},</p>
     {% if export.status == 'ready' %}
-    <p>The zip of all {{ export.organisation.name }}'s documents is ready: {{ export.document_count }} document{{ 's' if export.document_count != 1 }}, {{ '%.2f' % export.size_mb }} MB. It includes a manifest.csv listing each document and what it's linked to.</p>
+    <p>The zip of all {{ export.organisation.name }}'s documents is ready: {{ export.document_count }} document{{ 's' if export.document_count != 1 }}, {{ '%.2f' % export.size_mb }} MB. It includes a manifest.xlsx listing each document and what it's linked to.</p>
     <p><a href="{{ download_url }}">Click here to download it</a>. You'll need to be signed in to {{ export.organisation.name }}.</p>
     <p>The link works for {{ keep_days }} days, after which the zip is deleted. You can always ask for a new one from <a href="{{ exports_url }}">Export data</a>.</p>
     {% else %}

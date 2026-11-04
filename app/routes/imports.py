@@ -3,7 +3,8 @@ from app.forms import ImportForm
 from app.models import ImportEvent
 from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404
 from app.services.permissions import can
-from app.services.imports import IMPORT_TYPES, MAX_BYTES, MAX_ROWS, read_file, remaining_records, run_import, template_csv, template_workbook, undo_blockers, undo_import
+from app.services.spreadsheets import EXCEL_MIMETYPE
+from app.services.imports import IMPORT_TYPES, MAX_BYTES, MAX_ROWS, read_file, remaining_records, run_import, template_workbook, undo_blockers, undo_import
 imports_bp = Blueprint('imports', __name__, url_prefix="/imports")
 imports_bp.before_request(require_login)
 imports_bp.before_request(require_permission)
@@ -39,9 +40,9 @@ def upload(slug):
 
     if form.validate_on_submit():
         upload = form.file.data
-        filename = upload.filename or 'upload.csv'
+        filename = upload.filename or 'upload.xlsx'
         # read one byte past the limit, so read_file can tell the file is too big without reading it all
-        rows, problems = read_file(import_type, filename, upload.read(MAX_BYTES + 1))
+        rows, problems = read_file(import_type, upload.read(MAX_BYTES + 1))
         if not problems:
             import_event = run_import(import_type, filename, rows, g.person)
             return redirect(url_for('imports.view', id=import_event.id))
@@ -62,17 +63,8 @@ def template(slug):
     import_type = import_type_or_404(slug)
     return Response(
         template_workbook(import_type, g.person),
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        mimetype=EXCEL_MIMETYPE,
         headers={'Content-Disposition': f'attachment; filename="{import_type.slug}-import-template.xlsx"'},
-    )
-
-@imports_bp.route('/new/<slug>/template.csv')
-def template_csv_file(slug):
-    import_type = import_type_or_404(slug)
-    return Response(
-        template_csv(import_type),
-        mimetype='text/csv',
-        headers={'Content-Disposition': f'attachment; filename="{import_type.slug}-import-template.csv"'},
     )
 
 @imports_bp.route('/<uuid:id>')

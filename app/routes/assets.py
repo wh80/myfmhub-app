@@ -92,7 +92,7 @@ def index():
         **filters
     )
 
-@assets_bp.route('/export/<any(csv, pdf):file_format>')
+@assets_bp.route('/export/<any(xlsx, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_assets()
     assets = query.options(db.joinedload(Asset.location)).all()

@@ -1,15 +1,12 @@
-import csv
-import io
-import zipfile
 from collections import namedtuple
 
 from app.extensions import db
 from app.models import Asset, Job, PlannedJobSchedule, Location, Person, Supplier
-from app.services.exports import csv_value
 from app.services.auth import as_utc
 from app.services.scheduling import UK_TIMEZONE
+from app.services.spreadsheets import export_xlsx
 
-# the "Export data" page: an organisation downloads all of its records as a zip of CSVs, one per type.
+# the "Export data" page: an organisation downloads all of its records as one Excel workbook, with a sheet per type.
 # Unlike the index downloads, every field is included, with ids so records can be matched up again
 # (a job's Location ID, Planned Job Schedule ID and Asset IDs). Users aren't exported, only the people records.
 # Dates and times are as stored, so created and updated are UTC
@@ -58,6 +55,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Main Contact', lambda location: location.main_contact.full_name if location.main_contact else None),
         ('Main Contact ID', lambda location: location.main_contact_id),
         *ADDRESS_COLUMNS,
+        ('Email', lambda location: location.email),
         *TIMESTAMP_COLUMNS,
     ], lambda: []),
     ExportType('assets', 'Assets', Asset, 'assets.view', [
@@ -153,20 +151,10 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
 ]}
 
 
-def export_csv(export_type, records):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([label for label, _ in export_type.columns])
-    for record in records:
-        writer.writerow([csv_value(getter(record)) for _, getter in export_type.columns])
-    # the BOM makes Excel read the file as UTF-8
-    return '﻿' + output.getvalue()
-
-
-def export_zip(files):
-    """files is a list of (export_type, records). Returns the zip's bytes."""
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as archive:
-        for export_type, records in files:
-            archive.writestr(f"{export_type.key.replace('_', '-')}.csv", export_csv(export_type, records).encode('utf-8'))
-    return buffer.getvalue()
+def export_workbook(chosen):
+    """chosen is a list of (export_type, records). Returns the workbook's bytes."""
+    return export_xlsx([
+        (export_type.label, [label for label, _ in export_type.columns],
+         [[getter(record) for _, getter in export_type.columns] for record in records])
+        for export_type, records in chosen
+    ])

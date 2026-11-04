@@ -4,13 +4,14 @@
 <h1 class="mb-4">Export Data</h1>
 
 <p class="text-muted">
-  Download your organisation's records as a zip file containing one CSV file for each type you choose.
+  Download your organisation's records as one Excel workbook, with a sheet for each type you choose.
   Every field is included, with IDs so records can be matched up (for example a job's location and linked assets).
   Dates and times are in UTC.
+  This is a copy of your data: changing the workbook doesn't change anything in MyFmHub, and importing only ever adds new records.
 </p>
 
 {% if export_types %}
-<form method="POST">
+<form method="POST" data-busy="Preparing your export..." data-busy-download>
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
   <h5>What do you want to export?</h5>
   <div class="mb-3">
@@ -35,7 +36,7 @@
 <h5>Download all documents</h5>
 <p class="text-muted">
   A zip of every document your organisation has uploaded ({{ document_count }} document{{ 's' if document_count != 1 }}, {{ storage_used }}),
-  with a manifest.csv listing each document and what it's linked to. It can be large, so we prepare it in the background
+  with a manifest.xlsx listing each document and what it's linked to. It can be large, so we prepare it in the background
   and email you a download link when it's ready. The link works for {{ keep_days }} days.
 </p>
 

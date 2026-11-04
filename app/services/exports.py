@@ -1,6 +1,4 @@
-import csv
 import io
-import re
 from datetime import date, datetime
 from decimal import Decimal
 from xml.sax.saxutils import escape
@@ -13,18 +11,13 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.services.scheduling import UK_TIMEZONE, uk_today
+from app.services.spreadsheets import EXCEL_MIMETYPE, export_xlsx
 
 # downloads of an index page. A column is (key, label, getter), in table order. The key matches
 # data-col on the table header, so app.js can pass the ticked columns as ?columns=key,key
 
-# a PDF this long is slow to build and no use to read. The CSV has no limit
+# a PDF this long is slow to build and no use to read. The Excel download has no limit
 PDF_MAX_ROWS = 2000
-
-# Excel runs a cell starting with one of these as a formula, so a value like =HYPERLINK(...) typed
-# into a record could run for whoever opens the CSV. A leading ' makes Excel treat it as text.
-# Numbers and phone numbers such as +44 20 7946 0000 are left alone
-FORMULA_START = ('=', '+', '-', '@', '\t', '\r')
-NUMBER_LIKE = re.compile(r'^[+-]?[\d\s().]+$')
 
 
 def selected_columns(columns):
@@ -33,9 +26,9 @@ def selected_columns(columns):
     return [column for column in columns if column[0] in keys] or columns
 
 
-def csv_value(value):
+def pdf_value(value):
     if value is None:
-        return ''
+        return '-'
     if isinstance(value, bool):
         return 'Yes' if value else 'No'
     if isinstance(value, datetime):
@@ -43,33 +36,18 @@ def csv_value(value):
     if isinstance(value, date):
         return value.strftime('%d-%m-%Y')
     if isinstance(value, Decimal):
-        return f'{value:.2f}'
-    value = str(value)
-    if value.startswith(FORMULA_START) and not NUMBER_LIKE.match(value):
-        return "'" + value
-    return value
-
-
-def pdf_value(value):
-    if value is None:
-        return '-'
-    if isinstance(value, Decimal):
         return f'£{value:,.2f}'
-    return csv_value(value).removeprefix("'")
+    return str(value)
 
 
 def attachment(name, extension):
     return {'Content-Disposition': f'attachment; filename="{name}-{uk_today().isoformat()}.{extension}"'}
 
 
-def csv_response(name, columns, items):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([label for _, label, _ in columns])
-    for item in items:
-        writer.writerow([csv_value(getter(item)) for _, _, getter in columns])
-    # the BOM makes Excel read the file as UTF-8
-    return Response('﻿' + output.getvalue(), mimetype='text/csv', headers=attachment(name, 'csv'))
+def xlsx_response(name, title, columns, items):
+    rows = [[getter(item) for _, _, getter in columns] for item in items]
+    workbook = export_xlsx([(title, [label for _, label, _ in columns], rows)])
+    return Response(workbook, mimetype=EXCEL_MIMETYPE, headers=attachment(name, 'xlsx'))
 
 
 def page_number(canvas, doc):
@@ -94,7 +72,7 @@ def pdf_response(name, title, columns, items):
     total = len(items)
     summary = f"{total} record(s). Generated {datetime.now(UK_TIMEZONE):%d-%m-%Y %H:%M}."
     if total > PDF_MAX_ROWS:
-        summary += f' Showing the first {PDF_MAX_ROWS}. Download the CSV for all of them.'
+        summary += f' Showing the first {PDF_MAX_ROWS}. Download the Excel file for all of them.'
 
     rows = [[Paragraph(escape(label), header) for _, label, _ in columns]]
     rows += [[Paragraph(escape(pdf_value(getter(item))), cell) for _, _, getter in columns] for item in items[:PDF_MAX_ROWS]]
@@ -115,6 +93,6 @@ def pdf_response(name, title, columns, items):
 
 def export_response(file_format, name, title, columns, items):
     columns = selected_columns(columns)
-    if file_format == 'csv':
-        return csv_response(name, columns, items)
+    if file_format == 'xlsx':
+        return xlsx_response(name, title, columns, items)
     return pdf_response(name, title, columns, items)

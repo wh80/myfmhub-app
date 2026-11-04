@@ -6,8 +6,9 @@ from app.services.auth import as_utc
 from app.services.document_exports import EXPORT_KEEP_DAYS, active_document_export, start_document_export, tidy_document_exports
 from app.services.documents import storage_text, storage_used_mb, stored_download
 from app.services.exports import attachment
+from app.services.spreadsheets import EXCEL_MIMETYPE
 from app.services.permissions import can
-from app.services.data_export import EXPORT_TYPES, export_zip
+from app.services.data_export import EXPORT_TYPES, export_workbook
 exports_bp = Blueprint('exports', __name__, url_prefix="/exports")
 exports_bp.before_request(require_login)
 exports_bp.before_request(require_permission)
@@ -24,11 +25,11 @@ def index():
         keys = set(request.form.getlist('types'))
         chosen = [export_type for export_type in export_types if export_type.key in keys]
         if chosen:
-            files = [
+            records = [
                 (export_type, org_query(export_type.model).options(*export_type.options()).order_by(export_type.model.created_at, export_type.model.id).all())
                 for export_type in chosen
             ]
-            return Response(export_zip(files), mimetype='application/zip', headers=attachment('myfmhub-export', 'zip'))
+            return Response(export_workbook(records), mimetype=EXCEL_MIMETYPE, headers=attachment('myfmhub-export', 'xlsx'))
         error = 'Choose at least one type of data to export.'
 
     return render_template('exports/index.html', export_types=export_types, error=error, **documents_export_context())

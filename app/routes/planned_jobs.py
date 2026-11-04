@@ -93,7 +93,7 @@ def index():
         **filters
     )
 
-@planned_jobs_bp.route('/export/<any(csv, pdf):file_format>')
+@planned_jobs_bp.route('/export/<any(xlsx, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_planned_jobs()
     planned_job_schedules = query.options(db.joinedload(PlannedJobSchedule.location)).all()

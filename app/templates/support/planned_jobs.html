@@ -27,6 +27,10 @@
     <strong>Notice Days</strong>: how many days before the due date the job is raised, so there's time
     to arrange the work. This can be from 0 to 365, and no longer than the shortest gap between two jobs
     for the frequency. For example, a weekly schedule can have at most 7 days' notice.
+    A monthly schedule can have at most 28 days, not 30 or 31, because the shortest gap between two
+    monthly due dates is 28 days (1 February to 1 March). The limit is the same all year, whichever
+    month the job is due in. Longer frequencies work the same way: every 3 months allows up to 89 days,
+    and every 6 months up to 181.
   </li>
 </ul>
 <p>

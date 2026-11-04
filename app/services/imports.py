@@ -1,5 +1,3 @@
-import csv
-import io
 import re
 import uuid
 from dataclasses import dataclass, field
@@ -18,7 +16,7 @@ from app.services.permissions import can
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date, uk_today
 from app.services.spreadsheets import SpreadsheetError, read_xlsx, template_xlsx
 
-# CSV and Excel (.xlsx) imports. Each import type lists its columns; the header row must use the column keys.
+# Excel (.xlsx) imports. Each import type lists its columns; the header row must use the column keys.
 # A file is refused outright if its headers are wrong. Otherwise every row is checked and saved
 # on its own, so good rows are imported and bad ones are reported with the reason
 
@@ -352,6 +350,7 @@ def create_location(values, lookups):
         materialised_path=path,
         address=values['address'],
         telephone=values['telephone'],
+        email=values['email'],
         location_category_id=reference_id(values['location_category']),
         main_contact_id=reference_id(values['main_contact']),
     )]
@@ -535,6 +534,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         Column('parent', 'location', notes='Optional: the full path of the location this one is inside, e.g. Head Office > Main Building. '
                                            'It can be a location added by an earlier row in the file. Blank makes a top-level location'),
         *ADDRESS_COLUMNS[1:],
+        Column('email', 'email', max_length=255),
         reference('location_category', LocationCategory),
         Column('main_contact', 'person', notes='Optional. Someone in People, ignoring capitals. Add the email in brackets '
                                                'when two people share a name, as the Excel template\'s dropdown does. Import people first'),
@@ -611,45 +611,28 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
 ]}
 
 
-def decode(data):
-    """CSV bytes as text. Excel saves UTF-8 with a BOM, or Windows-1252 for "CSV (Comma delimited)"."""
-    try:
-        return data.decode('utf-8-sig')
-    except UnicodeDecodeError:
-        return data.decode('cp1252', errors='replace')
-
-
 def normalise_header(header):
     return header.strip().lower().replace(' ', '_')
 
 
-def file_extension(filename):
-    return filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-
-
-def read_file(import_type, filename, data):
-    """Return (rows, problems) for an uploaded .csv or .xlsx (the first sheet). rows is a list of
+def read_file(import_type, data):
+    """Return (rows, problems) for an uploaded .xlsx (the first sheet). rows is a list of
     (row number, {key: cell}); problems is a list of (header, problem) that stop the import."""
     if len(data) > MAX_BYTES:
         return [], [('', f'The file is bigger than {MAX_BYTES // (1024 * 1024)} MB. Split it into smaller files.')]
 
-    if file_extension(filename) == 'xlsx':
-        try:
-            lines = read_xlsx(data)
-        except SpreadsheetError as error:
-            return [], [('', str(error))]
-        return read_rows(import_type, iter(lines), 'Excel')
-    return read_rows(import_type, csv.reader(io.StringIO(decode(data))), 'CSV')
-
-
-def read_rows(import_type, reader, file_kind):
-    """The header checks and rows for read_file. reader gives each line as a list of cells."""
     try:
-        headers = next(reader)
-    except StopIteration:
+        lines = read_xlsx(data)
+    except SpreadsheetError as error:
+        return [], [('', str(error))]
+    return read_rows(import_type, lines)
+
+
+def read_rows(import_type, lines):
+    """The header checks and rows for read_file. lines is a list of rows, each a list of text cells."""
+    if not lines:
         return [], [('', 'The file is empty.')]
-    except csv.Error as error:
-        return [], [('', f"The file couldn't be read as {file_kind}: {error}")]
+    headers = lines[0]
 
     keys = [normalise_header(header) for header in headers]
     known = {column.key for column in import_type.columns}
@@ -668,18 +651,15 @@ def read_rows(import_type, reader, file_kind):
         return [], problems
 
     rows = []
-    try:
-        for row_number, cells in enumerate(reader, start=2):
-            cells = [cell.strip() for cell in cells]
-            if not any(cells):
-                continue
-            if len(rows) == MAX_ROWS:
-                return [], [('', f'The file has more than {MAX_ROWS} rows. Split it into smaller files.')]
-            # missing cells at the end count as blank, extra ones are ignored
-            cells += [''] * (len(keys) - len(cells))
-            rows.append((row_number, dict(zip(keys, cells))))
-    except csv.Error as error:
-        return [], [('', f"The file couldn't be read as {file_kind}: {error}")]
+    for row_number, cells in enumerate(lines[1:], start=2):
+        cells = [cell.strip() for cell in cells]
+        if not any(cells):
+            continue
+        if len(rows) == MAX_ROWS:
+            return [], [('', f'The file has more than {MAX_ROWS} rows. Split it into smaller files.')]
+        # missing cells at the end count as blank, extra ones are ignored
+        cells += [''] * (len(keys) - len(cells))
+        rows.append((row_number, dict(zip(keys, cells))))
 
     if not rows:
         return [], [('', 'The file has headers but no rows.')]
@@ -739,13 +719,6 @@ def run_import(import_type, filename, rows, person):
     import_event.errors = errors
     db.session.commit()
     return import_event
-
-
-def template_csv(import_type):
-    """A file with just the header row, to fill in."""
-    output = io.StringIO()
-    csv.writer(output).writerow([column.key for column in import_type.columns])
-    return '﻿' + output.getvalue()
 
 
 # the Excel format typed values get in each kind of template column. '@' is text, so 00123 or a phone

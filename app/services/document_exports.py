@@ -1,5 +1,3 @@
-import csv
-import io
 import re
 import tempfile
 import threading
@@ -13,12 +11,12 @@ from app import db
 from app.models import Document, DocumentExport
 from app.services.auth import as_utc
 from app.services.email import send_email
-from app.services.exports import csv_value
 from app.services.documents import document_links, open_stored, remove_stored, store
+from app.services.spreadsheets import export_xlsx
 
 # "Download all documents" on Export data. It's rare (an organisation leaving, or an audit), so there's no queue
 # or scheduled job: the request saves a running DocumentExport and starts a thread in the web process, which
-# zips every document in the organisation with a manifest.csv, stores the zip under '<organisation id>/exports/'
+# zips every document in the organisation with a manifest.xlsx, stores the zip under '<organisation id>/exports/'
 # and emails the requester a link to exports.download_documents (which needs them signed in). Zips are
 # deleted after EXPORT_KEEP_DAYS, and tidy_document_exports() does that whenever Export data is used
 EXPORT_KEEP_DAYS = 7
@@ -66,13 +64,11 @@ def links_text(document):
 
 
 def build_zip(export):
-    """Zip the organisation's documents into a temporary file, with manifest.csv. Returns (zip file, count).
+    """Zip the organisation's documents into a temporary file, with manifest.xlsx. Returns (zip file, count).
     A document that can't be read from storage is listed in the manifest as missing rather than failing the export."""
     documents = Document.query.filter_by(organisation_id=export.organisation_id).order_by(Document.description, Document.id).all()
     out = tempfile.TemporaryFile()
-    manifest = io.StringIO()
-    writer = csv.writer(manifest)
-    writer.writerow(['ID', 'Description', 'File In Zip', 'Original Filename', 'Expires', 'Size (MB)', 'Uploaded (UTC)', 'Linked To', 'Note'])
+    manifest = []
     used = set()
     with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
         for document in documents:
@@ -97,9 +93,9 @@ def build_zip(export):
             except Exception:
                 current_app.logger.exception(f'Document export {export.id}: could not read {document.storage_key}')
                 note, name = 'Missing from storage', ''
-            writer.writerow([csv_value(value) for value in [document.id, document.description, name, document.filename, document.expires, document.size_mb, document.created_at, links_text(document), note]])
-        # a BOM so Excel reads it as UTF-8, like the other CSV downloads
-        archive.writestr('manifest.csv', '﻿' + manifest.getvalue())
+            manifest.append([document.id, document.description, name, document.filename, document.expires, document.size_mb, document.created_at, links_text(document), note])
+        headers = ['ID', 'Description', 'File In Zip', 'Original Filename', 'Expires', 'Size (MB)', 'Uploaded (UTC)', 'Linked To', 'Note']
+        archive.writestr('manifest.xlsx', export_xlsx([('Documents', headers, manifest)]))
     return out, len(documents)
 
 

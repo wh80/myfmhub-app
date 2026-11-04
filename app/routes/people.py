@@ -107,7 +107,7 @@ def index():
         **filters
     )
 
-@people_bp.route('/export/<any(csv, pdf):file_format>')
+@people_bp.route('/export/<any(xlsx, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_people()
     people = query.options(db.joinedload(Person.user_group)).all()

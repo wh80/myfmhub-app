@@ -25,6 +25,10 @@
         <p class="mb-0">{{ location.telephone or "-" }}</p>
     </div>
     <div class="col-md-4">
+        <h6 class="text-muted">Email</h6>
+        <p class="mb-0">{% if location.email %}<a href="mailto:{{ location.email }}">{{ location.email }}</a>{% else %}-{% endif %}</p>
+    </div>
+    <div class="col-md-4">
         <h6 class="text-muted">Main Contact</h6>
         <p class="mb-0">
             {% if location.main_contact %}

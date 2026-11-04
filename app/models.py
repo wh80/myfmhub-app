@@ -174,11 +174,12 @@ class Location(db.Model):
     # one line per row, separated by newlines, see services/addresses.py
     address = db.Column(db.String(500))
     telephone = db.Column(db.String(100))
+    email = db.Column(db.String(255))
     # e.g. 'Head Office > Main Building > Ground Floor'. Set by the app (set_path), never a form
     materialised_path = db.Column(db.String(1000), nullable=False)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
+    # set when the record came from an import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     # the location this one is in, or None for a top-level location. Deleting a location deletes the
     # locations in it, and everything at them
@@ -238,7 +239,7 @@ class Job(db.Model):
     source = db.Column(db.String(20), nullable=False)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
+    # set when the record came from an import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     # deleting the location deletes the record
     location_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
@@ -376,7 +377,7 @@ class Asset(db.Model):
     estimated_replacement_cost = db.Column(db.Numeric(12, 2))
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
+    # set when the record came from an import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     # deleting the location deletes the record
     location_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
@@ -425,7 +426,7 @@ class PlannedJobSchedule(db.Model):
     next_job_creation_date = db.Column(db.Date())
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
+    # set when the record came from an import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     # deleting the location deletes the record
     location_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
@@ -472,7 +473,7 @@ class Supplier(db.Model):
     email = db.Column(db.String(255))
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
+    # set when the record came from an import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     supplier_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('supplier_category.id', ondelete='SET NULL'))
     supplier_category = db.relationship('SupplierCategory', lazy=True)
@@ -520,7 +521,7 @@ class Person(db.Model):
     can_login = db.Column(db.Boolean, default=False, nullable=False)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # set when the record came from a CSV import
+    # set when the record came from an import
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     user_id = db.Column(UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     # only required when can_login is on (enforced by PersonForm). People who can't log in may have no group

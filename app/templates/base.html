@@ -36,6 +36,13 @@
     {% block body %} {% endblock %}
     </div>
 
+    {# shown by app.js while an import or download runs, see data-busy there #}
+    <div id="busy-overlay" class="d-none d-flex flex-column align-items-center justify-content-center position-fixed top-0 start-0 w-100 h-100 bg-body bg-opacity-75 text-center px-3" style="z-index: 2000" role="status">
+      <div class="spinner-border text-primary" aria-hidden="true"></div>
+      <p class="fw-semibold mt-3 mb-1" id="busy-message"></p>
+      <p class="text-muted mb-0">Please keep this page open.</p>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js" integrity="sha384-A4TlP4zHVPP9oVIQ8pTVaV6MhvBkDx1sRpmEUfAlO5e7xpodrdr6uNmUV7alXAWW" crossorigin="anonymous"></script>
   

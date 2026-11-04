@@ -49,7 +49,7 @@ def index():
         **filters
     )
 
-@suppliers_bp.route('/export/<any(csv, pdf):file_format>')
+@suppliers_bp.route('/export/<any(xlsx, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_suppliers()
     return export_response(file_format, 'suppliers', 'Suppliers', SUPPLIER_COLUMNS, query.all())

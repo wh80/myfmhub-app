@@ -138,7 +138,7 @@ def index():
         **filters
     )
 
-@jobs_bp.route('/export/<any(csv, pdf):file_format>')
+@jobs_bp.route('/export/<any(xlsx, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_jobs()
     jobs = query.options(db.joinedload(Job.location)).all()

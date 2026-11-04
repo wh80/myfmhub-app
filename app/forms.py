@@ -21,6 +21,7 @@ class LocationForm(FlaskForm):
     parent_id = SelectField('Parent Location', coerce=optional_id, validators=[Optional()])
     address = TextAreaField('Address', validators=[Optional(), Length(max=MAX_ADDRESS_LENGTH)])
     telephone = StringField('Telephone', validators=[Optional(), Length(max=100)], filters=[strip])
+    email = EmailField('Email', validators=[Optional(), Email(), Length(max=255)], filters=[strip])
     # an optional category: choices are set by set_reference_choices
     location_category_id = SelectField('Location Category', coerce=optional_id, validators=[Optional()])
     # anyone in the organisation: choices are set by set_main_contact_choices in routes/locations.py
@@ -244,4 +245,4 @@ class SupportTicketNoteForm(FlaskForm):
     description = TextAreaField('Note', validators=[DataRequired(), Length(max=5000)], filters=[strip])
 
 class ImportForm(FlaskForm):
-    file = FileField('Excel or CSV file', validators=[FileRequired('Choose a file to upload.'), FileAllowed(['xlsx', 'csv'], 'Upload an Excel (.xlsx) or .csv file.')])
+    file = FileField('Excel file', validators=[FileRequired('Choose a file to upload.'), FileAllowed(['xlsx'], 'Upload an Excel Workbook (.xlsx). If you have a CSV or an older .xls file, open it in Excel and save it as an Excel Workbook.')])

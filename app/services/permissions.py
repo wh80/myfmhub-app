@@ -22,7 +22,7 @@ EXTRA_PERMISSIONS = [
     # import any type of record, whatever else the group allows. Undoing an import also needs
     # delete on that type (checked in imports.undo)
     ('imports.manage', 'Import data'),
-    # download every record of the types the group can view, as a zip of CSVs
+    # download every record of the types the group can view, as an Excel workbook
     ('exports.manage', 'Export data'),
     # the organisation's categories and conditions under /reference-data. Choosing one on a record
     # only needs edit on the record
@@ -75,7 +75,7 @@ ENDPOINT_PERMISSIONS = {
     **_resource('suppliers', view=['export']),
     **_resource('people', view=['export', 'assets'], edit=['resend_invite']),
     **{f'user_groups.{name}': 'user_groups.manage' for name in ['index', 'create', 'view', 'edit', 'delete']},
-    **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'template_csv_file', 'view', 'undo']},
+    **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'view', 'undo']},
     'exports.index': 'exports.manage',
     **{f'reference_data.{name}': 'reference_data.manage' for name in ['index', 'items', 'edit', 'delete', 'bulk']},
     # Download all documents: these also check documents.view

@@ -58,7 +58,7 @@ def index():
     return render_template('locations/index.html', tree=location_tree(query.all()), pagination=None,
                            location_categories=categories, **filters)
 
-@locations_bp.route('/export/<any(csv, pdf):file_format>')
+@locations_bp.route('/export/<any(xlsx, pdf):file_format>')
 def export(file_format):
     query, _ = filtered_locations()
     return export_response(file_format, 'locations', 'Locations', LOCATION_COLUMNS, query.all())
@@ -107,6 +107,7 @@ def create():
                 parent=parent,
                 address=clean_address(form.address.data),
                 telephone=form.telephone.data or None,
+                email=form.email.data or None,
                 location_category_id=parse_uuid(form.location_category_id.data),
                 main_contact_id=parse_uuid(form.main_contact_id.data),
                 organisation_id=g.person.organisation_id,
@@ -140,6 +141,7 @@ def edit(id):
             location.parent = parent
             location.address = clean_address(form.address.data)
             location.telephone = form.telephone.data or None
+            location.email = form.email.data or None
             location.location_category_id = parse_uuid(form.location_category_id.data)
             location.main_contact_id = parse_uuid(form.main_contact_id.data)
             # renaming or moving it changes its path, and the paths of every location inside it
