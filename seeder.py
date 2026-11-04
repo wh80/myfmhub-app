@@ -26,8 +26,8 @@ from app.extensions import db
 from app.services.locations import build_path
 from app.services.permissions import create_default_groups
 from app.services.scheduling import FREQUENCIES, job_creation_date
-from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Location, Asset, Job, JobSchedule, Supplier, Notification, job_assets, job_helpers, job_schedule_assets
-from app.models import JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, FileCategory
+from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Location, Asset, Job, PlannedJobSchedule, Supplier, Notification, job_assets, job_helpers, planned_job_schedule_assets
+from app.models import JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory
 
 PLACE_NAMES = ['Riverside', 'Oakwood', 'Hillcrest', 'Kingsway', 'Meadow', 'Harbour', 'Station', 'Market', 'Abbey', 'Victoria']
 BUILDING_NAMES = ['Main Building', 'North Block', 'South Block', 'East Wing', 'West Wing', 'Annex', 'Plant House', 'Gatehouse']
@@ -42,7 +42,7 @@ REFERENCE_DATA = {
     AssetCondition: ['Excellent', 'Good', 'Fair', 'Poor', 'Unserviceable'],
     LocationCategory: ['Site', 'Building', 'Floor', 'Room'],
     SupplierCategory: ['Electrical Contractor', 'Mechanical Contractor', 'Cleaning', 'Security', 'Grounds Maintenance'],
-    FileCategory: ['Certificate', 'Manual', 'Photo', 'Report', 'Contract'],
+    DocumentCategory: ['Certificate', 'Manual', 'Photo', 'Report', 'Contract'],
 }
 COUNTIES = ['West Yorkshire', 'Somerset', 'Greater Manchester', 'West Midlands', 'South Yorkshire', 'Nottinghamshire', 'Glamorgan', 'Lanarkshire', 'Tyne and Wear', 'North Yorkshire']
 POST_CODES = ['LS1', 'BS1', 'M1', 'B1', 'S1', 'NG1', 'CF10', 'G1', 'NE1', 'YO1']
@@ -71,7 +71,7 @@ LAST_NAMES = ['Smith', 'Jones', 'Patel', 'Brown', 'Taylor', 'Khan', 'Wilson', 'E
 JOB_TITLES = ['Facilities Manager', 'Helpdesk Coordinator', 'Maintenance Engineer', 'Site Manager', None]
 
 # (description, work required, statutory compliance)
-JOB_SCHEDULES = [
+PLANNED_JOB_SCHEDULES = [
     ('Annual boiler service', 'Full annual service and gas safety check on all boilers.', True),
     ('Quarterly AHU filter change', 'Replace filters and inspect belts on air handling units.', False),
     ('Monthly emergency lighting test', 'Function test of all emergency lighting, log results.', True),
@@ -118,8 +118,8 @@ def days_from_today(low, high):
 def clear():
     db.session.execute(job_assets.delete())
     db.session.execute(job_helpers.delete())
-    db.session.execute(job_schedule_assets.delete())
-    for model in (Notification, Job, Asset, JobSchedule, Supplier, Location, *REFERENCE_DATA, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
+    db.session.execute(planned_job_schedule_assets.delete())
+    for model in (Notification, Job, Asset, PlannedJobSchedule, Supplier, Location, *REFERENCE_DATA, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
         db.session.execute(db.delete(model))
     db.session.commit()
 
@@ -262,14 +262,14 @@ def seed(count):
             organisation=organisation,
         ))
 
-    job_schedules = []
+    planned_job_schedules = []
     for _ in range(count):
-        description, work_required, statutory_compliance = random.choice(JOB_SCHEDULES)
+        description, work_required, statutory_compliance = random.choice(PLANNED_JOB_SCHEDULES)
         next_due_by = days_from_today(1, 365)
         # notice shorter than the gap between jobs
         frequency = random.choice(FREQUENCIES)[0]
         notice_days = {'daily': 0, 'weekly': random.randint(0, 3), 'two_weekly': random.randint(0, 7)}.get(frequency, random.choice([7, 14, 21, 28]))
-        job_schedules.append(JobSchedule(
+        planned_job_schedules.append(PlannedJobSchedule(
             description=description,
             work_required=work_required,
             next_due_by=next_due_by,
@@ -287,29 +287,29 @@ def seed(count):
 
     jobs = []
     for _ in range(count):
-        # roughly a third of jobs are raised from a job schedule
+        # roughly a third of jobs are raised from a planned job schedule
         # inactive schedules raise nothing, so only active ones have jobs
         if random.random() < 0.33:
-            job_schedule = random.choice([job_schedule for job_schedule in job_schedules if job_schedule.is_active])
+            planned_job_schedule = random.choice([planned_job_schedule for planned_job_schedule in planned_job_schedules if planned_job_schedule.is_active])
             # rejecting a planned job moves its schedule on, so seeded ones aren't rejected
             status = random.choice([key for key, _ in JOB_STATUSES if key != 'rejected'])
             # a schedule has at most one job that isn't closed, and waits on it like raise_job() leaves it
-            if job_schedule.next_job_creation_date is None:
+            if planned_job_schedule.next_job_creation_date is None:
                 status = 'closed'
             elif status != 'closed':
-                job_schedule.next_job_creation_date = None
+                planned_job_schedule.next_job_creation_date = None
             jobs.append(Job(
-                description=job_schedule.description,
-                work_required=job_schedule.work_required,
+                description=planned_job_schedule.description,
+                work_required=planned_job_schedule.work_required,
                 due_by=days_from_today(-30, 90),
-                statutory_compliance=job_schedule.statutory_compliance,
+                statutory_compliance=planned_job_schedule.statutory_compliance,
                 status=status,
                 source='planned',
-                location=job_schedule.location,
-                job_category=job_schedule.job_category,
-                estimated_cost=job_schedule.estimated_cost,
+                location=planned_job_schedule.location,
+                job_category=planned_job_schedule.job_category,
+                estimated_cost=planned_job_schedule.estimated_cost,
                 organisation=organisation,
-                job_schedule=job_schedule,
+                planned_job_schedule=planned_job_schedule,
             ))
         else:
             description, work_required = random.choice(JOBS)
@@ -358,21 +358,21 @@ def seed(count):
             job.parent_job = random.choice(parents)
             job.location = job.parent_job.location
 
-    # link each asset to some jobs and job schedules at its own site
+    # link each asset to some jobs and planned job schedules at its own site
     for asset in assets:
         site_jobs = [job for job in jobs if site_of[job.location] is site_of[asset.location]]
-        site_job_schedules = [job_schedule for job_schedule in job_schedules if site_of[job_schedule.location] is site_of[asset.location]]
+        site_planned_job_schedules = [planned_job_schedule for planned_job_schedule in planned_job_schedules if site_of[planned_job_schedule.location] is site_of[asset.location]]
         asset.jobs = random.sample(site_jobs, min(len(site_jobs), random.randint(0, 3)))
-        asset.job_schedules = random.sample(site_job_schedules, min(len(site_job_schedules), random.randint(0, 2)))
+        asset.planned_job_schedules = random.sample(site_planned_job_schedules, min(len(site_planned_job_schedules), random.randint(0, 2)))
 
-    db.session.add_all([organisation] + [item for items in reference_data.values() for item in items] + people + locations + suppliers + assets + job_schedules + jobs)
+    db.session.add_all([organisation] + [item for items in reference_data.values() for item in items] + people + locations + suppliers + assets + planned_job_schedules + jobs)
     db.session.commit()
 
-    links = sum(len(asset.jobs) + len(asset.job_schedules) for asset in assets)
+    links = sum(len(asset.jobs) + len(asset.planned_job_schedules) for asset in assets)
     print(f"Created organisation '{organisation.name}' with {len(people)} people ({sum(1 for person in people if person.can_login)} can log in).")
     for user in shared:
         print(f'{user.email} is in another organisation too, so can switch between them.')
-    print(f'Created {count} each of top-level locations, suppliers, assets, job schedules and jobs, plus {links} asset links.')
+    print(f'Created {count} each of top-level locations, suppliers, assets, planned job schedules and jobs, plus {links} asset links.')
     print(f'Created {len(locations) - count} locations inside them (buildings and zones).')
 
 

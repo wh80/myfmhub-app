@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import SupplierForm
 from app.models import Supplier, SupplierCategory
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab, set_reference_choices, reference_items, filter_reference
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, documents_tab, set_reference_choices, reference_items, filter_reference
 from app.services.addresses import clean_address
 from app.services.exports import export_response
 suppliers_bp = Blueprint('suppliers', __name__, url_prefix="/suppliers")
@@ -121,6 +121,6 @@ def delete(id):
 
 ### RELATED DATA ###
 
-@suppliers_bp.route("/<uuid:id>/files")
-def files(id):
-    return files_tab(Supplier, id, "suppliers/view/files.html", "supplier")
+@suppliers_bp.route("/<uuid:id>/documents")
+def documents(id):
+    return documents_tab(Supplier, id, "suppliers/view/documents.html", "supplier")

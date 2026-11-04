@@ -1,0 +1,28 @@
+{% extends "locations/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
+
+{% block tab_content %}
+
+<div class="d-flex justify-content-between align-items-center mb-1">
+    <h5 class="mb-0">Planned Jobs</h5>
+    {% if can('planned_jobs.create') %}
+    <a href="{{ url_for('planned_jobs.create', location_id=location.id) }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle"></i> Create
+    </a>
+    {% endif %}
+</div>
+<p class="text-muted small mb-3">At this location and the locations inside it.</p>
+
+{{ related_search(pagination, search, 'Description or work required ...') }}
+
+{% if planned_job_schedules %}
+    {% include "planned_jobs/planned_job_schedule_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No planned job schedules match your search.</p>
+{% else %}
+    <p class="text-muted mb-0">No Planned Jobs found.</p>
+{% endif %}
+
+{% endblock tab_content %}

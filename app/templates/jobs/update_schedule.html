@@ -7,20 +7,20 @@
   </div>
 
   <div class="card-body">
-    <p>This job is from the following job schedule. Set when its next job is due to close the job today.</p>
+    <p>This job is from the following planned job schedule. Set when its next job is due to close the job today.</p>
     <dl class="row">
       <dt class="col-sm-3">Description</dt>
       <dd class="col-sm-9">
-        {% if can('job_schedules.view') %}
-        <a href="{{ url_for('job_schedules.view', id=job_schedule.id) }}">{{ job_schedule.description }}</a>
+        {% if can('planned_jobs.view') %}
+        <a href="{{ url_for('planned_jobs.view', id=planned_job_schedule.id) }}">{{ planned_job_schedule.description }}</a>
         {% else %}
-        {{ job_schedule.description }}
+        {{ planned_job_schedule.description }}
         {% endif %}
       </dd>
       <dt class="col-sm-3">Frequency</dt>
-      <dd class="col-sm-9">{{ job_schedule.frequency_label }}</dd>
+      <dd class="col-sm-9">{{ planned_job_schedule.frequency_label }}</dd>
       <dt class="col-sm-3">Location</dt>
-      <dd class="col-sm-9">{{ job_schedule.location.materialised_path }}</dd>
+      <dd class="col-sm-9">{{ planned_job_schedule.location.materialised_path }}</dd>
     </dl>
 
     <p>

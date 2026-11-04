@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
+{% set title = 'Link planned job schedules: ' ~ asset.description %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Link planned job schedules to asset: {{asset.description}}</h4>
+  </div>
+
+  <div class="card-body">
+
+    {{ related_search(pagination, search, 'Description or work required ...') }}
+
+    {% if planned_job_schedules %}
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        {% include "planned_jobs/planned_job_schedule_select_list.html" %}
+        {{ pagination_nav(pagination) }}
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-primary">Link Selected</button>
+          <a href="{{url_for('assets.planned_jobs', id=asset.id)}}" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-muted">{% if search %}No planned job schedules match your search.{% else %}No unlinked planned job schedules found at {{ asset.location.materialised_path.split(' > ')[0] }}.{% endif %}</p>
+      <a href="{{url_for('assets.planned_jobs', id=asset.id)}}" class="btn btn-secondary">Back</a>
+    {% endif %}
+
+  </div>
+</div>
+
+{% endblock body %}

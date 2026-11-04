@@ -1,0 +1,40 @@
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'overview' %}active{% endif %}"
+            href="{{ url_for('planned_jobs.view', id=planned_job_schedule.id) }}"
+        >
+            Overview
+        </a>
+    </li>
+
+   
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'assets' %}active{% endif %}"
+            href="{{ url_for('planned_jobs.assets', id=planned_job_schedule.id) }}"
+        >
+            Assets
+        </a>
+    </li>
+
+     <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'jobs' %}active{% endif %}"
+            href="{{ url_for('planned_jobs.jobs', id=planned_job_schedule.id) }}"
+        >
+            Jobs
+        </a>
+    </li>
+
+    {% if can('documents.view') %}
+    <li class="nav-item">
+        <a
+            class="nav-link {% if active_tab == 'documents' %}active{% endif %}"
+            href="{{ url_for('planned_jobs.documents', id=planned_job_schedule.id) }}"
+        >
+            Documents
+        </a>
+    </li>
+    {% endif %}
+</ul>

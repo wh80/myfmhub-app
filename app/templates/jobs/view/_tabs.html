@@ -27,13 +27,13 @@
         </a>
     </li>
 
-    {% if can('files.view') %}
+    {% if can('documents.view') %}
     <li class="nav-item">
         <a
-            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
-            href="{{ url_for('jobs.files', id=job.id) }}"
+            class="nav-link {% if active_tab == 'documents' %}active{% endif %}"
+            href="{{ url_for('jobs.documents', id=job.id) }}"
         >
-            Files
+            Documents
         </a>
     </li>
     {% endif %}

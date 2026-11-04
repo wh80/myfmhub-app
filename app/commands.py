@@ -36,10 +36,10 @@ def make_platform_admin(email, remove):
     click.echo(f'{email} is now a platform admin.')
 
 
-@click.command('create-jobs-for-job-schedules')
+@click.command('create-jobs-for-planned-job-schedules')
 @with_appcontext
-def create_jobs_for_job_schedules():
-    """Raise a job for every job schedule whose next job creation date (UK time) is today or earlier."""
+def create_jobs_for_planned_job_schedules():
+    """Raise a job for every planned job schedule whose next job creation date (UK time) is today or earlier."""
     created, failed = create_scheduled_jobs()
     for description in created:
         click.echo(f'Created job {description}')
@@ -47,4 +47,4 @@ def create_jobs_for_job_schedules():
 
     # a non-zero exit marks the cron run as failed
     if failed:
-        raise click.ClickException(f"{len(failed)} job schedule(s) failed: {', '.join(failed)}")
+        raise click.ClickException(f"{len(failed)} planned job schedule(s) failed: {', '.join(failed)}")

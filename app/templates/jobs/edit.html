@@ -43,7 +43,7 @@
       {% if job.source == 'planned' %}
       <label class="form-label" for="due_by">Due By</label>
       <input type="text" id="due_by" class="form-control" value="{{ job.due_by | date }}" disabled />
-      <div class="form-text">Set by the job schedule. A planned job's due date can't be changed.</div>
+      <div class="form-text">Set by the planned job schedule. A planned job's due date can't be changed.</div>
       {% else %}
       {{ form.due_by.label(class="form-label") }} {{
       form.due_by(class="form-control" ~ (" is-invalid" if

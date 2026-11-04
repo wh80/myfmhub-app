@@ -19,8 +19,8 @@
     <div class="fw-semibold">Jobs</div>
     <div class="small text-muted">The job workflow from start to finish: approving, assigning, starting, completing and closing.</div>
   </a>
-  <a href="{{ url_for('support.job_schedules') }}" class="list-group-item list-group-item-action">
-    <div class="fw-semibold">Job Schedules</div>
+  <a href="{{ url_for('support.planned_jobs') }}" class="list-group-item list-group-item-action">
+    <div class="fw-semibold">Planned Jobs</div>
     <div class="small text-muted">How planned maintenance schedules raise jobs, and how their dates are worked out.</div>
   </a>
   {% if g.user.is_platform_admin %}

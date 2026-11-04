@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import AssetForm, AssetAssignForm
-from app.models import Asset, Job, JobSchedule, Person, AssetCategory, AssetCondition
-from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.models import Asset, Job, PlannedJobSchedule, Person, AssetCategory, AssetCondition
+from app.routes.helpers import selected_ids, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, documents_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.reference_data import set_condition
 from app.services.exports import export_response
 assets_bp = Blueprint('assets', __name__, url_prefix="/assets")
@@ -253,37 +253,37 @@ def link_jobs(id):
     pagination, search = related_page(query, Job)
     return render_template("assets/view/jobs_link.html", asset=asset, jobs=pagination.items, pagination=pagination, search=search)
 
-@assets_bp.route("/<uuid:id>/job-schedules")
-def job_schedules(id):
+@assets_bp.route("/<uuid:id>/planned-jobs")
+def planned_jobs(id):
     asset = org_get_or_404(Asset, id)
-    pagination, search = related_page(related(asset, Asset.job_schedules, JobSchedule), JobSchedule)
-    return render_template("assets/view/job_schedules.html", asset=asset, job_schedules=pagination.items, pagination=pagination, search=search, active_tab="job_schedules")
+    pagination, search = related_page(related(asset, Asset.planned_job_schedules, PlannedJobSchedule), PlannedJobSchedule)
+    return render_template("assets/view/planned_jobs.html", asset=asset, planned_job_schedules=pagination.items, pagination=pagination, search=search, active_tab="planned_jobs")
 
-@assets_bp.route("/<uuid:id>/job-schedules/link", methods=['GET', 'POST'])
-def link_job_schedules(id):
+@assets_bp.route("/<uuid:id>/planned-jobs/link", methods=['GET', 'POST'])
+def link_planned_jobs(id):
     asset = org_get_or_404(Asset, id)
 
-    # job schedules in the same top-level location (site) as the asset that aren't already linked to it
-    query = org_query(JobSchedule).filter(
-        same_top_location(JobSchedule, asset.location),
-        ~JobSchedule.assets.any(Asset.id == asset.id)
+    # planned job schedules in the same top-level location (site) as the asset that aren't already linked to it
+    query = org_query(PlannedJobSchedule).filter(
+        same_top_location(PlannedJobSchedule, asset.location),
+        ~PlannedJobSchedule.assets.any(Asset.id == asset.id)
     )
 
     if request.method == "POST":
-        ids = selected_ids('job_schedule_ids')
+        ids = selected_ids('planned_job_schedule_ids')
 
         if not ids:
-            flash("Select at least one job schedule to link.", 'warning')
+            flash("Select at least one planned job schedule to link.", 'warning')
             return redirect(request.full_path)
 
-        job_schedules = query.filter(JobSchedule.id.in_(ids)).all()
-        asset.job_schedules.extend(job_schedules)
+        planned_job_schedules = query.filter(PlannedJobSchedule.id.in_(ids)).all()
+        asset.planned_job_schedules.extend(planned_job_schedules)
         db.session.commit()
-        flash(f"Linked {len(job_schedules)} job schedule(s) to '{asset.description}'.", 'success')
-        return redirect(url_for('assets.job_schedules', id=asset.id))
+        flash(f"Linked {len(planned_job_schedules)} planned job schedule(s) to '{asset.description}'.", 'success')
+        return redirect(url_for('assets.planned_jobs', id=asset.id))
 
-    pagination, search = related_page(query, JobSchedule)
-    return render_template("assets/view/job_schedules_link.html", asset=asset, job_schedules=pagination.items, pagination=pagination, search=search)
+    pagination, search = related_page(query, PlannedJobSchedule)
+    return render_template("assets/view/planned_jobs_link.html", asset=asset, planned_job_schedules=pagination.items, pagination=pagination, search=search)
 
 @assets_bp.route("/<uuid:id>/jobs/unlink", methods=['GET', 'POST'])
 def unlink_jobs(id):
@@ -306,27 +306,27 @@ def unlink_jobs(id):
     pagination, search = related_page(related(asset, Asset.jobs, Job), Job)
     return render_template("assets/view/jobs_unlink.html", asset=asset, jobs=pagination.items, pagination=pagination, search=search)
 
-@assets_bp.route("/<uuid:id>/job-schedules/unlink", methods=['GET', 'POST'])
-def unlink_job_schedules(id):
+@assets_bp.route("/<uuid:id>/planned-jobs/unlink", methods=['GET', 'POST'])
+def unlink_planned_jobs(id):
     asset = org_get_or_404(Asset, id)
 
     if request.method == "POST":
-        ids = selected_ids('job_schedule_ids')
+        ids = selected_ids('planned_job_schedule_ids')
 
         if not ids:
-            flash("Select at least one job schedule to unlink.", 'warning')
+            flash("Select at least one planned job schedule to unlink.", 'warning')
             return redirect(request.full_path)
 
-        job_schedules = [job_schedule for job_schedule in asset.job_schedules if job_schedule.id in ids]
-        for job_schedule in job_schedules:
-            asset.job_schedules.remove(job_schedule)
+        planned_job_schedules = [planned_job_schedule for planned_job_schedule in asset.planned_job_schedules if planned_job_schedule.id in ids]
+        for planned_job_schedule in planned_job_schedules:
+            asset.planned_job_schedules.remove(planned_job_schedule)
         db.session.commit()
-        flash(f"Unlinked {len(job_schedules)} job schedule(s) from '{asset.description}'.", 'success')
-        return redirect(url_for('assets.job_schedules', id=asset.id))
+        flash(f"Unlinked {len(planned_job_schedules)} planned job schedule(s) from '{asset.description}'.", 'success')
+        return redirect(url_for('assets.planned_jobs', id=asset.id))
 
-    pagination, search = related_page(related(asset, Asset.job_schedules, JobSchedule), JobSchedule)
-    return render_template("assets/view/job_schedules_unlink.html", asset=asset, job_schedules=pagination.items, pagination=pagination, search=search)
+    pagination, search = related_page(related(asset, Asset.planned_job_schedules, PlannedJobSchedule), PlannedJobSchedule)
+    return render_template("assets/view/planned_jobs_unlink.html", asset=asset, planned_job_schedules=pagination.items, pagination=pagination, search=search)
 
-@assets_bp.route("/<uuid:id>/files")
-def files(id):
-    return files_tab(Asset, id, "assets/view/files.html", "asset")
+@assets_bp.route("/<uuid:id>/documents")
+def documents(id):
+    return documents_tab(Asset, id, "assets/view/documents.html", "asset")

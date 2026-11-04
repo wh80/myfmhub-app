@@ -8,13 +8,13 @@
         </a>
     </li>
 
-    {% if can('files.view') %}
+    {% if can('documents.view') %}
     <li class="nav-item">
         <a
-            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
-            href="{{ url_for('suppliers.files', id=supplier.id) }}"
+            class="nav-link {% if active_tab == 'documents' %}active{% endif %}"
+            href="{{ url_for('suppliers.documents', id=supplier.id) }}"
         >
-            Files
+            Documents
         </a>
     </li>
     {% endif %}

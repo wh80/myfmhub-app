@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
+{% set title = 'Link documents: ' ~ parent.name(record) %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Link documents to {{ parent.label | lower }}: {{ parent.name(record) }}</h4>
+  </div>
+
+  <div class="card-body">
+    {{ related_search(pagination, search, 'Description or file name ...') }}
+
+    {% set back_url = url_for(parent.key ~ '.documents', id=record.id) %}
+    {% if documents %}
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+        {% include "documents/document_select_list.html" %}
+        {{ pagination_nav(pagination) }}
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-primary">Link Selected</button>
+          <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-muted">{{ 'No unlinked documents match your search.' if search else 'There are no other documents in your organisation to link.' }}</p>
+      <a href="{{ back_url }}" class="btn btn-secondary">Back</a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body %}

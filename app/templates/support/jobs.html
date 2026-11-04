@@ -67,9 +67,9 @@
     example when something breaks.
   </li>
   <li>
-    <strong>Planned jobs</strong> are raised automatically from a job schedule when it falls due. They
+    <strong>Planned jobs</strong> are raised automatically from a planned job schedule when it falls due. They
     follow the same steps as any other job, with a few extra rules because each one sets when the next is
-    due. See <a href="{{ url_for('support.job_schedules') }}">Job Schedules</a>.
+    due. See <a href="{{ url_for('support.planned_jobs') }}">Planned Jobs</a>.
   </li>
 </ul>
 <p>Every job starts as <strong>New</strong>.</p>
@@ -143,7 +143,7 @@
   <li>
     Closing a planned job takes one more step: setting the schedule's next due date. MyFmHub suggests
     the date the work was completed plus the schedule's frequency. See
-    <a href="{{ url_for('support.job_schedules') }}">Job Schedules</a>.
+    <a href="{{ url_for('support.planned_jobs') }}">Planned Jobs</a>.
   </li>
   <li>
     A closed job can be reopened with <strong>Reopen</strong> (with <strong>Reopen jobs</strong>). It
@@ -216,7 +216,7 @@
   template has dropdowns for the location, status, job category and assigned to. A few points:
 </p>
 <ul>
-  <li>Imported jobs are reactive jobs. Planned jobs come from job schedules, so they can't be imported.</li>
+  <li>Imported jobs are reactive jobs. Planned jobs come from planned job schedules, so they can't be imported.</li>
   <li>
     <strong>status</strong> can be any job status, such as New, Assigned or Completed. Leave it blank for New.
   </li>

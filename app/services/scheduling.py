@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 # and whether the UK is on GMT or BST
 UK_TIMEZONE = ZoneInfo('Europe/London')
 
-# how often a job schedule repeats. The key is stored on JobSchedule.frequency
+# how often a planned job schedule repeats. The key is stored on PlannedJobSchedule.frequency
 FREQUENCIES = [
     ('daily', 'Every Day'),
     ('weekly', 'Every Week'),

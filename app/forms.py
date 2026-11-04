@@ -5,7 +5,7 @@ from wtforms.validators import DataRequired, InputRequired, Email, Length, Optio
 from datetime import datetime
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, UK_TIMEZONE, uk_today
 from app.services.addresses import MAX_ADDRESS_LENGTH
-from app.services.files import FILE_TYPES, MAX_FILE_MB
+from app.services.documents import FILE_TYPES, MAX_FILE_MB
 
 def strip(value):
     return value.strip() if value else value
@@ -105,9 +105,9 @@ def validate_next_due_by_range(next_due_by, latest):
     if next_due_by > latest:
         raise ValidationError("You can't make the period to the next jobs due date longer than the frequency period of the schedule")
 
-# sets a job schedule's next due date when its job is closed. latest is the date the work was completed plus
+# sets a planned job schedule's next due date when its job is closed. latest is the date the work was completed plus
 # the schedule's frequency (or today, if that's already passed)
-class JobScheduleNextDueForm(FlaskForm):
+class PlannedJobScheduleNextDueForm(FlaskForm):
     next_due_by = DateField('Next Due By', validators=[DataRequired()])
 
     def __init__(self, latest, *args, **kwargs):
@@ -137,7 +137,7 @@ class AssetForm(FlaskForm):
     # changing it sets condition_set to today (set_condition)
     asset_condition_id = SelectField('Asset Condition', coerce=optional_id, validators=[Optional()])
 
-class JobScheduleForm(FlaskForm):
+class PlannedJobScheduleForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=100)])
     work_required = TextAreaField('Work Required', validators=[DataRequired(), Length(max=500)])
     next_due_by = DateField('Next Due By', validators=[DataRequired()])
@@ -210,7 +210,7 @@ class PersonForm(FlaskForm):
 class UserGroupForm(FlaskForm):
     name = StringField('Name', validators=[DataRequired(), Length(max=100)])
 
-class FileUploadForm(FlaskForm):
+class DocumentUploadForm(FlaskForm):
     file = FileField('File', validators=[
         FileRequired('Choose a file to upload.'),
         FileAllowed(sorted(FILE_TYPES), 'Upload a PDF, Word, Excel, text, CSV or image file.'),
@@ -218,13 +218,13 @@ class FileUploadForm(FlaskForm):
     ])
     description = StringField('Description', validators=[DataRequired(), Length(max=255)], filters=[strip])
     expires = DateField('Expires', validators=[Optional()])
-    file_category_id = SelectField('File Category', coerce=optional_id, validators=[Optional()])
+    document_category_id = SelectField('Document Category', coerce=optional_id, validators=[Optional()])
 
-# a file's details. The stored file itself can't be replaced
-class FileEditForm(FlaskForm):
+# a document's details. The stored file itself can't be replaced
+class DocumentEditForm(FlaskForm):
     description = StringField('Description', validators=[DataRequired(), Length(max=255)], filters=[strip])
     expires = DateField('Expires', validators=[Optional()])
-    file_category_id = SelectField('File Category', coerce=optional_id, validators=[Optional()])
+    document_category_id = SelectField('Document Category', coerce=optional_id, validators=[Optional()])
 
 # a category or condition on its reference data page
 class ReferenceItemForm(FlaskForm):

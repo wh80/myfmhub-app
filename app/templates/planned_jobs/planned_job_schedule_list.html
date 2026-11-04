@@ -1,0 +1,71 @@
+{% from "_location_fields.html" import location_text %}
+
+
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('planned_jobs', export_endpoint) }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle text-nowrap" data-columns="planned_jobs">
+    <thead>
+      <tr>
+        <th scope="col" data-col="description" data-col-fixed>Description</th>
+        <th scope="col" data-col="location">Location</th>
+        <th scope="col" data-col="category">Job Category</th>
+        <th scope="col" data-col="next_due_by">Next Due By</th>
+        <th scope="col" data-col="frequency">Frequency</th>
+        <th scope="col" data-col="next_job_creation">Next Job Creation</th>
+        <th scope="col" data-col="statutory">Statutory</th>
+        <th scope="col" data-col="active">Active</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for planned_job_schedule in planned_job_schedules %}
+      <tr class="position-relative">
+        <td><a href="{{url_for('planned_jobs.view', id=planned_job_schedule.id)}}" class="stretched-link text-reset text-decoration-none">{{planned_job_schedule.description}}</a></td>
+        <td>{{ planned_job_schedule.location.materialised_path }}</td>
+        <td>{{ planned_job_schedule.job_category or '-' }}</td>
+        <td>{{planned_job_schedule.next_due_by | date}}</td>
+        <td>{{planned_job_schedule.frequency_label}}</td>
+        <td>{{ planned_job_schedule.next_job_creation_label }}</td>
+        <td>{% if planned_job_schedule.statutory_compliance %}<i class="bi bi-check-lg" aria-hidden="true"></i><span class="visually-hidden">Yes</span>{% endif %}</td>
+        <td>{% if planned_job_schedule.is_active %}<i class="bi bi-check-lg" aria-hidden="true"></i><span class="visually-hidden">Yes</span>{% else %}<span class="badge text-bg-secondary">Inactive</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+
+
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for planned_job_schedule in planned_job_schedules %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3"><a href="{{url_for('planned_jobs.view', id=planned_job_schedule.id)}}" class="stretched-link text-reset text-decoration-none">{{planned_job_schedule.description}}</a></h5>
+          <p class="card-text"><strong>Location:</strong> {{ location_text(planned_job_schedule) }}</p>
+          {% if planned_job_schedule.job_category %}<p class="card-text"><strong>Category:</strong> {{ planned_job_schedule.job_category }}</p>{% endif %}
+          <p class="card-text">
+            <strong>Next due by:</strong> {{planned_job_schedule.next_due_by | date}}
+          </p>
+          <p class="card-text">
+            <strong>Frequency:</strong> {{planned_job_schedule.frequency_label}}
+          </p>
+          <p class="card-text">
+            <strong>Next job creation:</strong> {{ planned_job_schedule.next_job_creation_label }}
+          </p>
+          {% if planned_job_schedule.statutory_compliance %}
+          <p class="card-text"><strong>Statutory compliance:</strong> <i class="bi bi-check-lg" aria-hidden="true"></i><span class="visually-hidden">Yes</span></p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+

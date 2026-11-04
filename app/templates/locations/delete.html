@@ -9,7 +9,7 @@
   <div class="card-body">
     <div class="alert alert-danger">
       <strong>Warning:</strong> deleting <strong>{{ location.materialised_path }}</strong> will also delete every
-      location inside it, and all the assets, jobs and job schedules at this location and those locations.
+      location inside it, and all the assets, jobs and planned job schedules at this location and those locations.
       This can't be undone, and you may need these records for compliance audits.
     </div>
 
@@ -18,9 +18,9 @@
       <li>{{ counts.sub_locations }} location(s) inside this one</li>
       <li>{{ counts.assets }} asset(s)</li>
       <li>{{ counts.jobs }} job(s)</li>
-      <li>{{ counts.job_schedules }} job schedule(s)</li>
+      <li>{{ counts.planned_job_schedules }} planned job schedule(s)</li>
     </ul>
-    <p class="mb-4 text-muted">Files linked to these locations aren't deleted, only unlinked.</p>
+    <p class="mb-4 text-muted">Documents linked to these locations aren't deleted, only unlinked.</p>
 
     <form method="post" id="delete-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />

@@ -7,21 +7,21 @@
   </div>
 
   <div class="card-body">
-    {% if job_schedule %}
-    <p>This job is from the following job schedule, which is waiting for it. Rejecting the job moves the schedule on, so set when its next job is due.</p>
+    {% if planned_job_schedule %}
+    <p>This job is from the following planned job schedule, which is waiting for it. Rejecting the job moves the schedule on, so set when its next job is due.</p>
     <dl class="row">
       <dt class="col-sm-3">Description</dt>
       <dd class="col-sm-9">
-        {% if can('job_schedules.view') %}
-        <a href="{{ url_for('job_schedules.view', id=job_schedule.id) }}">{{ job_schedule.description }}</a>
+        {% if can('planned_jobs.view') %}
+        <a href="{{ url_for('planned_jobs.view', id=planned_job_schedule.id) }}">{{ planned_job_schedule.description }}</a>
         {% else %}
-        {{ job_schedule.description }}
+        {{ planned_job_schedule.description }}
         {% endif %}
       </dd>
       <dt class="col-sm-3">Frequency</dt>
-      <dd class="col-sm-9">{{ job_schedule.frequency_label }}</dd>
+      <dd class="col-sm-9">{{ planned_job_schedule.frequency_label }}</dd>
       <dt class="col-sm-3">Location</dt>
-      <dd class="col-sm-9">{{ job_schedule.location.materialised_path }}</dd>
+      <dd class="col-sm-9">{{ planned_job_schedule.location.materialised_path }}</dd>
     </dl>
     <p>
       Based on the job being rejected today, the next job would be due by <strong>{{ calculated | date }}</strong>.
@@ -46,7 +46,7 @@
           {% endif %}
         </div>
 
-        {% if job_schedule %}
+        {% if planned_job_schedule %}
         <div class="col-md-6 mb-3">
           {{ form.next_due_by.label(class="form-label") }}
           {{ form.next_due_by(class="form-control" ~ (" is-invalid" if form.next_due_by.errors else "")) }}

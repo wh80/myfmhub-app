@@ -1,0 +1,83 @@
+{% extends "planned_jobs/view/_layout.html" %}
+{% from "_location_fields.html" import location_lines %}
+
+{% block tab_content %}
+
+{% set open_job = planned_job_schedule.open_job %}
+{% if open_job %}
+<div class="alert alert-info">
+  This schedule has an open job,
+  {% if can('jobs.view') %}<a href="{{ url_for('jobs.view', id=open_job.id) }}">{{ open_job.description }}</a>{% else %}{{ open_job.description }}{% endif %},
+  due {{ open_job.due_by | date }}. The schedule can't be edited until that job is closed.
+  <a href="{{ url_for('support.planned_jobs') }}#editing">Why?</a>
+</div>
+{% endif %}
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h6 class="text-muted">Location</h6>
+    {{ location_lines(planned_job_schedule) }}
+  </div>
+</div>
+
+<hr />
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="text-muted small">Work Required</div>
+    <div class="fw-semibold">
+      <p>{{planned_job_schedule.work_required}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Next Due By</div>
+    <div class="fw-semibold">
+      <p>{{planned_job_schedule.next_due_by | date}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Frequency</div>
+    <div class="fw-semibold">
+      <p>{{planned_job_schedule.frequency_label}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Notice Days</div>
+    <div class="fw-semibold">
+      <p>{{planned_job_schedule.notice_days}}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Next Job Creation</div>
+    <div class="fw-semibold">
+      <p>{{ planned_job_schedule.next_job_creation_label }}</p>
+
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Statutory Compliance</div>
+    <div class="fw-semibold">{% if planned_job_schedule.statutory_compliance %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Active</div>
+    <div class="fw-semibold">{% if planned_job_schedule.is_active %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-secondary">No</span>{% endif %}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Job Category</div>
+    <div class="fw-semibold">{{ planned_job_schedule.job_category or "-" }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Estimated Cost</div>
+    <div class="fw-semibold">{{ planned_job_schedule.estimated_cost | currency }}</div>
+  </div>
+  <div class="col-md-6">
+    <div class="text-muted small">Estimated Duration</div>
+    <div class="fw-semibold">{{ planned_job_schedule.estimated_duration | days }}</div>
+  </div>
+</div>
+
+{% endblock tab_content %}

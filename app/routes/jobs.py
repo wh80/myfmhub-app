@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g, current_app, abort
 from app import db
-from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, JobScheduleNextDueForm
+from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, PlannedJobScheduleNextDueForm
 from app.models import Job, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.auth import as_utc
 from app.services.jobs import overdue_conditions, notify_assignee
 from app.services.notifications import mark_read
 from app.services.scheduling import job_creation_date, next_due_date, uk_today
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, files_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, documents_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.exports import export_response
 jobs_bp = Blueprint('jobs', __name__, url_prefix="/jobs")
 jobs_bp.before_request(require_login)
@@ -273,8 +273,8 @@ def reject(id):
         flash(f"Job '{job.description}' can't be rejected because it isn't new.", 'warning')
         return redirect(url_for('jobs.view', id=job.id))
 
-    job_schedule = job.job_schedule if job.closes_with_schedule_update else None
-    calculated = next_due_date(uk_today(), job_schedule.frequency) if job_schedule else None
+    planned_job_schedule = job.planned_job_schedule if job.closes_with_schedule_update else None
+    calculated = next_due_date(uk_today(), planned_job_schedule.frequency) if planned_job_schedule else None
     form = JobRejectForm(latest=calculated, data={'next_due_by': calculated} if request.method == 'GET' else None)
 
     if form.validate_on_submit():
@@ -282,15 +282,15 @@ def reject(id):
         job.rejection_reason = form.rejection_reason.data
         job.rejected_at = datetime.now(timezone.utc)
         message = f"Job '{job.description}' rejected."
-        if job_schedule:
-            job_schedule.next_due_by = form.next_due_by.data
-            job_schedule.next_job_creation_date = job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
-            message += f" Job Schedule '{job_schedule.description}' next due {job_schedule.next_due_by:%d-%m-%Y}."
+        if planned_job_schedule:
+            planned_job_schedule.next_due_by = form.next_due_by.data
+            planned_job_schedule.next_job_creation_date = job_creation_date(planned_job_schedule.next_due_by, planned_job_schedule.notice_days)
+            message += f" Planned Job Schedule '{planned_job_schedule.description}' next due {planned_job_schedule.next_due_by:%d-%m-%Y}."
         db.session.commit()
         flash(message, 'success')
         return redirect(url_for('jobs.index'))
 
-    return render_template('jobs/reject.html', job=job, form=form, job_schedule=job_schedule, calculated=calculated)
+    return render_template('jobs/reject.html', job=job, form=form, planned_job_schedule=planned_job_schedule, calculated=calculated)
 
 def person_name(person):
     return f'{person.first_name} {person.last_name}'
@@ -515,29 +515,29 @@ def update_schedule(id):
     job = org_get_or_404(Job, id)
 
     if job.status == 'closed' or not job.closes_with_schedule_update:
-        flash(f"Job '{job.description}' has no job schedule waiting to be updated.", 'warning')
+        flash(f"Job '{job.description}' has no planned job schedule waiting to be updated.", 'warning')
         return redirect(url_for('jobs.view', id=job.id))
 
     if job.status != 'completed':
         return not_completed_warning(job)
 
-    job_schedule = job.job_schedule
-    calculated = next_due_date(job.completed_on, job_schedule.frequency)
+    planned_job_schedule = job.planned_job_schedule
+    calculated = next_due_date(job.completed_on, planned_job_schedule.frequency)
     # a job completed long enough ago can give a date that's already passed. Today is then the only choice
     latest = max(calculated, uk_today())
-    form = JobScheduleNextDueForm(latest=latest, data={'next_due_by': latest})
+    form = PlannedJobScheduleNextDueForm(latest=latest, data={'next_due_by': latest})
 
     if form.validate_on_submit():
         job.status = 'closed'
         job.closed_at = uk_today()
         job.closed_by = g.person
-        job_schedule.next_due_by = form.next_due_by.data
-        job_schedule.next_job_creation_date = job_creation_date(job_schedule.next_due_by, job_schedule.notice_days)
+        planned_job_schedule.next_due_by = form.next_due_by.data
+        planned_job_schedule.next_job_creation_date = job_creation_date(planned_job_schedule.next_due_by, planned_job_schedule.notice_days)
         db.session.commit()
-        flash(f"Job '{job.description}' closed. Job Schedule '{job_schedule.description}' next due {job_schedule.next_due_by:%d-%m-%Y}.", 'success')
+        flash(f"Job '{job.description}' closed. Planned Job Schedule '{planned_job_schedule.description}' next due {planned_job_schedule.next_due_by:%d-%m-%Y}.", 'success')
         return redirect(url_for('jobs.view', id=job.id))
 
-    return render_template('jobs/update_schedule.html', job=job, job_schedule=job_schedule, calculated=calculated, form=form)
+    return render_template('jobs/update_schedule.html', job=job, planned_job_schedule=planned_job_schedule, calculated=calculated, form=form)
 
 @jobs_bp.route('/<uuid:id>/reopen', methods=['POST'])
 def reopen(id):
@@ -627,6 +627,6 @@ def unlink_assets(id):
     pagination, search = related_page(related(job, Job.assets, Asset), Asset)
     return render_template("jobs/view/assets_unlink.html", job=job, assets=pagination.items, pagination=pagination, search=search)
 
-@jobs_bp.route("/<uuid:id>/files")
-def files(id):
-    return files_tab(Job, id, "jobs/view/files.html", "job")
+@jobs_bp.route("/<uuid:id>/documents")
+def documents(id):
+    return documents_tab(Job, id, "jobs/view/documents.html", "job")

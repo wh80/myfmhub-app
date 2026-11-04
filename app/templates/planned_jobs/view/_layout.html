@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% set title = 'Planned Job Schedule: ' ~ planned_job_schedule.description %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+
+  {% include "planned_jobs/view/_header.html" %}
+
+  <div class="card-body">
+
+    {% include "planned_jobs/view/_tabs.html" %}
+
+    {% block tab_content %}{% endblock tab_content %}
+
+  </div>
+</div>
+
+{% endblock body %}

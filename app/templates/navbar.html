@@ -41,9 +41,9 @@
                 </li>
                 {% endif %}
 
-                {% if can('job_schedules.view') %}
+                {% if can('planned_jobs.view') %}
                 <li class="nav-item">
-                     <a class="nav-link active" href="{{url_for('job_schedules.index')}}">Job Schedules</a>
+                     <a class="nav-link active" href="{{url_for('planned_jobs.index')}}">Planned Jobs</a>
                 </li>
                 {% endif %}
                 
@@ -59,9 +59,9 @@
                 </li>
                 {% endif %}
 
-                {% if can('files.view') %}
+                {% if can('documents.view') %}
                 <li class="nav-item">
-                     <a class="nav-link active" href="{{url_for('files.index')}}">Files</a>
+                     <a class="nav-link active" href="{{url_for('documents.index')}}">Documents</a>
                 </li>
                 {% endif %}
 

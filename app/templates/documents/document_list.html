@@ -1,0 +1,73 @@
+{# documents, for the Documents index and every record's Documents tab. View opens or downloads the document #}
+{% from "_table_tools.html" import table_tools with context %}
+{{ table_tools('documents') }}
+
+<!-- Desktop UI -->
+<div class="d-none d-md-block">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle text-nowrap" data-columns="documents">
+      <thead>
+        <tr>
+          <th scope="col" data-col="description" data-col-fixed>Description</th>
+          <th scope="col" data-col="filename">File</th>
+          <th scope="col" data-col="category">Document Category</th>
+          <th scope="col" data-col="expires">Expires</th>
+          <th scope="col" data-col="size">Size</th>
+          <th scope="col" data-col="uploaded">Uploaded</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for document in documents %}
+        <tr>
+          <td>{{ document.description }}</td>
+          <td>{{ document.filename }}</td>
+          <td>{{ document.document_category or '-' }}</td>
+          <td>{{ document.expires | date }}{% if document.is_expired %} <span class="badge text-bg-danger">Expired</span>{% endif %}</td>
+          <td>{{ document.size_mb | filesize }}</td>
+          <td>{{ document.created_at | datetime }}</td>
+          <td class="text-end">
+            <a href="{{ url_for('documents.view', id=document.id) }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+              <i class="bi bi-eye"></i> View
+            </a>
+            {% if can('documents.edit') %}
+            <a href="{{ url_for('documents.edit', id=document.id, next=request.full_path) }}" class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-pencil"></i> Edit
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Mobile UI -->
+<div class="d-md-none">
+  <div class="row g-3">
+    {% for document in documents %}
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title mb-3">{{ document.description }}</h5>
+          <p class="card-text">
+            <strong>File:</strong> {{ document.filename }}<br />
+            {% if document.document_category %}<strong>Category:</strong> {{ document.document_category }}<br />{% endif %}
+            <strong>Expires:</strong> {{ document.expires | date }}{% if document.is_expired %} <span class="badge text-bg-danger">Expired</span>{% endif %}<br />
+            <strong>Size:</strong> {{ document.size_mb | filesize }}
+          </p>
+          <a href="{{ url_for('documents.view', id=document.id) }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-eye"></i> View
+          </a>
+          {% if can('documents.edit') %}
+          <a href="{{ url_for('documents.edit', id=document.id, next=request.full_path) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-pencil"></i> Edit
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>

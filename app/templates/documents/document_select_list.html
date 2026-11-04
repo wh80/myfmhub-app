@@ -1,0 +1,31 @@
+{# documents with a checkbox each (field document_ids), for the link, remove and delete pages #}
+<div class="table-responsive">
+  <table class="table table-hover align-middle text-nowrap">
+    <thead>
+      <tr>
+        <th scope="col" style="width: 1%"></th>
+        <th scope="col">Description</th>
+        <th scope="col">File</th>
+        <th scope="col">Expires</th>
+        <th scope="col">Size</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for document in documents %}
+      <tr>
+        <td><input class="form-check-input" type="checkbox" name="document_ids" value="{{ document.id }}" id="document-{{ document.id }}" /></td>
+        <td><label class="form-check-label" for="document-{{ document.id }}">{{ document.description }}</label></td>
+        <td>{{ document.filename }}</td>
+        <td>{{ document.expires | date }}{% if document.is_expired %} <span class="badge text-bg-danger">Expired</span>{% endif %}</td>
+        <td>{{ document.size_mb | filesize }}</td>
+        <td class="text-end">
+          <a href="{{ url_for('documents.view', id=document.id) }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+            <i class="bi bi-eye"></i> View
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

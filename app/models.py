@@ -44,28 +44,28 @@ job_helpers = db.Table(
     db.Column('person_id', UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='CASCADE'), primary_key=True),
 )
 
-job_schedule_assets = db.Table(
-    'job_schedule_assets',
-    db.Column('job_schedule_id', UUID(as_uuid=True), db.ForeignKey('job_schedule.id', ondelete='CASCADE'), primary_key=True),
+planned_job_schedule_assets = db.Table(
+    'planned_job_schedule_assets',
+    db.Column('planned_job_schedule_id', UUID(as_uuid=True), db.ForeignKey('planned_job_schedule.id', ondelete='CASCADE'), primary_key=True),
     db.Column('asset_id', UUID(as_uuid=True), db.ForeignKey('asset.id', ondelete='CASCADE'), primary_key=True),
 )
 
 
-# files link to any number of these records, and each record to any number of files. Deleting either
-# side removes only the link rows; deleting a file is what removes it from storage (services/files.py)
-def file_link_table(name, column, target):
+# documents link to any number of these records, and each record to any number of documents. Deleting either
+# side removes only the link rows; deleting a document is what removes it from storage (services/documents.py)
+def document_link_table(name, column, target):
     return db.Table(
         name,
         db.Column(column, UUID(as_uuid=True), db.ForeignKey(f'{target}.id', ondelete='CASCADE'), primary_key=True),
-        db.Column('file_id', UUID(as_uuid=True), db.ForeignKey('file.id', ondelete='CASCADE'), primary_key=True),
+        db.Column('document_id', UUID(as_uuid=True), db.ForeignKey('document.id', ondelete='CASCADE'), primary_key=True),
     )
 
-location_files = file_link_table('location_files', 'location_id', 'location')
-job_files = file_link_table('job_files', 'job_id', 'job')
-asset_files = file_link_table('asset_files', 'asset_id', 'asset')
-job_schedule_files = file_link_table('job_schedule_files', 'job_schedule_id', 'job_schedule')
-person_files = file_link_table('person_files', 'person_id', 'person')
-supplier_files = file_link_table('supplier_files', 'supplier_id', 'supplier')
+location_documents = document_link_table('location_documents', 'location_id', 'location')
+job_documents = document_link_table('job_documents', 'job_id', 'job')
+asset_documents = document_link_table('asset_documents', 'asset_id', 'asset')
+planned_job_schedule_documents = document_link_table('planned_job_schedule_documents', 'planned_job_schedule_id', 'planned_job_schedule')
+person_documents = document_link_table('person_documents', 'person_id', 'person')
+supplier_documents = document_link_table('supplier_documents', 'supplier_id', 'supplier')
 
 class Organisation(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -92,19 +92,19 @@ class Organisation(db.Model):
     locations = db.relationship('Location', backref='organisation', lazy=True, cascade='delete')
     jobs = db.relationship('Job', backref='organisation', lazy=True, cascade='delete')
     assets = db.relationship('Asset', backref='organisation', lazy=True, cascade='delete')
-    job_schedules = db.relationship('JobSchedule', backref='organisation', lazy=True, cascade='delete')
+    planned_job_schedules = db.relationship('PlannedJobSchedule', backref='organisation', lazy=True, cascade='delete')
     suppliers = db.relationship('Supplier', backref='organisation', lazy=True, cascade='delete')
     user_groups = db.relationship('UserGroup', backref='organisation', lazy=True, cascade='delete')
     people = db.relationship('Person', backref='organisation', lazy=True, cascade='delete')
     import_events = db.relationship('ImportEvent', backref='organisation', lazy=True, cascade='delete')
-    files = db.relationship('File', backref='organisation', lazy=True, cascade='delete')
-    file_exports = db.relationship('FileExport', backref='organisation', lazy=True, cascade='delete')
+    documents = db.relationship('Document', backref='organisation', lazy=True, cascade='delete')
+    document_exports = db.relationship('DocumentExport', backref='organisation', lazy=True, cascade='delete')
     job_categories = db.relationship('JobCategory', backref='organisation', lazy=True, cascade='delete')
     asset_categories = db.relationship('AssetCategory', backref='organisation', lazy=True, cascade='delete')
     asset_conditions = db.relationship('AssetCondition', backref='organisation', lazy=True, cascade='delete')
     location_categories = db.relationship('LocationCategory', backref='organisation', lazy=True, cascade='delete')
     supplier_categories = db.relationship('SupplierCategory', backref='organisation', lazy=True, cascade='delete')
-    file_categories = db.relationship('FileCategory', backref='organisation', lazy=True, cascade='delete')
+    document_categories = db.relationship('DocumentCategory', backref='organisation', lazy=True, cascade='delete')
     support_tickets = db.relationship('SupportTicket', backref='organisation', lazy=True, cascade='delete')
     notifications = db.relationship('Notification', backref='organisation', lazy=True, cascade='delete')
 
@@ -156,12 +156,12 @@ class LocationCategory(ReferenceItem, db.Model):
     pass
 
 
-class FileCategory(ReferenceItem, db.Model):
+class DocumentCategory(ReferenceItem, db.Model):
     pass
 
 
 # where things are: a site, a building in it, a floor or room in that... Locations nest to any depth through
-# parent_id. Assets, jobs and job schedules are each at one location. materialised_path is the names from the
+# parent_id. Assets, jobs and planned job schedules are each at one location. materialised_path is the names from the
 # top down, joined with ' > ' (services/locations.py keeps it up to date), and is unique per organisation,
 # ignoring case
 class Location(db.Model):
@@ -195,7 +195,7 @@ class Location(db.Model):
 
     jobs = db.relationship('Job', backref='location', lazy=True, cascade='delete')
     assets = db.relationship('Asset', backref='location', lazy=True, cascade='delete')
-    job_schedules = db.relationship('JobSchedule', backref='location', lazy=True, cascade='delete')
+    planned_job_schedules = db.relationship('PlannedJobSchedule', backref='location', lazy=True, cascade='delete')
 
     # the routes and imports also check case-insensitively
     __table_args__ = (
@@ -214,7 +214,7 @@ class Job(db.Model):
     description = db.Column(db.String(100), nullable=False)
     work_required = db.Column(db.String(500), nullable=False)
     due_by = db.Column(db.Date())
-    # not on JobForm: copied from the job schedule when a job is raised from one
+    # not on JobForm: copied from the planned job schedule when a job is raised from one
     statutory_compliance = db.Column(db.Boolean, default=False, nullable=False)
     # not on JobForm: a key from JOB_STATUSES, set programmatically
     status = db.Column(db.String(20), default='new', server_default='new', nullable=False)
@@ -242,8 +242,8 @@ class Job(db.Model):
     import_event_id = db.Column(UUID(as_uuid=True), db.ForeignKey('import_event.id', ondelete='SET NULL'))
     # deleting the location deletes the record
     location_id = db.Column(UUID(as_uuid=True), db.ForeignKey('location.id', ondelete='CASCADE'), nullable=False)
-    job_schedule_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_schedule.id', ondelete='RESTRICT'))
-    # copied from the job schedule when a job is raised from one
+    planned_job_schedule_id = db.Column(UUID(as_uuid=True), db.ForeignKey('planned_job_schedule.id', ondelete='RESTRICT'))
+    # copied from the planned job schedule when a job is raised from one
     job_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job_category.id', ondelete='SET NULL'))
     job_category = db.relationship('JobCategory', lazy=True)
     # the job this is follow-up work for, set when it's created from that job's Follow Up Jobs tab, and never
@@ -251,7 +251,7 @@ class Job(db.Model):
     parent_job_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job.id', ondelete='SET NULL'))
     parent_job = db.relationship('Job', remote_side='Job.id', foreign_keys=[parent_job_id],
                                  backref=db.backref('follow_up_jobs', lazy=True, order_by='Job.created_at'))
-    # pounds, shown with the currency filter. estimated_cost is copied from the job schedule by raise_job()
+    # pounds, shown with the currency filter. estimated_cost is copied from the planned job schedule by raise_job()
     estimated_cost = db.Column(db.Numeric(12, 2))
     actual_cost = db.Column(db.Numeric(12, 2))
 
@@ -282,9 +282,9 @@ class Job(db.Model):
             'assigned_supplier_id IS NULL OR assigned_person_id IS NULL',
             name='ck_job_assignee',
         ),
-        # backstop for the sequence rules: a job schedule has at most one job that isn't closed or rejected
+        # backstop for the sequence rules: a planned job schedule has at most one job that isn't closed or rejected
         db.Index(
-            'uq_job_open_per_schedule', 'job_schedule_id', unique=True,
+            'uq_job_open_per_schedule', 'planned_job_schedule_id', unique=True,
             postgresql_where=db.text("status NOT IN ('closed', 'rejected')"),
             sqlite_where=db.text("status NOT IN ('closed', 'rejected')"),
         ),
@@ -315,8 +315,8 @@ class Job(db.Model):
     def closes_with_schedule_update(self):
         return (
             self.source == 'planned'
-            and self.job_schedule is not None
-            and self.job_schedule.next_job_creation_date is None
+            and self.planned_job_schedule is not None
+            and self.planned_job_schedule.next_job_creation_date is None
         )
 
     # the supplier or person it's assigned to, or None
@@ -395,7 +395,7 @@ class Asset(db.Model):
     condition_set = db.Column(db.Date())
 
     jobs = db.relationship('Job', secondary=job_assets, backref='assets', lazy=True)
-    job_schedules = db.relationship('JobSchedule', secondary=job_schedule_assets, backref='assets', lazy=True)
+    planned_job_schedules = db.relationship('PlannedJobSchedule', secondary=planned_job_schedule_assets, backref='assets', lazy=True)
 
     # asset_number and serial_number are optional and unique per organisation. Blanks are stored
     # as NULL so the constraints allow many assets without one. The routes also check case-insensitively
@@ -405,7 +405,7 @@ class Asset(db.Model):
     )
 
 
-class JobSchedule(db.Model):
+class PlannedJobSchedule(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
@@ -437,7 +437,7 @@ class JobSchedule(db.Model):
     # in days, so half a day is 0.5. Shown with the days filter
     estimated_duration = db.Column(db.Numeric(6, 2))
 
-    jobs = db.relationship('Job', backref='job_schedule', lazy=True)
+    jobs = db.relationship('Job', backref='planned_job_schedule', lazy=True)
 
     @property
     def frequency_label(self):
@@ -456,7 +456,7 @@ class JobSchedule(db.Model):
     # while there is one, so it can never have two open jobs
     @property
     def open_job(self):
-        return Job.query.filter(Job.job_schedule_id == self.id, Job.status.notin_(JOB_FINISHED_STATUSES)).order_by(Job.due_by, Job.id).first()
+        return Job.query.filter(Job.planned_job_schedule_id == self.id, Job.status.notin_(JOB_FINISHED_STATUSES)).order_by(Job.due_by, Job.id).first()
 
 
 class Supplier(db.Model):
@@ -641,8 +641,8 @@ class ImportEvent(db.Model):
     undone_by_name = db.Column(db.String(201))
 
 
-class File(db.Model):
-    """An uploaded file, stored in DigitalOcean Spaces under the organisation's id (services/files.py).
+class Document(db.Model):
+    """An uploaded document, stored in DigitalOcean Spaces under the organisation's id (services/documents.py).
     Only the description, category and expiry date can be edited. The stored file, its name, type and
     size never change: they're uploaded, linked and unlinked, and deleted."""
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -654,40 +654,41 @@ class File(db.Model):
     # in MB, summed for the organisation's Storage Used on My Organisation
     size_mb = db.Column(db.Numeric(12, 4), nullable=False)
     # the uploaded file's name (for downloads), its type (from the extension, not the browser) and
-    # where it's stored: '<organisation id>/<file id>.<extension>'
+    # where it's stored: '<organisation id>/<document id>.<extension>'
     filename = db.Column(db.String(255), nullable=False)
     content_type = db.Column(db.String(100), nullable=False)
     storage_key = db.Column(db.String(255), nullable=False, unique=True)
 
     organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
-    # chosen at upload, like everything else on a file
-    file_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('file_category.id', ondelete='SET NULL'))
-    file_category = db.relationship('FileCategory', lazy=True)
+    # chosen at upload, like everything else on a document
+    document_category_id = db.Column(UUID(as_uuid=True), db.ForeignKey('document_category.id', ondelete='SET NULL'))
+    document_category = db.relationship('DocumentCategory', lazy=True)
 
-    # the records it's linked to. Each also has .files
-    locations = db.relationship('Location', secondary=location_files, backref=db.backref('files', order_by='File.description'), lazy=True)
-    jobs = db.relationship('Job', secondary=job_files, backref=db.backref('files', order_by='File.description'), lazy=True)
-    assets = db.relationship('Asset', secondary=asset_files, backref=db.backref('files', order_by='File.description'), lazy=True)
-    job_schedules = db.relationship('JobSchedule', secondary=job_schedule_files, backref=db.backref('files', order_by='File.description'), lazy=True)
-    people = db.relationship('Person', secondary=person_files, backref=db.backref('files', order_by='File.description'), lazy=True)
-    suppliers = db.relationship('Supplier', secondary=supplier_files, backref=db.backref('files', order_by='File.description'), lazy=True)
+    # the records it's linked to. Each also has .documents
+    locations = db.relationship('Location', secondary=location_documents, backref=db.backref('documents', order_by='Document.description'), lazy=True)
+    jobs = db.relationship('Job', secondary=job_documents, backref=db.backref('documents', order_by='Document.description'), lazy=True)
+    assets = db.relationship('Asset', secondary=asset_documents, backref=db.backref('documents', order_by='Document.description'), lazy=True)
+    # named after its DOCUMENT_PARENTS key, which is the resource name rather than the model's
+    planned_jobs = db.relationship('PlannedJobSchedule', secondary=planned_job_schedule_documents, backref=db.backref('documents', order_by='Document.description'), lazy=True)
+    people = db.relationship('Person', secondary=person_documents, backref=db.backref('documents', order_by='Document.description'), lazy=True)
+    suppliers = db.relationship('Supplier', secondary=supplier_documents, backref=db.backref('documents', order_by='Document.description'), lazy=True)
 
     @property
     def is_expired(self):
         return self.expires is not None and self.expires < uk_today()
 
 
-FILE_EXPORT_STATUSES = [('running', 'Preparing'), ('ready', 'Ready'), ('failed', 'Failed'), ('expired', 'Expired')]
+DOCUMENT_EXPORT_STATUSES = [('running', 'Preparing'), ('ready', 'Ready'), ('failed', 'Failed'), ('expired', 'Expired')]
 
 
-class FileExport(db.Model):
-    """A request to zip all the organisation's files, from Export data. A thread started by the request
-    (services/file_exports.py) builds the zip, stores it and emails the requester."""
+class DocumentExport(db.Model):
+    """A request to zip all the organisation's documents, from Export data. A thread started by the request
+    (services/document_exports.py) builds the zip, stores it and emails the requester."""
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
-    # a key from FILE_EXPORT_STATUSES. running -> ready (or failed); ready -> expired once the zip is deleted
+    # a key from DOCUMENT_EXPORT_STATUSES. running -> ready (or failed); ready -> expired once the zip is deleted
     status = db.Column(db.String(20), default='running', nullable=False)
     # where to send the email, kept in case the person is deleted while it runs
     email = db.Column(db.String(255), nullable=False)
@@ -696,7 +697,7 @@ class FileExport(db.Model):
     # when the zip is deleted from storage
     expires_at = db.Column(db.DateTime(timezone=True))
     storage_key = db.Column(db.String(255))
-    file_count = db.Column(db.Integer)
+    document_count = db.Column(db.Integer)
     size_mb = db.Column(db.Numeric(12, 4))
     error = db.Column(db.String(255))
 
@@ -705,12 +706,12 @@ class FileExport(db.Model):
     person = db.relationship('Person', lazy=True)
 
     __table_args__ = (
-        db.CheckConstraint(f"status IN ({', '.join(repr(key) for key, _ in FILE_EXPORT_STATUSES)})", name='ck_file_export_status'),
+        db.CheckConstraint(f"status IN ({', '.join(repr(key) for key, _ in DOCUMENT_EXPORT_STATUSES)})", name='ck_document_export_status'),
     )
 
     @property
     def status_label(self):
-        return dict(FILE_EXPORT_STATUSES)[self.status]
+        return dict(DOCUMENT_EXPORT_STATUSES)[self.status]
 
 
 # a support ticket's state. Platform admins close and reopen it in /admin; its creator only sees this

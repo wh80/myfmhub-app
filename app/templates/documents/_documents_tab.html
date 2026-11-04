@@ -1,0 +1,37 @@
+{# a record's Documents tab. Include it with record (the location, job...) and resource (its DOCUMENT_PARENTS key, e.g. 'locations') #}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="mb-0">Documents</h5>
+    {% if can(resource ~ '.edit') %}
+    <div class="d-flex gap-2">
+        <div class="dropdown">
+            <button class="btn btn-primary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Add Document
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                {% if can('documents.create') %}
+                <li><a class="dropdown-item" href="{{ url_for('documents.create', resource=resource, id=record.id) }}">Add New</a></li>
+                {% endif %}
+                <li><a class="dropdown-item" href="{{ url_for('documents.link', resource=resource, id=record.id) }}">Link Existing</a></li>
+            </ul>
+        </div>
+        {% if pagination.total or search %}
+        <a href="{{ url_for('documents.unlink', resource=resource, id=record.id) }}" class="btn btn-outline-danger btn-sm">
+            Remove Document
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{{ related_search(pagination, search, 'Description or file name ...') }}
+
+{% if documents %}
+    {% include "documents/document_list.html" %}
+    {{ pagination_nav(pagination) }}
+{% elif search %}
+    <p class="text-muted mb-0">No documents match your search.</p>
+{% else %}
+    <p class="text-muted mb-0">No documents found.</p>
+{% endif %}

@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% set title = 'Delete Documents' %}
+
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">Delete Documents</h4>
+  </div>
+
+  <div class="card-body">
+    <form method="get" class="mb-3">
+      <div class="row g-2">
+        <div class="col-md-6">
+          <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search description or file name ..." aria-label="Search documents" />
+        </div>
+        <div class="col-md-auto">
+          <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Search</button>
+        </div>
+      </div>
+    </form>
+
+    {% if documents %}
+      <p>Tick the documents to delete. You'll see what each one is linked to before anything is deleted.</p>
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+        <input type="hidden" name="next" value="{{ url_for('documents.index') }}" />
+        <input type="hidden" name="back" value="{{ request.full_path.rstrip('?') }}" />
+
+        {% include "documents/document_select_list.html" %}
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" class="btn btn-danger">Delete Selected</button>
+          <a href="{{ url_for('documents.index') }}" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    {% else %}
+      <p class="text-muted">{{ 'No documents match your search.' if search else 'No documents yet.' }}</p>
+      <a href="{{ url_for('documents.index') }}" class="btn btn-secondary">Back</a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body %}

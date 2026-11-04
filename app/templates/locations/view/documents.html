@@ -1,0 +1,9 @@
+{% extends "locations/view/_layout.html" %}
+
+{% block tab_content %}
+
+{% with record=location, resource="locations" %}
+    {% include "documents/_documents_tab.html" %}
+{% endwith %}
+
+{% endblock tab_content %}

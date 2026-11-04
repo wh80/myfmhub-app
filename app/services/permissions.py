@@ -6,10 +6,10 @@ RESOURCES = [
     ('locations', 'Locations'),
     ('assets', 'Assets'),
     ('jobs', 'Jobs'),
-    ('job_schedules', 'Job Schedules'),
+    ('planned_jobs', 'Planned Jobs'),
     ('suppliers', 'Suppliers'),
     ('people', 'People'),
-    ('files', 'Files'),
+    ('documents', 'Documents'),
 ]
 ACTIONS = [('view', 'View'), ('create', 'Create'), ('edit', 'Edit'), ('delete', 'Delete')]
 # grantable permissions outside the resource × action grid, listed under it on the user group pages
@@ -28,8 +28,8 @@ EXTRA_PERMISSIONS = [
     # only needs edit on the record
     ('reference_data.manage', 'Manage reference data'),
 ]
-# permissions in the grid that don't apply to their resource, shown as n/a. None at the moment: files.edit
-# covers a file's details (the stored file itself is never replaced)
+# permissions in the grid that don't apply to their resource, shown as n/a. None at the moment: documents.edit
+# covers a document's details (the stored file itself is never replaced)
 NOT_GRANTABLE = set()
 GRANTABLE = ({f'{resource}.{action}' for resource, _ in RESOURCES for action, _ in ACTIONS} - NOT_GRANTABLE) | {key for key, _ in EXTRA_PERMISSIONS}
 
@@ -60,8 +60,8 @@ def _resource(blueprint, view=(), edit=()):
 # blueprint that isn't listed here is refused, so a new route has to be added before it works.
 # Related tabs and downloads need view, and linking or unlinking needs edit on the record you're on
 ENDPOINT_PERMISSIONS = {
-    **_resource('locations', view=['export', 'assets', 'jobs', 'job_schedules']),
-    **_resource('assets', view=['export', 'sub_assets', 'jobs', 'job_schedules'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_job_schedules', 'unlink_job_schedules']),
+    **_resource('locations', view=['export', 'assets', 'jobs', 'planned_jobs']),
+    **_resource('assets', view=['export', 'sub_assets', 'jobs', 'planned_jobs'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_planned_jobs', 'unlink_planned_jobs']),
     **_resource('jobs', view=['export', 'assets', 'follow_up_jobs'], edit=['link_assets', 'unlink_assets']),
     'jobs.approve': 'jobs.approve',
     'jobs.reject': 'jobs.approve',
@@ -69,29 +69,29 @@ ENDPOINT_PERMISSIONS = {
     **{f'jobs.{name}': 'jobs.assign' for name in ['assign', 'reassign', 'add_helpers', 'remove_helper', 'start', 'complete']},
     'jobs.close': 'jobs.close',
     'jobs.reopen': 'jobs.reopen',
-    # part of closing a planned job, so it needs close rather than job_schedules.edit
+    # part of closing a planned job, so it needs close rather than planned_job_schedules.edit
     'jobs.update_schedule': 'jobs.close',
-    **_resource('job_schedules', view=['export', 'created', 'jobs', 'assets'], edit=['link_assets', 'unlink_assets']),
+    **_resource('planned_jobs', view=['export', 'created', 'jobs', 'assets'], edit=['link_assets', 'unlink_assets']),
     **_resource('suppliers', view=['export']),
     **_resource('people', view=['export', 'assets'], edit=['resend_invite']),
     **{f'user_groups.{name}': 'user_groups.manage' for name in ['index', 'create', 'view', 'edit', 'delete']},
     **{f'imports.{name}': 'imports.manage' for name in ['index', 'upload', 'template', 'template_csv_file', 'view', 'undo']},
     'exports.index': 'exports.manage',
     **{f'reference_data.{name}': 'reference_data.manage' for name in ['index', 'items', 'edit', 'delete', 'bulk']},
-    # Download all files: these also check files.view
-    'exports.request_files': 'exports.manage',
-    'exports.download_files': 'exports.manage',
+    # Download all documents: these also check documents.view
+    'exports.request_documents': 'exports.manage',
+    'exports.download_documents': 'exports.manage',
     **{f'my_organisation.{name}': 'organisation.manage' for name in ['view', 'edit', 'delete', 'delete_requested', 'confirm_delete']},
-    # each record's Files tab needs view on the record, and its route checks files.view too
-    **{f'{resource}.files': f'{resource}.view' for resource in ['locations', 'assets', 'jobs', 'job_schedules', 'people', 'suppliers']},
-    # files.create, link and unlink also check edit on the record the file is added to or removed from
-    'files.index': 'files.view',
-    'files.view': 'files.view',
-    'files.create': 'files.create',
-    'files.edit': 'files.edit',
-    'files.link': 'files.view',
-    'files.unlink': 'files.view',
-    'files.delete': 'files.delete',
+    # each record's Documents tab needs view on the record, and its route checks documents.view too
+    **{f'{resource}.documents': f'{resource}.view' for resource in ['locations', 'assets', 'jobs', 'planned_jobs', 'people', 'suppliers']},
+    # documents.create, link and unlink also check edit on the record the document is added to or removed from
+    'documents.index': 'documents.view',
+    'documents.view': 'documents.view',
+    'documents.create': 'documents.create',
+    'documents.edit': 'documents.edit',
+    'documents.link': 'documents.view',
+    'documents.unlink': 'documents.view',
+    'documents.delete': 'documents.delete',
 }
 
 

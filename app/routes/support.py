@@ -54,9 +54,9 @@ def locations():
 def jobs():
     return render_template('support/jobs.html')
 
-@support_bp.route('/job-schedules')
-def job_schedules():
-    return render_template('support/job_schedules.html', frequencies=FREQUENCIES)
+@support_bp.route('/planned-jobs')
+def planned_jobs():
+    return render_template('support/planned_jobs.html', frequencies=FREQUENCIES)
 
 # for MyFmHub staff: how logins, organisations and sessions fit together. 404 for anyone else, like /admin
 @support_bp.route('/authentication')

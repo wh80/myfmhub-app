@@ -2,8 +2,8 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from app import db
 from app.forms import OrganisationForm
 from app.services.addresses import clean_address
-from app.models import Location, Asset, Job, JobSchedule, Supplier, Person, UserGroup, ImportEvent, File, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, FileCategory
-from app.services.files import storage_text, storage_used_mb
+from app.models import Location, Asset, Job, PlannedJobSchedule, Supplier, Person, UserGroup, ImportEvent, Document, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory
+from app.services.documents import storage_text, storage_used_mb
 from app.routes.helpers import require_login, require_permission, org_query
 from app.services.auth import clear_session_cookie
 from app.services.organisations import DELETE_LINK_EXPIRY_HOURS, delete_organisation, read_delete_token, send_delete_email
@@ -21,18 +21,18 @@ DELETE_ITEMS = [
     ('locations', 'Locations', Location),
     ('assets', 'Assets', Asset),
     ('jobs', 'Jobs', Job),
-    ('job_schedules', 'Job Schedules', JobSchedule),
+    ('planned_jobs', 'Planned Jobs', PlannedJobSchedule),
     ('suppliers', 'Suppliers', Supplier),
     ('people', 'People (logins used only in this organisation are deleted too)', Person),
     ('user_groups', 'User Groups', UserGroup),
     ('imports', 'Import history', ImportEvent),
-    ('files', 'Files (removed from storage too)', File),
+    ('documents', 'Documents (removed from storage too)', Document),
     ('job_categories', 'Job Categories', JobCategory),
     ('asset_categories', 'Asset Categories', AssetCategory),
     ('asset_conditions', 'Asset Conditions', AssetCondition),
     ('location_categories', 'Location Categories', LocationCategory),
     ('supplier_categories', 'Supplier Categories', SupplierCategory),
-    ('file_categories', 'File Categories', FileCategory),
+    ('document_categories', 'Document Categories', DocumentCategory),
 ]
 # and one more box, with no count
 IRREVERSIBLE = ('irreversible', 'I understand that deleting this data is permanent and cannot be undone')

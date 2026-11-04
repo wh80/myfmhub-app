@@ -28,7 +28,7 @@ def create_app():
     from app.routes.locations import locations_bp
     from app.routes.jobs import jobs_bp
     from app.routes.assets import assets_bp
-    from app.routes.job_schedules import job_schedules_bp
+    from app.routes.planned_jobs import planned_jobs_bp
     from app.routes.suppliers import suppliers_bp
     from app.routes.organisations import organisations_bp, register, terms
     from app.routes.auth import auth_bp, login
@@ -40,14 +40,14 @@ def create_app():
     from app.routes.exports import exports_bp
     from app.routes.support import support_bp
     from app.routes.my_organisation import my_organisation_bp
-    from app.routes.files import files_bp
+    from app.routes.documents import documents_bp
     from app.routes.reference_data import reference_data_bp
     from app.routes.notifications import notifications_bp
 
     app.register_blueprint(locations_bp)
     app.register_blueprint(jobs_bp)
     app.register_blueprint(assets_bp)
-    app.register_blueprint(job_schedules_bp)
+    app.register_blueprint(planned_jobs_bp)
     app.register_blueprint(suppliers_bp)
     app.register_blueprint(organisations_bp)
     app.register_blueprint(auth_bp)
@@ -59,7 +59,7 @@ def create_app():
     app.register_blueprint(exports_bp)
     app.register_blueprint(support_bp)
     app.register_blueprint(my_organisation_bp)
-    app.register_blueprint(files_bp)
+    app.register_blueprint(documents_bp)
     app.register_blueprint(reference_data_bp)
     app.register_blueprint(notifications_bp)
 
@@ -71,9 +71,9 @@ def create_app():
     app.add_url_rule('/terms', endpoint='organisations.terms', view_func=terms)
     app.add_url_rule('/login', endpoint='auth.login', view_func=login, methods=['GET', 'POST'])
 
-    from app.commands import make_platform_admin, create_jobs_for_job_schedules
+    from app.commands import make_platform_admin, create_jobs_for_planned_job_schedules
     app.cli.add_command(make_platform_admin)
-    app.cli.add_command(create_jobs_for_job_schedules)
+    app.cli.add_command(create_jobs_for_planned_job_schedules)
 
     # times are stored in UTC and shown as UTC for now
     app.jinja_env.filters['datetime'] = lambda value: value.strftime('%d-%m-%Y %H:%M') if value else '-'
@@ -86,7 +86,7 @@ def create_app():
     # a number of days, e.g. 0.5 -> '0.5 days', 1 -> '1 day'
     from decimal import Decimal
     app.jinja_env.filters['days'] = lambda value: '-' if value is None else f"{Decimal(value).normalize():f} day{'' if value == 1 else 's'}"
-    from app.services.files import size_text
+    from app.services.documents import size_text
     app.jinja_env.filters['filesize'] = size_text
 
     # templates check permissions with can('jobs.edit') for the signed-in user in the session's organisation
@@ -116,7 +116,7 @@ def create_app():
     @app.errorhandler(413)
     def too_large(error):
         from flask import flash, redirect, request
-        from app.services.files import MAX_FILE_MB
+        from app.services.documents import MAX_FILE_MB
         flash(f'That file is too big. Files can be up to {MAX_FILE_MB} MB.', 'warning')
         return redirect(request.full_path.rstrip('?'))
 

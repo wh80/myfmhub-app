@@ -5,6 +5,7 @@
 
 {% if counts %}
 <div class="row g-3 mt-1">
+  {% if can('jobs.view') %}
   <div class="col-12 col-sm-6 col-xl">
     {% if counts.overdue_compliance %}
     <div class="card h-100 shadow-sm text-bg-danger position-relative">
@@ -84,6 +85,23 @@
       </div>
     </div>
   </div>
+  {% endif %}
+
+  {% if can('documents.view') %}
+  <div class="col-12 col-sm-6 col-xl">
+    <div class="card h-100 shadow-sm position-relative">
+      <div class="card-body text-center">
+        <h6 class="card-title">Expiring Documents</h6>
+        <div class="display-3 fw-bold">{{ counts.expiring_documents }}</div>
+        <p class="card-text text-muted mb-0">
+          <a href="{{ url_for('documents.index', expires_from=today.isoformat(), expires_to=expiring_to.isoformat()) }}" class="stretched-link text-reset text-decoration-none">
+            Documents expiring in the next {{ expiring_days }} days
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 

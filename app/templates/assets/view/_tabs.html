@@ -29,20 +29,20 @@
 
      <li class="nav-item">
         <a
-            class="nav-link {% if active_tab == 'job_schedules' %}active{% endif %}"
-            href="{{ url_for('assets.job_schedules', id=asset.id) }}"
+            class="nav-link {% if active_tab == 'planned_jobs' %}active{% endif %}"
+            href="{{ url_for('assets.planned_jobs', id=asset.id) }}"
         >
-            Job Schedules
+            Planned Jobs
         </a>
     </li>
 
-    {% if can('files.view') %}
+    {% if can('documents.view') %}
     <li class="nav-item">
         <a
-            class="nav-link {% if active_tab == 'files' %}active{% endif %}"
-            href="{{ url_for('assets.files', id=asset.id) }}"
+            class="nav-link {% if active_tab == 'documents' %}active{% endif %}"
+            href="{{ url_for('assets.documents', id=asset.id) }}"
         >
-            Files
+            Documents
         </a>
     </li>
     {% endif %}

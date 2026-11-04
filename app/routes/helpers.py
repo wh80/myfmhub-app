@@ -4,7 +4,7 @@ from functools import wraps
 from flask import request, g, redirect, url_for, flash, abort, render_template
 from app import db
 from sqlalchemy.orm import with_parent
-from app.models import Location, Asset, Job, JobSchedule, File, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, FileCategory
+from app.models import Location, Asset, Job, PlannedJobSchedule, Document, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory
 from app.services.locations import SEPARATOR, subtree_ids
 from app.services.auth import revoke_session, clear_session_cookie
 from app.services.permissions import ENDPOINT_PERMISSIONS, can
@@ -117,7 +117,7 @@ def name_taken(query, column, name, record=None):
 
 
 ### LOCATION ###
-# assets, jobs and job schedules are each at one location, chosen from a searchable select of every
+# assets, jobs and planned job schedules are each at one location, chosen from a searchable select of every
 # location in the organisation by its path ('Head Office > Main Building > Ground Floor')
 
 def org_locations():
@@ -149,7 +149,7 @@ def filter_location(query, model):
 
 def create_from(allow_asset=True):
     """The record a create page was opened from, by the Create buttons on an asset's or a location's tabs:
-    ?asset_id= (a job or job schedule for that asset, linked to it on save) or ?location_id=. Returns
+    ?asset_id= (a job or planned job schedule for that asset, linked to it on save) or ?location_id=. Returns
     (asset, location): the new record is fixed at that location, so the form's location select is hidden
     and the route overrides whatever is posted for it. Linking needs edit on the asset, like its link pages."""
     if allow_asset and request.args.get('asset_id'):
@@ -209,14 +209,14 @@ def signed_out_or_back(message, fallback_url):
     return back_to(fallback_url)
 
 
-def files_tab(model, id, template, name):
-    """A record's Files tab (templates/files/_files_tab.html). require_permission checks view on the
-    record; the files themselves need files.view too."""
-    if not can(g.person, 'files.view'):
+def documents_tab(model, id, template, name):
+    """A record's Documents tab (templates/documents/_documents_tab.html). require_permission checks view on the
+    record; the documents themselves need documents.view too."""
+    if not can(g.person, 'documents.view'):
         abort(403)
     record = org_get_or_404(model, id)
-    pagination, search = related_page(related(record, model.files, File), File)
-    return render_template(template, active_tab='files', files=pagination.items, pagination=pagination, search=search, **{name: record})
+    pagination, search = related_page(related(record, model.documents, Document), Document)
+    return render_template(template, active_tab='documents', documents=pagination.items, pagination=pagination, search=search, **{name: record})
 
 
 ### RELATED TABS AND LINK PAGES ###
@@ -225,8 +225,8 @@ def files_tab(model, id, template, name):
 RELATED_LISTS = {
     Asset: ([Asset.description, Asset.asset_number, Asset.make, Asset.model, Asset.serial_number], Asset.description),
     Job: ([Job.description, Job.work_required], Job.description),
-    JobSchedule: ([JobSchedule.description, JobSchedule.work_required], JobSchedule.description),
-    File: ([File.description, File.filename], File.description),
+    PlannedJobSchedule: ([PlannedJobSchedule.description, PlannedJobSchedule.work_required], PlannedJobSchedule.description),
+    Document: ([Document.description, Document.filename], Document.description),
 }
 
 
@@ -255,7 +255,7 @@ REFERENCE_FIELDS = {
     'asset_condition_id': AssetCondition,
     'location_category_id': LocationCategory,
     'supplier_category_id': SupplierCategory,
-    'file_category_id': FileCategory,
+    'document_category_id': DocumentCategory,
 }
 
 

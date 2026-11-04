@@ -1,9 +1,9 @@
-{# the Assets and Files tabs list asset and file details, so they need assets.view or files.view as well as people.view #}
+{# the Assets and Documents tabs list asset and document details, so they need assets.view or documents.view as well as people.view #}
 <ul class="nav nav-tabs mb-4">
     {% for tab, endpoint, label, permission in [
         ('overview', 'people.view', 'Overview', 'people.view'),
         ('assets', 'people.assets', 'Assets', 'assets.view'),
-        ('files', 'people.files', 'Files', 'files.view'),
+        ('documents', 'people.documents', 'Documents', 'documents.view'),
     ] if can(permission) %}
     <li class="nav-item">
         <a class="nav-link {% if active_tab == tab %}active{% endif %}" href="{{ url_for(endpoint, id=person.id) }}">{{ label }}</a>

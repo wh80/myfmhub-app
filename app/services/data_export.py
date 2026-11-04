@@ -4,14 +4,14 @@ import zipfile
 from collections import namedtuple
 
 from app.extensions import db
-from app.models import Asset, Job, JobSchedule, Location, Person, Supplier
+from app.models import Asset, Job, PlannedJobSchedule, Location, Person, Supplier
 from app.services.exports import csv_value
 from app.services.auth import as_utc
 from app.services.scheduling import UK_TIMEZONE
 
 # the "Export data" page: an organisation downloads all of its records as a zip of CSVs, one per type.
 # Unlike the index downloads, every field is included, with ids so records can be matched up again
-# (a job's Location ID, Job Schedule ID and Asset IDs). Users aren't exported, only the people records.
+# (a job's Location ID, Planned Job Schedule ID and Asset IDs). Users aren't exported, only the people records.
 # Dates and times are as stored, so created and updated are UTC
 
 # permission is the view permission needed to export the type, on top of exports.manage. options
@@ -105,7 +105,7 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Closed By ID', lambda job: job.closed_by_id),
         ('Rejection Reason', lambda job: job.rejection_reason),
         ('Statutory', lambda job: job.statutory_compliance),
-        ('Job Schedule ID', lambda job: job.job_schedule_id),
+        ('Planned Job Schedule ID', lambda job: job.planned_job_schedule_id),
         ('Parent Job ID', lambda job: job.parent_job_id),
         *reference_columns('Job Category', 'job_category'),
         ('Estimated Cost', lambda job: job.estimated_cost),
@@ -113,23 +113,23 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Asset IDs', lambda job: ids(job.assets)),
         *TIMESTAMP_COLUMNS,
     ], lambda: [db.joinedload(Job.location), db.selectinload(Job.assets)]),
-    ExportType('job_schedules', 'Job Schedules', JobSchedule, 'job_schedules.view', [
-        ('ID', lambda job_schedule: job_schedule.id),
-        ('Description', lambda job_schedule: job_schedule.description),
-        ('Work Required', lambda job_schedule: job_schedule.work_required),
+    ExportType('planned_jobs', 'Planned Jobs', PlannedJobSchedule, 'planned_jobs.view', [
+        ('ID', lambda planned_job_schedule: planned_job_schedule.id),
+        ('Description', lambda planned_job_schedule: planned_job_schedule.description),
+        ('Work Required', lambda planned_job_schedule: planned_job_schedule.work_required),
         *LOCATION_COLUMNS,
-        ('Frequency', lambda job_schedule: job_schedule.frequency_label),
-        ('Next Due By', lambda job_schedule: job_schedule.next_due_by),
-        ('Notice Days', lambda job_schedule: job_schedule.notice_days),
-        ('Next Job Creation', lambda job_schedule: job_schedule.next_job_creation_date),
-        ('Statutory', lambda job_schedule: job_schedule.statutory_compliance),
-        ('Active', lambda job_schedule: job_schedule.is_active),
+        ('Frequency', lambda planned_job_schedule: planned_job_schedule.frequency_label),
+        ('Next Due By', lambda planned_job_schedule: planned_job_schedule.next_due_by),
+        ('Notice Days', lambda planned_job_schedule: planned_job_schedule.notice_days),
+        ('Next Job Creation', lambda planned_job_schedule: planned_job_schedule.next_job_creation_date),
+        ('Statutory', lambda planned_job_schedule: planned_job_schedule.statutory_compliance),
+        ('Active', lambda planned_job_schedule: planned_job_schedule.is_active),
         *reference_columns('Job Category', 'job_category'),
-        ('Estimated Cost', lambda job_schedule: job_schedule.estimated_cost),
-        ('Estimated Duration (days)', lambda job_schedule: job_schedule.estimated_duration),
-        ('Asset IDs', lambda job_schedule: ids(job_schedule.assets)),
+        ('Estimated Cost', lambda planned_job_schedule: planned_job_schedule.estimated_cost),
+        ('Estimated Duration (days)', lambda planned_job_schedule: planned_job_schedule.estimated_duration),
+        ('Asset IDs', lambda planned_job_schedule: ids(planned_job_schedule.assets)),
         *TIMESTAMP_COLUMNS,
-    ], lambda: [db.joinedload(JobSchedule.location), db.selectinload(JobSchedule.assets)]),
+    ], lambda: [db.joinedload(PlannedJobSchedule.location), db.selectinload(PlannedJobSchedule.assets)]),
     ExportType('suppliers', 'Suppliers', Supplier, 'suppliers.view', [
         ('ID', lambda supplier: supplier.id),
         ('Name', lambda supplier: supplier.name),

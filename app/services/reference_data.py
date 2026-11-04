@@ -2,8 +2,8 @@ import re
 from collections import namedtuple
 from app import db
 from app.models import (
-    JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, FileCategory,
-    Job, JobSchedule, Asset, Location, Supplier, File,
+    JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory,
+    Job, PlannedJobSchedule, Asset, Location, Supplier, Document,
 )
 from app.services.scheduling import uk_today
 
@@ -16,15 +16,15 @@ REFERENCE_TYPES = {reference_type.slug: reference_type for reference_type in [
     ReferenceType('location-categories', 'Location Categories', 'location category', LocationCategory, 'bi-geo-alt',
                   [(Location, 'location_category_id', 'locations')]),
     ReferenceType('job-categories', 'Job Categories', 'job category', JobCategory, 'bi-tools',
-                  [(Job, 'job_category_id', 'jobs'), (JobSchedule, 'job_category_id', 'job schedules')]),
+                  [(Job, 'job_category_id', 'jobs'), (PlannedJobSchedule, 'job_category_id', 'planned job schedules')]),
     ReferenceType('asset-categories', 'Asset Categories', 'asset category', AssetCategory, 'bi-box-seam',
                   [(Asset, 'asset_category_id', 'assets')]),
     ReferenceType('asset-conditions', 'Asset Conditions', 'asset condition', AssetCondition, 'bi-heart-pulse',
                   [(Asset, 'asset_condition_id', 'assets')]),
     ReferenceType('supplier-categories', 'Supplier Categories', 'supplier category', SupplierCategory, 'bi-truck',
                   [(Supplier, 'supplier_category_id', 'suppliers')]),
-    ReferenceType('file-categories', 'File Categories', 'file category', FileCategory, 'bi-folder',
-                  [(File, 'file_category_id', 'files')]),
+    ReferenceType('document-categories', 'Document Categories', 'document category', DocumentCategory, 'bi-folder',
+                  [(Document, 'document_category_id', 'documents')]),
 ]}
 
 MAX_LENGTH = 100

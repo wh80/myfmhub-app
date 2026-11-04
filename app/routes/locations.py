@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g
 from app import db
 from app.forms import LocationForm
-from app.models import Location, Asset, Job, JobSchedule, LocationCategory, Person
-from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, files_tab, related_page, org_locations, in_location, set_reference_choices, reference_items, filter_reference
+from app.models import Location, Asset, Job, PlannedJobSchedule, LocationCategory, Person
+from app.routes.helpers import require_login, require_permission, org_query, org_get_or_404, parse_uuid, documents_tab, related_page, org_locations, in_location, set_reference_choices, reference_items, filter_reference
 from app.services.addresses import clean_address
 from app.services.exports import export_response
 from app.services.locations import descendants, location_tree, path_problem, set_path
@@ -13,7 +13,7 @@ locations_bp.before_request(require_permission)
 # locations nest to any depth: a site, a building in it, a floor in that... Each has a materialised_path
 # of the names from the top down ('Head Office > Main Building'), unique per organisation ignoring case,
 # kept up to date by set_path (services/locations.py). Deleting a location deletes the locations in it
-# and the assets, jobs and job schedules at all of them
+# and the assets, jobs and planned job schedules at all of them
 
 # the index table's columns (the search and import results list), for downloads. Keys match data-col in
 # locations/index.html
@@ -156,7 +156,7 @@ def delete(id):
 
     if request.method == "POST":
         path = location.materialised_path
-        # cascades to the locations inside it, and the assets, jobs and job schedules at all of them
+        # cascades to the locations inside it, and the assets, jobs and planned job schedules at all of them
         db.session.delete(location)
         db.session.commit()
         flash(f"Location '{path}' deleted, with everything in it.", 'success')
@@ -166,7 +166,7 @@ def delete(id):
         sub_locations=len(descendants(location)),
         assets=in_location(Asset, location).count(),
         jobs=in_location(Job, location).count(),
-        job_schedules=in_location(JobSchedule, location).count(),
+        planned_job_schedules=in_location(PlannedJobSchedule, location).count(),
     )
     return render_template('locations/delete.html', location=location, counts=counts)
 
@@ -185,12 +185,12 @@ def jobs(id):
     pagination, search = related_page(in_location(Job, location), Job)
     return render_template("locations/view/jobs.html", location=location, jobs=pagination.items, pagination=pagination, search=search, active_tab="jobs")
 
-@locations_bp.route("/<uuid:id>/job-schedules")
-def job_schedules(id):
+@locations_bp.route("/<uuid:id>/planned-jobs")
+def planned_jobs(id):
     location = org_get_or_404(Location, id)
-    pagination, search = related_page(in_location(JobSchedule, location), JobSchedule)
-    return render_template("locations/view/job_schedules.html", location=location, job_schedules=pagination.items, pagination=pagination, search=search, active_tab="job_schedules")
+    pagination, search = related_page(in_location(PlannedJobSchedule, location), PlannedJobSchedule)
+    return render_template("locations/view/planned_jobs.html", location=location, planned_job_schedules=pagination.items, pagination=pagination, search=search, active_tab="planned_jobs")
 
-@locations_bp.route("/<uuid:id>/files")
-def files(id):
-    return files_tab(Location, id, "locations/view/files.html", "location")
+@locations_bp.route("/<uuid:id>/documents")
+def documents(id):
+    return documents_tab(Location, id, "locations/view/documents.html", "location")

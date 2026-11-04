@@ -1,0 +1,41 @@
+<div class="card-header d-flex justify-content-between align-items-center">
+    <h4 class="mb-0">Planned Job Schedule: {{ planned_job_schedule.description }}</h4>
+
+    <div class="d-flex gap-2">
+        {% if can('planned_jobs.edit') and planned_job_schedule.open_job %}
+        <button type="button" class="btn btn-primary btn-sm" disabled title="Close the open job before editing this schedule">
+            Edit
+        </button>
+        {% elif can('planned_jobs.edit') %}
+        <a
+            href="{{ url_for('planned_jobs.edit', id=planned_job_schedule.id) }}"
+            class="btn btn-primary btn-sm"
+        >
+            Edit
+        </a>
+        {% endif %}
+
+        {% if can('planned_jobs.create') %}
+        <a
+            href="{{ url_for('planned_jobs.create', copy_from=planned_job_schedule.id) }}"
+            class="btn btn-secondary btn-sm"
+            title="Create a new planned job schedule with the same scheduling details, for another location"
+        >
+            Copy
+        </a>
+        {% endif %}
+
+        {% if can('planned_jobs.delete') and planned_job_schedule.jobs %}
+        <button type="button" class="btn btn-danger btn-sm" disabled title="A schedule that has raised jobs can't be deleted">
+            Delete
+        </button>
+        {% elif can('planned_jobs.delete') %}
+        <a
+            href="{{ url_for('planned_jobs.delete', id=planned_job_schedule.id) }}"
+            class="btn btn-danger btn-sm"
+        >
+            Delete
+        </a>
+        {% endif %}
+    </div>
+</div>

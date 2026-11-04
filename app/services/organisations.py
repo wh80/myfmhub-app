@@ -4,7 +4,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from app import db
 from app.models import Job, Person
 from app.services.email import send_email
-from app.services.files import remove_stored_organisation
+from app.services.documents import remove_stored_organisation
 from app.services.people import delete_person
 
 # Deleting an organisation is confirmed from a link emailed to the admin who asked. The link carries a
@@ -41,7 +41,7 @@ def send_delete_email(person):
 
 
 def delete_organisation(organisation):
-    """Delete the organisation and everything in it, then its stored files. People go through
+    """Delete the organisation and everything in it, then its stored documents. People go through
     delete_person, so a login is only deleted when this was its last organisation. Commits."""
     organisation_id = organisation.id
     # a job's assignee can't be deleted while it's assigned (RESTRICT), so clear them first

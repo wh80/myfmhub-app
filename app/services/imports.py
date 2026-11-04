@@ -10,7 +10,7 @@ from email_validator import EmailNotValidError, validate_email
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models import ASSIGNED_JOB_STATUSES, JOB_STATUSES, Asset, ImportEvent, Job, JobSchedule, Location, Person, Supplier, User, UserGroup, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory
+from app.models import ASSIGNED_JOB_STATUSES, JOB_STATUSES, Asset, ImportEvent, Job, PlannedJobSchedule, Location, Person, Supplier, User, UserGroup, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory
 from app.services.addresses import MAX_ADDRESS_LENGTH, clean_address
 from app.services.locations import MAX_PATH_LENGTH, build_path, normalise_path
 from app.services.people import delete_person
@@ -413,8 +413,8 @@ def create_asset(values, lookups):
     )]
 
 
-def create_job_schedule(values, lookups):
-    # the same rule as JobScheduleForm.validate_notice_days
+def create_planned_job_schedule(values, lookups):
+    # the same rule as PlannedJobScheduleForm.validate_notice_days
     notice_days, frequency = values['notice_days'], values['frequency']
     if not 0 <= notice_days <= 365:
         raise RowError('Notice days must be between 0 and 365')
@@ -422,7 +422,7 @@ def create_job_schedule(values, lookups):
         raise RowError(f"Notice days can't be longer than the time between jobs "
                        f"({FREQUENCY_MIN_DAYS[frequency]} days for {FREQUENCY_LABELS[frequency].lower()})")
 
-    return [JobSchedule(
+    return [PlannedJobSchedule(
         description=values['description'],
         work_required=values['work_required'],
         location_id=values['location'].id,
@@ -575,7 +575,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         Column('email', 'email', max_length=255),
         reference('supplier_category', SupplierCategory),
     ], create_supplier),
-    ImportType('job_schedules', 'Job Schedules', JobSchedule, 'job_schedules.index', [
+    ImportType('planned_jobs', 'Planned Jobs', PlannedJobSchedule, 'planned_jobs.index', [
         text('description', 100, required=True),
         text('work_required', 500, required=True),
         LOCATION_COLUMN,
@@ -588,7 +588,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         reference('job_category', JobCategory, notes='Optional. Must match one you already have, ignoring capitals. Jobs raised from the schedule get it too'),
         Column('estimated_cost', 'money', notes='Optional. Jobs raised from the schedule get it too'),
         Column('estimated_duration', 'days'),
-    ], create_job_schedule),
+    ], create_planned_job_schedule),
     ImportType('jobs', 'Jobs', Job, 'jobs.index', [
         text('description', 100, required=True),
         text('work_required', 500, required=True),
@@ -604,7 +604,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         Column('estimated_cost', 'money'),
         Column('actual_cost', 'money'),
     ], create_job, notes=[
-        'Imported jobs are reactive jobs. Jobs raised from a job schedule come from the schedule, so they can\'t be imported.',
+        'Imported jobs are reactive jobs. Jobs raised from a planned job schedule come from the schedule, so they can\'t be imported.',
         "Nobody is notified about imported jobs, including the people and suppliers they're assigned to.",
         "The dates the job's buttons normally record (approved, assigned, started, completed and closed) are left blank.",
     ], saved=job_saved),
@@ -840,11 +840,11 @@ def undo_blockers(import_type, import_event, person):
     blockers = []
 
     if model is Location:
-        # deleting a location deletes the locations in it and the assets, jobs and job schedules at them.
+        # deleting a location deletes the locations in it and the assets, jobs and planned job schedules at them.
         # Imported locations inside an imported one are checked themselves
-        count = query.filter(db.or_(Location.assets.any(), Location.jobs.any(), Location.job_schedules.any())).count()
+        count = query.filter(db.or_(Location.assets.any(), Location.jobs.any(), Location.planned_job_schedules.any())).count()
         if count:
-            blockers.append(f'{count} of the imported locations now have assets, jobs or job schedules. '
+            blockers.append(f'{count} of the imported locations now have assets, jobs or planned job schedules. '
                             'Delete or move those first, or undo the imports that added them.')
         other = Location.query.filter(
             Location.parent_id.in_(db.session.query(Location.id).filter(Location.import_event_id == import_event.id)),
@@ -854,11 +854,11 @@ def undo_blockers(import_type, import_event, person):
             blockers.append(f"{other} location(s) that weren't in this import have been added inside the imported ones. "
                             'Delete or move those first.')
 
-    if model is JobSchedule:
-        # Job.job_schedule_id is ondelete RESTRICT
-        count = query.filter(JobSchedule.jobs.any()).count()
+    if model is PlannedJobSchedule:
+        # Job.planned_job_schedule_id is ondelete RESTRICT
+        count = query.filter(PlannedJobSchedule.jobs.any()).count()
         if count:
-            blockers.append(f'{count} of the imported job schedules have had jobs raised from them.')
+            blockers.append(f'{count} of the imported planned job schedules have had jobs raised from them.')
 
     if model is Person:
         count = query.filter(Person.can_login.is_(True)).count()
