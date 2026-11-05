@@ -2,7 +2,30 @@
 
 
 {% from "_table_tools.html" import table_tools with context %}
-{{ table_tools('jobs', export_endpoint) }}
+{# job_actions (index only) adds a checkbox to each row and the Actions button. The checkboxes join its form
+   with their form attribute, and app.js enables the button once one is ticked #}
+<div class="d-flex align-items-start gap-2">
+  {% if job_actions %}
+  <form id="job-actions-form" method="POST" class="mb-2" data-row-actions data-busy="Updating jobs...">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <input type="hidden" name="next" value="{{ request.full_path }}" />
+    <div class="dropdown">
+      <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-row-actions-button disabled>
+        Actions
+      </button>
+      <ul class="dropdown-menu">
+        {% if can('jobs.approve') %}
+        <li><button type="submit" class="dropdown-item" formaction="{{ url_for('jobs.approve_selected') }}"><i class="bi bi-check-circle" aria-hidden="true"></i> Approve</button></li>
+        {% endif %}
+        {% if can('jobs.assign') %}
+        <li><button type="submit" class="dropdown-item" formaction="{{ url_for('jobs.assign_selected') }}"><i class="bi bi-person-check" aria-hidden="true"></i> Assign</button></li>
+        {% endif %}
+      </ul>
+    </div>
+  </form>
+  {% endif %}
+  <div class="ms-auto">{{ table_tools('jobs', export_endpoint) }}</div>
+</div>
 
 <!-- Desktop UI -->
 <div class="d-none d-md-block">
@@ -10,6 +33,9 @@
     <table class="table table-hover align-middle text-nowrap" data-columns="jobs">
     <thead>
       <tr>
+        {% if job_actions %}
+        <th scope="col"><input class="form-check-input" type="checkbox" data-select-all="job-actions-form" aria-label="Select all jobs on this page" /></th>
+        {% endif %}
         <th scope="col" data-col="description" data-col-fixed>Description</th>
         <th scope="col" data-col="location">Location</th>
         <th scope="col" data-col="category">Job Category</th>
@@ -24,6 +50,10 @@
     <tbody>
       {% for job in jobs %}
       <tr class="position-relative">
+        {% if job_actions %}
+        {# above the row's stretched link, so a click here selects rather than opens the job #}
+        <td class="position-relative z-2"><input class="form-check-input" type="checkbox" name="job_ids" value="{{ job.id }}" form="job-actions-form" aria-label="Select {{ job.description }}" /></td>
+        {% endif %}
         <td><a href="{{url_for('jobs.view', id=job.id)}}" class="stretched-link text-reset text-decoration-none">{{job.description}}</a></td>
         <td>{{ job.location.materialised_path }}</td>
         <td>{{ job.job_category or '-' }}</td>
@@ -48,6 +78,9 @@
     <div class="col-12">
       <div class="card shadow-sm">
         <div class="card-body">
+          {% if job_actions %}
+          <input class="form-check-input float-start position-relative z-2 me-2 mt-1" type="checkbox" name="job_ids" value="{{ job.id }}" form="job-actions-form" aria-label="Select {{ job.description }}" />
+          {% endif %}
           <h5 class="card-title mb-3"><a href="{{url_for('jobs.view', id=job.id)}}" class="stretched-link text-reset text-decoration-none">{{job.description}}</a></h5>
           <p class="card-text"><strong>Location:</strong> {{ location_text(job) }}</p>
           {% if job.job_category %}<p class="card-text"><strong>Category:</strong> {{ job.job_category }}</p>{% endif %}

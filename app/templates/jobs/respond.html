@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% set title = {'schedule': 'Schedule Job', 'start': 'Start Job', 'complete': 'Complete Job'}.get(step, 'Accept or Reject Job') %}
+{# the job's page for the assignee (jobs.respond), and the page their emailed links open with no sign-in
+   (job_responses, which sets step and state: invalid, accepted, rejected, scheduled, started or completed). Keep it to what the
+   email already shows #}
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">{{ title }}</h4>
+  </div>
+
+  <div class="card-body">
+    {% if state == 'invalid' %}
+    <p class="mb-0">
+      This link is no longer valid. The job may already have moved on or been given to someone else, or the link may
+      have expired. Please contact the organisation that sent it.
+    </p>
+    {% elif state == 'accepted' %}
+    <p class="mb-0">Thanks. You've accepted this job, and <strong>{{ job.organisation.name }}</strong> can see that on the job.{% if link_emailed %} We've emailed you a link to use {{ 'to choose the date for the work' if job.can_schedule else ('when you start the work' if job.can_start else "when the work's done") }}.{% endif %}</p>
+    {% elif state == 'scheduled' %}
+    <p class="mb-0">Thanks. This job is scheduled for <strong>{{ job.scheduled_for | date }}</strong>, and <strong>{{ job.organisation.name }}</strong> can see that on the job.{% if link_emailed %} We've emailed you a link for the next step, and one to change the date.{% endif %}</p>
+    {% elif state == 'started' %}
+    <p class="mb-0">Thanks. You've started this job, and <strong>{{ job.organisation.name }}</strong> can see that on the job.{% if link_emailed %} We've emailed you a link to use when the work's done.{% endif %}</p>
+    {% elif state == 'completed' %}
+    <p class="mb-0">Thanks. You've completed this job, and <strong>{{ job.organisation.name }}</strong> can see that on the job.</p>
+    {% elif state == 'rejected' %}
+    <p class="mb-0">You've rejected this job, and it's gone back to <strong>{{ job.organisation.name }}</strong> to assign again.</p>
+    {% else %}
+    {% if on_behalf %}
+    <div class="alert alert-info" role="alert">This job is issued to {{ job.assignee_name }}. You're responding for them.</div>
+    {% endif %}
+    {% if step == 'start' %}
+    <p><strong>{{ job.organisation.name }}</strong> has assigned this job to you. Press Start when the work begins.</p>
+    {% else %}
+    <p><strong>{{ job.organisation.name }}</strong> has issued this job to {{ 'them' if on_behalf else 'you' }}. Rejecting it sends it back to be assigned again.</p>
+    {% endif %}
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="text-muted small">Description</div>
+        <div class="fw-semibold">{{ job.description }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Location</div>
+        <div class="fw-semibold">{{ job.location.materialised_path }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Work Required</div>
+        <div class="fw-semibold" style="white-space: pre-line;">{{ job.work_required }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Due By</div>
+        <div class="fw-semibold">{{ job.due_by | date }}</div>
+      </div>
+    </div>
+
+    <form method="POST" class="d-flex gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      {% if step == 'start' %}
+      <button type="submit" class="btn btn-success">Start</button>
+      {% else %}
+      <button type="submit" name="response" value="accept" class="btn btn-success">Accept</button>
+      <button type="submit" name="response" value="reject" class="btn btn-outline-danger">Reject</button>
+      {% endif %}
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body %}

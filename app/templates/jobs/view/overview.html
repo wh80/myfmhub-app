@@ -52,7 +52,7 @@
   <div class="col-md-6">
     <div class="text-muted small">Helpers</div>
     <div class="fw-semibold d-flex flex-wrap align-items-center gap-2">
-      {% set can_change_helpers = can('jobs.assign') and job.status in ('assigned', 'in_progress', 'completed') %}
+      {% set can_change_helpers = can('jobs.assign') and job.status in ('issued', 'scheduling', 'assigned', 'started', 'completed') %}
       {% for helper in job.helpers %}
       <span class="d-inline-flex align-items-center gap-1">
         {% if can('people.view') %}<a href="{{ url_for('people.view', id=helper.id) }}">{{ helper.first_name }} {{ helper.last_name }}</a>{% else %}{{ helper.first_name }} {{ helper.last_name }}{% endif %}
@@ -75,6 +75,33 @@
   <div class="col-md-6">
     <div class="text-muted small">Assigned At</div>
     <div class="fw-semibold">{{job.assigned_at | datetime}}</div>
+  </div>
+  {% endif %}
+  {% if job.assigned_by %}
+  <div class="col-md-6">
+    <div class="text-muted small">Assigned By</div>
+    <div class="fw-semibold">
+      {% set assigner = job.assigned_by %}
+      {% if can('people.view') %}<a href="{{ url_for('people.view', id=assigner.id) }}">{{ assigner.first_name }} {{ assigner.last_name }}</a>{% else %}{{ assigner.first_name }} {{ assigner.last_name }}{% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% if job.issued_at %}
+  <div class="col-md-6">
+    <div class="text-muted small">Issued At</div>
+    <div class="fw-semibold">{{job.issued_at | datetime}}</div>
+  </div>
+  {% endif %}
+  {% if job.require_start_confirmation %}
+  <div class="col-md-6">
+    <div class="text-muted small">Start Confirmation</div>
+    <div class="fw-semibold">Required</div>
+  </div>
+  {% endif %}
+  {% if job.require_scheduling %}
+  <div class="col-md-6">
+    <div class="text-muted small">Scheduled For</div>
+    <div class="fw-semibold">{{ job.scheduled_for | date }}</div>
   </div>
   {% endif %}
   {% if job.approved_at %}

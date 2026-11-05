@@ -126,6 +126,45 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
+// Actions on selected rows (jobs/job_list.html): a form with data-row-actions, whose rows' checkboxes name it in their
+// form attribute. The button needs something ticked. A record has a checkbox in the desktop table and another
+// in the mobile cards, and both are in the form, so they're kept the same: otherwise turning a tablet round
+// could hide ticks that would still be submitted
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("form[data-row-actions]").forEach((form) => {
+    const boxes = Array.from(document.querySelectorAll(`input[type="checkbox"][form="${form.id}"]`));
+    const button = form.querySelector("[data-row-actions-button]");
+    const selectAll = document.querySelector(`[data-select-all="${form.id}"]`);
+
+    function refresh() {
+      const ticked = boxes.filter((box) => box.checked).length;
+      button.disabled = ticked === 0;
+      selectAll.checked = ticked === boxes.length;
+      selectAll.indeterminate = ticked > 0 && ticked < boxes.length;
+    }
+
+    boxes.forEach((box) => {
+      box.addEventListener("change", () => {
+        boxes.filter((other) => other.value === box.value).forEach((other) => {
+          other.checked = box.checked;
+        });
+        refresh();
+      });
+    });
+
+    selectAll.addEventListener("change", () => {
+      boxes.forEach((box) => {
+        box.checked = selectAll.checked;
+      });
+      refresh();
+    });
+
+    // the browser can bring ticks back after a reload or the back button
+    refresh();
+    window.addEventListener("pageshow", refresh);
+  });
+});
+
 // Slow actions cover the page with #busy-overlay (base.html), which blocks every button until they finish.
 // - a form with data-busy="<message>": shown on submit, and the next page replaces it
 // - a link with data-busy="<message>", or a form that also has data-busy-download, gets a file. The page never

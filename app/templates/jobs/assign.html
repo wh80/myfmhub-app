@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
-{% set title = ('Reassign Job: ' if reassign else 'Assign Job: ') ~ job.description %}
+{# jobs is set when assigning several from the jobs index, and job otherwise #}
+{% set title = ('Assign ' ~ jobs|length ~ (' Job' if jobs|length == 1 else ' Jobs')) if jobs else (('Reassign Job: ' if reassign else 'Assign Job: ') ~ job.description) %}
 {% macro errors(field) %}
 {% if field.errors %}
 <div class="invalid-feedback d-block">
@@ -13,7 +14,7 @@
 
 <div class="card shadow-sm">
   <div class="card-header d-flex justify-content-between align-items-center">
-    <h4 class="mb-0">{{ 'Reassign' if reassign else 'Assign' }} Job: {{ job.description }}</h4>
+    <h4 class="mb-0">{{ title }}</h4>
   </div>
 
   <div class="card-body">
@@ -22,6 +23,14 @@
       This job is assigned to <strong>{{ job.assignee_name }}</strong>. Choose a supplier or a person to give it to
       instead. Its status and helpers stay as they are. They'll be told, and {{ job.assignee_name }} won't be, so let them know yourself.
     </p>
+    {% elif jobs %}
+    {% if refused %}
+    <div class="alert alert-warning" role="alert">{{ refused }} They'll be left as they are.</div>
+    {% endif %}
+    <p>
+      Choose the supplier or person who'll do these jobs, and anyone helping them. Only they are told, once for each job:
+      people who can sign in get a notification, and suppliers and everyone else an email. Helpers aren't told.
+    </p>
     {% else %}
     <p>
       Choose the supplier or person who'll do the job, and anyone helping them. Only they are told: people who can sign
@@ -29,8 +38,15 @@
     </p>
     {% endif %}
 
-    <form method="POST" id="assign-form">
+    <form method="POST" id="assign-form"{% if jobs %} data-busy="Assigning jobs..."{% endif %}>
       {{ form.hidden_tag() }}
+      {% if jobs %}
+      <input type="hidden" name="confirmed" value="1" />
+      <input type="hidden" name="next" value="{{ back_url }}" />
+      {% for job in selected %}
+      <input type="hidden" name="job_ids" value="{{ job.id }}" />
+      {% endfor %}
+      {% endif %}
 
       <div class="row">
         <div class="col-md-6 mb-3">
@@ -53,8 +69,34 @@
         <div class="col-md-6 mb-3">
           {{ form.helper_ids.label(class="form-label") }}
           {{ form.helper_ids(class="form-select" ~ (" is-invalid" if form.helper_ids.errors else "")) }}
-          <div class="form-text">Optional. People helping on the job.</div>
+          <div class="form-text">Optional. People helping on {{ 'each job' if jobs else 'the job' }}.</div>
           {{ errors(form.helper_ids) }}
+        </div>
+        {% endif %}
+
+        {% if form.require_acceptance %}
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            {{ form.require_acceptance(class="form-check-input") }}
+            {{ form.require_acceptance.label(class="form-check-label") }}
+          </div>
+          <div class="form-text">The job stays Issued until the assignee accepts it. If they reject it, it goes back to Unassigned.</div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            {{ form.require_start_confirmation(class="form-check-input") }}
+            {{ form.require_start_confirmation.label(class="form-check-label") }}
+          </div>
+          <div class="form-text">The assignee confirms when they start the work. Otherwise the job goes straight from Assigned to Complete.</div>
+        </div>
+
+        <div class="col-md-6 mb-3">
+          <div class="form-check">
+            {{ form.require_scheduling(class="form-check-input") }}
+            {{ form.require_scheduling.label(class="form-check-label") }}
+          </div>
+          <div class="form-text">Require the assignee to confirm the date the work will be done.</div>
         </div>
         {% endif %}
       </div>
@@ -62,7 +104,7 @@
 
     <div class="d-flex gap-2">
       <button class="btn btn-success" form="assign-form">{{ 'Reassign' if reassign else 'Assign' }}</button>
-      <a href="{{ url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
+      <a href="{{ back_url or url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
     </div>
   </div>
 </div>

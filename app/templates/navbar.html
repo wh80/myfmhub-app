@@ -84,7 +84,7 @@
                                 <span class="text-muted small">{{ notification.created_at | datetime }}</span>
                                 <form method="POST" action="{{ url_for('notifications.open_notification', id=notification.id) }}" class="m-0">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-primary btn-sm">View</button>
+                                    <button type="submit" class="btn btn-primary btn-sm">{{ notification_button(notification) }}</button>
                                 </form>
                             </div>
                         </li>

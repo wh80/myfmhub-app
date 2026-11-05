@@ -20,7 +20,7 @@
     {% if on_behalf %}
     <div class="alert alert-info">You're completing this job for {{ job.assignee_name }}.</div>
     {% endif %}
-    <p>Started at {{ job.started_at | uk_datetime }} (UK time). Enter when the work was done, in UK time, and what was done.</p>
+    <p>{% if job.started_at %}Started at {{ job.started_at | uk_datetime }} (UK time). {% endif %}Enter when the work was done, in UK time, and what was done.</p>
 
     <form method="POST" id="complete-form">
       {{ form.hidden_tag() }}
@@ -41,7 +41,10 @@
 
     <div class="d-flex gap-2">
       <button class="btn btn-success" form="complete-form">Complete Job</button>
+      {# public: the emailed Complete Job link (job_responses.complete), with no sign-in, so no job page to go back to #}
+      {% if not public %}
       <a href="{{ url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
+      {% endif %}
     </div>
   </div>
 </div>

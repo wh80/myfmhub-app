@@ -257,7 +257,7 @@ def parse_value(column, raw, lookups):
         return email
 
     if column.kind == 'job_status':
-        # the key (in_progress) or the label (In Progress), ignoring case
+        # the key (started) or the label (Started), ignoring case
         for key, label in JOB_STATUSES:
             if raw.lower() in (key, label.lower()):
                 return key
@@ -439,7 +439,7 @@ def create_planned_job_schedule(values, lookups):
 
 def create_job(values, lookups):
     """An imported job is reactive (it isn't raised from a schedule). The status can be any of the job
-    statuses, but it has to make sense with the assignee: assigned, in progress, completed and closed jobs
+    statuses, but it has to make sense with the assignee: assigned, started, completed and closed jobs
     need one, and new, unassigned and rejected jobs can't have one, or helpers. Nobody is notified, and the
     dates the workflow buttons normally record (approved, assigned, started, completed, closed) are left blank."""
     status = values['status'] or 'new'
@@ -594,7 +594,7 @@ IMPORT_TYPES = {import_type.key: import_type for import_type in [
         text('work_required', 500, required=True),
         LOCATION_COLUMN,
         Column('due_by', 'date'),
-        Column('status', 'job_status', notes='Optional. Assigned, In Progress, Completed and Closed jobs need assigned to; New, Unassigned and Rejected jobs must leave assigned to and helpers blank'),
+        Column('status', 'job_status', notes='Optional. Assigned, Started, Completed and Closed jobs need assigned to; New, Unassigned and Rejected jobs must leave assigned to and helpers blank'),
         Column('assigned_to', 'assignee', notes='Optional. Must match exactly one supplier or person, ignoring capitals. '
                                                 'Add the email in brackets when two people share a name. Import suppliers and people first'),
         Column('helpers', 'helpers', notes="Optional. Each name must match exactly one person, ignoring capitals, and can't be the person in assigned to. "

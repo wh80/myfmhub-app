@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% set heading = 'Reschedule Job' if job.can_reschedule else 'Schedule Job' %}
+{% set title = heading ~ ': ' ~ job.description %}
+{# the job's page for the assignee (jobs.schedule), and the page their emailed link opens with no sign-in
+   (job_responses.schedule, with public). Keep it to what the email already shows #}
+{% macro errors(field) %}
+{% if field.errors %}
+<div class="invalid-feedback d-block">
+  {% for error in field.errors %}
+  <div>{{ error }}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endmacro %}
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">{{ title }}</h4>
+  </div>
+
+  <div class="card-body">
+    {% if on_behalf %}
+    <div class="alert alert-info" role="alert">This job is assigned to {{ job.assignee_name }}. You're scheduling it for them.</div>
+    {% endif %}
+    <p>Choose the date {{ 'they will' if on_behalf else 'you will' }} do the work{% if job.due_by %}. The job is due by {{ job.due_by | date }}{% endif %}.</p>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="text-muted small">Location</div>
+        <div class="fw-semibold">{{ job.location.materialised_path }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Work Required</div>
+        <div class="fw-semibold" style="white-space: pre-line;">{{ job.work_required }}</div>
+      </div>
+    </div>
+
+    <form method="POST" id="schedule-form">
+      {{ form.hidden_tag() }}
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.scheduled_for.label(class="form-label") }}
+          {{ form.scheduled_for(class="form-control" ~ (" is-invalid" if form.scheduled_for.errors else "")) }}
+          {{ errors(form.scheduled_for) }}
+        </div>
+      </div>
+    </form>
+
+    <div class="d-flex gap-2">
+      <button class="btn btn-success" form="schedule-form">{{ 'Reschedule' if job.can_reschedule else 'Schedule' }}</button>
+      {% if not public %}
+      <a href="{{ url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock body %}

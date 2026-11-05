@@ -22,18 +22,30 @@
         <a href="{{ url_for('jobs.assign', id=job.id) }}" class="btn btn-success btn-sm">Assign</a>
         {% endif %}
 
-        {% if can_progress and job.status == 'assigned' %}
+        {% if can_progress and job.status == 'issued' %}
+        <a href="{{ url_for('jobs.respond', id=job.id) }}" class="btn btn-success btn-sm">Accept / Reject</a>
+        {% endif %}
+
+        {% if can_progress and job.can_schedule %}
+        <a href="{{ url_for('jobs.schedule', id=job.id) }}" class="btn btn-success btn-sm">Schedule</a>
+        {% endif %}
+
+        {% if can_progress and job.can_start %}
         <form method="POST" action="{{ url_for('jobs.start', id=job.id) }}" class="m-0">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-success btn-sm">Start</button>
         </form>
         {% endif %}
 
-        {% if can_progress and job.status == 'in_progress' %}
+        {% if can_progress and job.can_complete %}
         <a href="{{ url_for('jobs.complete', id=job.id) }}" class="btn btn-success btn-sm">Complete</a>
         {% endif %}
 
-        {% if can('jobs.assign') and job.status in ('assigned', 'in_progress', 'completed') %}
+        {% if can_progress and job.can_reschedule %}
+        <a href="{{ url_for('jobs.schedule', id=job.id) }}" class="btn btn-outline-primary btn-sm">Reschedule</a>
+        {% endif %}
+
+        {% if can('jobs.assign') and job.status in ('issued', 'scheduling', 'assigned', 'started', 'completed') %}
         <a href="{{ url_for('jobs.reassign', id=job.id) }}" class="btn btn-outline-primary btn-sm">Reassign</a>
         {% endif %}
 

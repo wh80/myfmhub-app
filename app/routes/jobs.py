@@ -1,20 +1,21 @@
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g, current_app, abort
 from app import db
-from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, PlannedJobScheduleNextDueForm
+from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, JobScheduleForm, PlannedJobScheduleNextDueForm
 from app.models import Job, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.auth import as_utc
-from app.services.jobs import overdue_conditions, notify_assignee
+from app.services.jobs import accept_job, complete_job, overdue_conditions, notify_assignee, reject_assignment, schedule_job, start_job, tell_next_step
 from app.services.notifications import mark_read
+from app.services.permissions import can
 from app.services.scheduling import job_creation_date, next_due_date, uk_today
-from app.routes.helpers import selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, documents_tab, related, related_page, set_reference_choices, reference_items, filter_reference
+from app.routes.helpers import back_to, safe_next_url, selected_ids, parse_date, require_login, require_permission, org_query, org_get_or_404, parse_uuid, set_location_choices, create_from, location_options, filter_location, same_top_location, documents_tab, related, related_page, set_reference_choices, reference_items, filter_reference
 from app.services.exports import export_response
 jobs_bp = Blueprint('jobs', __name__, url_prefix="/jobs")
 jobs_bp.before_request(require_login)
 
 # the job's assignee (a person) can open it, and start and complete it, whatever their user group allows,
 # so someone with no jobs permissions can still do a job assigned to them
-ASSIGNEE_ENDPOINTS = {'jobs.view', 'jobs.start', 'jobs.complete'}
+ASSIGNEE_ENDPOINTS = {'jobs.view', 'jobs.respond', 'jobs.schedule', 'jobs.start', 'jobs.complete'}
 
 def require_job_permission():
     """require_permission, letting the job's assignee through to ASSIGNEE_ENDPOINTS."""
@@ -54,6 +55,11 @@ def filtered_jobs():
     due_to = parse_date(request.args.get('due_to'))
     closed_from = parse_date(request.args.get('closed_from'))
     closed_to = parse_date(request.args.get('closed_to'))
+    # supplier:<id> or person:<id>, as in the assign page's select
+    assigned_to = request.args.get('assigned_to', '').strip()
+    assignee_kind, _, assignee_id = assigned_to.partition(':')
+    assignee_id = parse_uuid(assignee_id)
+    assigned_to = assigned_to if assignee_kind in ('supplier', 'person') and assignee_id else ''
 
     # the Assigned To column
     query = org_query(Job).options(
@@ -88,6 +94,10 @@ def filtered_jobs():
     if source:
         query = query.filter(Job.source == source)
 
+    if assigned_to:
+        column = Job.assigned_supplier_id if assignee_kind == 'supplier' else Job.assigned_person_id
+        query = query.filter(column == assignee_id)
+
     # date ranges include both ends. Jobs with no date drop out once either end is set
     if due_from:
         query = query.filter(Job.due_by >= due_from)
@@ -112,6 +122,7 @@ def filtered_jobs():
         overdue=overdue,
         status=status,
         source=source,
+        assigned_to=assigned_to,
         due_from=due_from,
         due_to=due_to,
         closed_from=closed_from,
@@ -127,6 +138,15 @@ def index():
 
     pagination = query.paginate(page=page, per_page=25, error_out=False)
 
+    # approving every job on the last page of a filtered list leaves that page empty
+    if pagination.pages and page > pagination.pages:
+        return redirect(url_for('jobs.index', **dict(request.args.to_dict(), page=pagination.pages)))
+
+    # the Assigned to filter only lists what the group can already see, plus you: the dashboard's My Jobs cards use it
+    suppliers, people = assignee_options()
+    if not can(g.person, 'people.view'):
+        people = [option for option in people if option[0] == f'person:{g.person.id}']
+
     return render_template(
         'jobs/index.html',
         jobs=pagination.items,
@@ -135,6 +155,8 @@ def index():
         job_categories=reference_items(JobCategory),
         statuses=JOB_STATUSES,
         sources=JOB_SOURCES,
+        suppliers=suppliers if can(g.person, 'suppliers.view') else [],
+        people=people,
         **filters
     )
 
@@ -249,6 +271,10 @@ def delete(id):
     return render_template('jobs/delete.html', job=job)
 
 # approving a new job makes it unassigned, ready to be assigned
+def approve_job(job):
+    job.status = 'unassigned'
+    job.approved_at = datetime.now(timezone.utc)
+
 @jobs_bp.route('/<uuid:id>/approve', methods=['POST'])
 def approve(id):
     job = org_get_or_404(Job, id)
@@ -257,11 +283,42 @@ def approve(id):
         flash(f"Job '{job.description}' can't be approved because it isn't new.", 'warning')
         return redirect(url_for('jobs.view', id=job.id))
 
-    job.status = 'unassigned'
-    job.approved_at = datetime.now(timezone.utc)
+    approve_job(job)
     db.session.commit()
     flash(f"Job '{job.description}' approved. Use Assign to give it to a supplier or a person.", 'success')
     return redirect(url_for('jobs.view', id=job.id))
+
+def job_count(count):
+    return '1 job' if count == 1 else f'{count} jobs'
+
+def wrong_status(count, action, status):
+    return f"{job_count(count)} couldn't be {action} because {'it is' if count == 1 else 'they are'} not {status}."
+
+def selected_jobs():
+    return org_query(Job).filter(Job.id.in_(selected_ids('job_ids'))).order_by(Job.description, Job.id).all()
+
+# the Actions button on the index. Selected jobs may have moved on already, so those are counted, not refused
+@jobs_bp.route('/approve-selected', methods=['POST'])
+def approve_selected():
+    jobs = selected_jobs()
+
+    if not jobs:
+        flash('Select at least one job.', 'warning')
+        return back_to(url_for('jobs.index'))
+
+    new_jobs = [job for job in jobs if job.status == 'new']
+    for job in new_jobs:
+        approve_job(job)
+    db.session.commit()
+
+    messages = []
+    if new_jobs:
+        messages.append(f'{job_count(len(new_jobs))} approved.')
+    refused = len(jobs) - len(new_jobs)
+    if refused:
+        messages.append(wrong_status(refused, 'approved', 'new'))
+    flash(' '.join(messages), 'warning' if refused else 'success')
+    return back_to(url_for('jobs.index'))
 
 # rejecting a new job. A planned job's schedule is waiting on it, so the schedule moves on from the date it's
 # rejected, as it does from the completed date when a job is closed, and both are saved together
@@ -310,9 +367,9 @@ def set_assignee_choices(form, exclude=None):
     form.assignee.choices = [('', '-')] + suppliers + people
     return suppliers, people
 
-def set_helper_choices(field, job):
+def set_helper_choices(field, job=None):
     """Everyone in the organisation who isn't helping on the job already."""
-    helping = {person.id for person in job.helpers}
+    helping = {person.id for person in job.helpers} if job else set()
     field.choices = [(str(person.id), f'{person_name(person)} ({person.email})')
                      for person in org_query(Person).order_by(Person.first_name, Person.last_name, Person.id)
                      if person.id not in helping]
@@ -328,29 +385,52 @@ def chosen_people(ids):
     return org_query(Person).filter(Person.id.in_(ids)).all() if ids else []
 
 def give_job_to(job, assignee):
-    """Assign (or reassign) the job to a supplier or a person. A person who was helping stops being a helper."""
+    """Assign (or reassign) the job to a supplier or a person, recording who did it and when (issued_at). The
+    caller sets assigned_at, unless it's waiting on acceptance. A person who was helping stops being a helper."""
     job.assigned_supplier = assignee if isinstance(assignee, Supplier) else None
     job.assigned_person = assignee if isinstance(assignee, Person) else None
-    job.assigned_at = datetime.now(timezone.utc)
+    job.issued_at = datetime.now(timezone.utc)
+    job.assigned_by = g.person
     if assignee in job.helpers:
         job.helpers.remove(assignee)
 
-def tell_assignee(job):
-    """Notify the new assignee (after the job is committed), and flash how it went. The job stays
-    assigned if the email fails or there's no address to send to. Nobody is told when you assign a
-    job to yourself: the job page you're sent to would mark the notification read straight away."""
-    if job.assigned_person == g.person:
+def assign_job(job, assignee, helpers, form):
+    """Require Acceptance issues the job, and it only becomes assigned when the assignee accepts it. Require
+    Scheduling holds it at scheduling (after acceptance, if that's needed too) until they choose a date."""
+    give_job_to(job, assignee)
+    job.require_start_confirmation = form.require_start_confirmation.data
+    job.require_scheduling = form.require_scheduling.data
+    job.helpers.extend(person for person in helpers if person not in job.helpers)
+    if form.require_acceptance.data:
+        job.status = 'issued'
+    else:
+        job.status = 'scheduling' if form.require_scheduling.data else 'assigned'
+        job.assigned_at = job.issued_at
+
+def tell_assignee(jobs):
+    """Notify the new assignee of each job, one notification or email per job (after the jobs are committed),
+    and flash how it went. All the jobs went to the same assignee. They stay assigned if an email fails or
+    there's no address to send to. Nobody is told when you assign a job to yourself: the job page you're
+    sent to would mark the notification read straight away."""
+    if jobs[0].assigned_person == g.person:
         return
-    try:
-        told = notify_assignee(job, person_name(g.person))
-    except Exception:
-        current_app.logger.exception('Sending job assigned email failed')
-        flash(f"The email to {job.assignee_name} couldn't be sent, so let them know yourself.", 'warning')
-        return
-    # the in-app notification
+    assignee_name = jobs[0].assignee_name
+    failed = 0
+    no_address = False
+    for job in jobs:
+        try:
+            if not notify_assignee(job, person_name(g.person)):
+                no_address = True
+        except Exception:
+            current_app.logger.exception('Sending job assigned email failed')
+            failed += 1
+    # the in-app notifications
     db.session.commit()
-    if not told:
-        flash(f"{job.assignee_name} has no email address, so they haven't been told. Let them know yourself.", 'warning')
+    if failed:
+        emails = 'The email' if failed == 1 else f'{failed} emails'
+        flash(f"{emails} to {assignee_name} couldn't be sent, so let them know yourself.", 'warning')
+    if no_address:
+        flash(f"{assignee_name} has no email address, so they haven't been told. Let them know yourself.", 'warning')
 
 # Assign: gives an unassigned job to one supplier or one person, plus any helpers (people). Only the assignee
 # is told: a notification for a person who can sign in, otherwise an email with the job's details
@@ -367,15 +447,49 @@ def assign(id):
     set_helper_choices(form.helper_ids, job)
 
     if form.validate_on_submit():
-        give_job_to(job, chosen_assignee(form.assignee.data))
-        job.helpers.extend(chosen_people(form.helper_ids.data))
-        job.status = 'assigned'
+        assign_job(job, chosen_assignee(form.assignee.data), chosen_people(form.helper_ids.data), form)
         db.session.commit()
-        flash(f"Job '{job.description}' assigned to {job.assignee_name}.", 'success')
-        tell_assignee(job)
+        flash(f"Job '{job.description}' {'issued' if form.require_acceptance.data else 'assigned'} to {job.assignee_name}.", 'success')
+        tell_assignee([job])
         return redirect(url_for('jobs.view', id=job.id))
 
     return render_template('jobs/assign.html', job=job, form=form, suppliers=suppliers, people=people, reassign=False)
+
+# the Actions button on the index posts the ticked jobs here, which shows the assign page. That page posts them
+# back with confirmed=1, so the statuses are checked again in case someone else has assigned them meanwhile
+@jobs_bp.route('/assign-selected', methods=['POST'])
+def assign_selected():
+    back_url = safe_next_url(request.form.get('next')) or url_for('jobs.index')
+    selected = selected_jobs()
+
+    if not selected:
+        flash('Select at least one job.', 'warning')
+        return redirect(back_url)
+
+    jobs = [job for job in selected if job.status == 'unassigned']
+    refused = wrong_status(len(selected) - len(jobs), 'assigned', 'Unassigned') if len(jobs) < len(selected) else None
+
+    if not jobs:
+        flash(refused, 'warning')
+        return redirect(back_url)
+
+    form = JobAssignForm()
+    suppliers, people = set_assignee_choices(form)
+    set_helper_choices(form.helper_ids)
+
+    if 'confirmed' in request.form and form.validate_on_submit():
+        assignee = chosen_assignee(form.assignee.data)
+        helpers = chosen_people(form.helper_ids.data)
+        for job in jobs:
+            assign_job(job, assignee, helpers, form)
+        db.session.commit()
+        assigned = f"{job_count(len(jobs))} {'issued' if form.require_acceptance.data else 'assigned'} to {jobs[0].assignee_name}."
+        flash(f'{assigned} {refused}' if refused else assigned, 'warning' if refused else 'success')
+        tell_assignee(jobs)
+        return redirect(back_url)
+
+    return render_template('jobs/assign.html', jobs=jobs, selected=selected, refused=refused, back_url=back_url,
+                           form=form, suppliers=suppliers, people=people, reassign=False)
 
 # Reassign: gives the job to someone else, at any stage after it's assigned and before it's closed. The
 # status, dates and helpers stay as they are. The new assignee is told; the old one isn't
@@ -393,9 +507,12 @@ def reassign(id):
     if form.validate_on_submit():
         previous = job.assignee_name
         give_job_to(job, chosen_assignee(form.assignee.data))
+        # an issued job is still waiting on an answer: now from the new assignee, and the old one's link stops working
+        if job.status != 'issued':
+            job.assigned_at = job.issued_at
         db.session.commit()
         flash(f"Job '{job.description}' reassigned from {previous} to {job.assignee_name}.", 'success')
-        tell_assignee(job)
+        tell_assignee([job])
         return redirect(url_for('jobs.view', id=job.id))
 
     return render_template('jobs/assign.html', job=job, form=form, suppliers=suppliers, people=people, reassign=True)
@@ -441,37 +558,90 @@ def remove_helper(id, person_id):
     flash(f"Removed {person_name(helper)} from job '{job.description}' as a helper.", 'success')
     return redirect(url_for('jobs.view', id=job.id))
 
+def tell_about_next_step(job, after):
+    told = tell_next_step(job, after, g.person)
+    db.session.commit()
+    if not told:
+        flash(f"{job.assignee_name} couldn't be sent the link for the next step, so let them know yourself.", 'warning')
+
 def not_at_step(job, action):
     flash(f"Job '{job.description}' can't be {action} because it's {job.status_label.lower()}.", 'warning')
     return redirect(url_for('jobs.view', id=job.id))
+
+# Accept / Reject Job on an issued job, for the assignee (require_job_permission), or someone with jobs.assign
+# responding for them, for example a supplier who rang up. Suppliers use job_responses.respond from their email
+@jobs_bp.route('/<uuid:id>/respond', methods=['GET', 'POST'])
+def respond(id):
+    job = org_get_or_404(Job, id)
+
+    if job.status != 'issued':
+        return not_at_step(job, 'accepted or rejected')
+
+    mark_read(Notification.query.filter_by(person_id=g.person.id, job_id=job.id, read_at=None))
+    db.session.commit()
+
+    response = request.form.get('response')
+    if request.method == 'POST' and response == 'accept':
+        accept_job(job)
+        db.session.commit()
+        flash(f"Job '{job.description}' accepted.", 'success')
+        tell_about_next_step(job, 'accepted')
+        return redirect(url_for('jobs.view', id=job.id))
+
+    if request.method == 'POST' and response == 'reject':
+        reject_assignment(job, g.person)
+        db.session.commit()
+        flash(f"Job '{job.description}' rejected. It's back to Unassigned.", 'success')
+        # the assignee may only have been able to see it because it was theirs
+        return redirect(url_for('jobs.view', id=job.id) if can(g.person, 'jobs.view') else url_for('dashboard.index'))
+
+    return render_template('jobs/respond.html', job=job, on_behalf=not job.is_assignee(g.person))
+
+# Schedule Job and Reschedule, for the assignee (require_job_permission), or someone with jobs.assign doing it for
+# them. Suppliers use job_responses.schedule from their email
+@jobs_bp.route('/<uuid:id>/schedule', methods=['GET', 'POST'])
+def schedule(id):
+    job = org_get_or_404(Job, id)
+    if not job.can_schedule and not job.can_reschedule:
+        return not_at_step(job, 'scheduled')
+
+    form = JobScheduleForm(due_by=job.due_by, scheduled_for=job.scheduled_for)
+
+    if form.validate_on_submit():
+        rescheduling = schedule_job(job, form.scheduled_for.data, g.person)
+        db.session.commit()
+        flash(f"Job '{job.description}' scheduled for {form.scheduled_for.data:%d-%m-%Y}.", 'success')
+        if not rescheduling:
+            tell_about_next_step(job, 'scheduled')
+        return redirect(url_for('jobs.view', id=job.id))
+
+    return render_template('jobs/schedule.html', job=job, form=form, on_behalf=not job.is_assignee(g.person))
 
 # Start and Complete are for the job's assignee (require_job_permission), or someone with jobs.assign doing it
 # for them. Start: the work has begun, now
 @jobs_bp.route('/<uuid:id>/start', methods=['POST'])
 def start(id):
     job = org_get_or_404(Job, id)
-    if job.status != 'assigned':
+    if not job.can_start:
         return not_at_step(job, 'started')
 
-    job.status = 'in_progress'
-    job.started_at = datetime.now(timezone.utc)
+    start_job(job)
     db.session.commit()
     flash(f"Job '{job.description}' started. Use Complete when the work's done.", 'success')
+    tell_about_next_step(job, 'started')
     return redirect(url_for('jobs.view', id=job.id))
 
 # Complete: when the work was done (UK time, not before it started) and what was done
 @jobs_bp.route('/<uuid:id>/complete', methods=['GET', 'POST'])
 def complete(id):
     job = org_get_or_404(Job, id)
-    if job.status != 'in_progress':
+    if not job.can_complete:
         return not_at_step(job, 'completed')
 
     form = JobCompleteForm(started_at=as_utc(job.started_at) if job.started_at else None)
 
     if form.validate_on_submit():
-        job.status = 'completed'
-        job.completed_at = form.completed_at_uk()
-        job.completion_comments = form.completion_comments.data
+        complete_job(job, form.completed_at_uk(), form.completion_comments.data)
         db.session.commit()
         flash(f"Job '{job.description}' completed.", 'success')
         return redirect(url_for('jobs.view', id=job.id))

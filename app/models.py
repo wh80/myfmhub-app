@@ -7,12 +7,17 @@ from app.services.scheduling import FREQUENCY_LABELS, uk_date, uk_today
 
 # a job's lifecycle. The key is stored on Job.status, which is set by the app, never a form. A new job is
 # approved (to unassigned) or rejected, then assigned to one supplier or person, who starts and completes
-# it. Then it's closed
+# it. Then it's closed. Assigning with Require Acceptance goes to issued first: the assignee accepts (to assigned)
+# or rejects (back to unassigned). Assigning with Require Start Confirmation means it must be started before
+# it's completed; otherwise it goes straight from assigned to completed. Require Scheduling puts scheduling before
+# assigned, until the assignee chooses a date
 JOB_STATUSES = [
     ('new', 'New'),
     ('unassigned', 'Unassigned'),
+    ('issued', 'Issued'),
+    ('scheduling', 'Scheduling'),
     ('assigned', 'Assigned'),
-    ('in_progress', 'In Progress'),
+    ('started', 'Started'),
     ('completed', 'Completed'),
     ('closed', 'Closed'),
     ('rejected', 'Rejected'),
@@ -21,7 +26,7 @@ JOB_STATUS_LABELS = dict(JOB_STATUSES)
 # statuses a job doesn't move on from: it isn't overdue, a compliance risk or "not closed", and can't be closed
 JOB_FINISHED_STATUSES = ('closed', 'rejected')
 # statuses where the job has an assignee: it can be reassigned and given helpers
-ASSIGNED_JOB_STATUSES = ('assigned', 'in_progress', 'completed')
+ASSIGNED_JOB_STATUSES = ('issued', 'scheduling', 'assigned', 'started', 'completed')
 
 # where a job came from. The key is stored on Job.source, which is set by the app, never a form
 JOB_SOURCES = [
@@ -229,8 +234,19 @@ class Job(db.Model):
     # when a new job was approved or rejected. Reopening a rejected job clears rejected_at
     approved_at = db.Column(db.DateTime(timezone=True))
     rejected_at = db.Column(db.DateTime(timezone=True))
-    # when it was last assigned or reassigned (Assign, Reassign)
+    # when it was last given to someone (issued_at: Assign, Reassign), and when that took effect. They're the same
+    # unless Require Acceptance is on: then assigned_at stays blank until the assignee accepts
     assigned_at = db.Column(db.DateTime(timezone=True))
+    # who last assigned or reassigned it. Blank on imported jobs. They're told if the assignee rejects it
+    assigned_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
+    assigned_by = db.relationship('Person', foreign_keys=[assigned_by_id], backref=db.backref('jobs_assigned_by', lazy=True), lazy=True)
+    # assigning chose this: the job has to go through started on its way to completed
+    require_start_confirmation = db.Column(db.Boolean, default=False, server_default=db.text('false'), nullable=False)
+    # assigning chose this: the assignee picks scheduled_for, the date they'll do the work, not after due_by
+    require_scheduling = db.Column(db.Boolean, default=False, server_default=db.text('false'), nullable=False)
+    scheduled_for = db.Column(db.Date)
+    # the emailed Accept / Reject Job, Schedule Job, Start Job and Complete Job links only work for the latest issued_at
+    issued_at = db.Column(db.DateTime(timezone=True))
     # set with status by Start (now) and Complete (entered in UK time on JobCompleteForm, with the comments)
     started_at = db.Column(db.DateTime(timezone=True))
     completed_at = db.Column(db.DateTime(timezone=True))
@@ -334,6 +350,22 @@ class Job(db.Model):
         return None
 
     # the signed-in person is the job's assignee, so they can open it, start it and complete it
+    @property
+    def can_schedule(self):
+        return self.status == 'scheduling'
+
+    @property
+    def can_reschedule(self):
+        return self.status == 'assigned' and self.require_scheduling
+
+    @property
+    def can_start(self):
+        return self.status == 'assigned' and self.require_start_confirmation
+
+    @property
+    def can_complete(self):
+        return self.status == 'started' or (self.status == 'assigned' and not self.require_start_confirmation)
+
     def is_assignee(self, person):
         return person is not None and self.assigned_person_id is not None and self.assigned_person_id == person.id
 

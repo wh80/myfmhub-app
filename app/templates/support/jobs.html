@@ -37,7 +37,7 @@
 <h4 class="mt-4" id="statuses">1. Job statuses at a glance</h4>
 <p>
   You never set a job's status yourself. MyFmHub moves it on as each step is done. Normally a job goes
-  New, Unassigned, Assigned, In Progress, Completed and then Closed.
+  New, Unassigned, Assigned, Completed and then Closed, with Issued, Scheduling and Started as extra steps when you ask for them.
 </p>
 <div class="table-responsive">
   <table class="table table-sm align-middle">
@@ -48,8 +48,10 @@
       <tr><td>New</td><td>Just raised, waiting for someone to look at it.</td><td>Approve (to Unassigned) or Reject (to Rejected).</td></tr>
       <tr><td>Rejected</td><td>Turned down when it was new, with a reason. It's finished.</td><td>Reopen (back to New), for jobs that aren't planned.</td></tr>
       <tr><td>Unassigned</td><td>Approved, waiting to be given to someone.</td><td>Assign.</td></tr>
-      <tr><td>Assigned</td><td>Given to a supplier or a person, waiting for the work to start.</td><td>Start.</td></tr>
-      <tr><td>In Progress</td><td>The work has started.</td><td>Complete.</td></tr>
+      <tr><td>Issued</td><td>Given to a supplier or a person who needs to accept it first.</td><td>Accept (to Assigned) or Reject (back to Unassigned).</td></tr>
+      <tr><td>Scheduling</td><td>Waiting for the assignee to choose the date they'll do the work.</td><td>Schedule (to Assigned).</td></tr>
+      <tr><td>Assigned</td><td>Given to a supplier or a person.</td><td>Complete, or Start if the job needs start confirmation.</td></tr>
+      <tr><td>Started</td><td>The assignee has confirmed the work has started.</td><td>Complete.</td></tr>
       <tr><td>Completed</td><td>The work is done.</td><td>Close.</td></tr>
       <tr><td>Closed</td><td>Checked and closed. It's finished.</td><td>Reopen (back to Completed), for jobs that aren't planned.</td></tr>
     </tbody>
@@ -80,7 +82,12 @@
   user group has <strong>Approve or reject new jobs</strong>.
 </p>
 <ul>
-  <li><strong>Approve</strong> moves it to Unassigned, ready to be assigned.</li>
+  <li>
+    <strong>Approve</strong> moves it to Unassigned, ready to be assigned. To approve several at once,
+    tick them on the Jobs page and choose <strong>Actions</strong>, then <strong>Approve</strong>. The box
+    at the top of the table ticks the whole page. Only New jobs are approved: any others you ticked are
+    left as they are, and the message says how many.
+  </li>
   <li>
     <strong>Reject</strong> asks for a reason, then moves it to Rejected. The reason and the time are
     shown on the job.
@@ -104,6 +111,61 @@
   with them. The job moves to <strong>Assigned</strong>, and its page shows who it's assigned to and the
   helpers. The jobs list's <strong>Assigned To</strong> column shows it too.
 </p>
+<p>
+  To give several jobs to the same supplier or person, tick them on the Jobs page and choose
+  <strong>Actions</strong>, then <strong>Assign</strong>. Only Unassigned jobs are assigned: any others you
+  ticked are left as they are, and the page and the message say how many. Any helpers you choose go on
+  every job, and the assignee is told about each job separately.
+</p>
+<p>
+  Tick <strong>Require Acceptance</strong> when assigning if the supplier or person should agree to the job
+  first. The job moves to <strong>Issued</strong> instead of Assigned, and the notification or email has an
+  <strong>Accept / Reject Job</strong> button. Suppliers, and people who can't sign in, don't need to sign in
+  for this: the link in their email opens the page, works for 30 days, and stops working once they've
+  answered or the job has been reassigned. Only the assignee answers, not helpers.
+</p>
+<ul>
+  <li><strong>Accept</strong> moves the job to Assigned, ready to start.</li>
+  <li>
+    <strong>Reject</strong> moves it back to Unassigned and removes the assignee and helpers, so it can be
+    assigned again. Whoever assigned it gets a notification under the bell, and its <strong>View</strong>
+    button opens the job.
+  </li>
+  <li>
+    If a supplier answers another way, for example by phone, open the job and use
+    <strong>Accept / Reject</strong> for them. That needs <strong>Assign jobs, and start and complete them
+    for the assignee</strong>, the same as starting a job for them.
+  </li>
+</ul>
+<p>
+  Tick <strong>Require Start Confirmation</strong> if the assignee should confirm when the work begins.
+  Without it, the job goes straight from Assigned to Complete. With it, the job shows
+  <strong>Start</strong> first. Suppliers, and people who can't sign in, get a <strong>Start Job</strong>
+  link by email that needs no sign-in and works for a year. It comes with the last email before the work
+  starts: the assignment email, or a separate one once they've accepted or chosen a date. People who can sign in use the
+  Start button on the job's page.
+</p>
+<p>
+  Tick <strong>Require Scheduling</strong> if the assignee should confirm the date they'll do the work.
+  The job moves to <strong>Scheduling</strong> as soon as it's assigned, or once it's accepted if it also
+  requires acceptance. The notification has a <strong>Schedule Job</strong> button, and the email a
+  link that needs no sign-in. The job's page has a <strong>Schedule</strong> button too. The date can't be
+  in the past or after the job's due date, unless the due date has already passed. Once there's a date
+  the job goes to Assigned and its next step.
+</p>
+<p>
+  Until the work starts, the date can be changed with <strong>Reschedule</strong> on the job's page.
+  Suppliers, and people who can't sign in, get a reschedule link in the same email as the Start Job link,
+  or with the Complete Job link if the job doesn't need start confirmation. If the date changes, whoever
+  assigned the job gets a notification under the bell. Reassigning a job keeps its date.
+</p>
+<p>
+  Suppliers, and people who can't sign in, also get a <strong>Complete Job</strong> link at the point the
+  work can be completed: after they start the job if it needs start confirmation, otherwise after they
+  choose a date or accept it, if those are needed, otherwise in the assignment email. It opens a page asking when the
+  work was done and what was done, and it works for a year. Nobody is told when a job is completed this
+  way: the dashboard's <strong>Completed Jobs</strong> card shows the jobs to review and close.
+</p>
 <p>Only the supplier or person it's assigned to is told. Helpers aren't, and neither are you when you assign a job to yourself.</p>
 <ul>
   <li>
@@ -125,9 +187,12 @@
   who's phoned in.
 </p>
 <ul>
-  <li><strong>Start</strong> (while Assigned) records that the work started now, and moves the job to In Progress.</li>
   <li>
-    <strong>Complete</strong> (while In Progress) asks for <strong>Completed At</strong>, the date and time
+    <strong>Start</strong> (while Assigned, on jobs that need start confirmation) records that the work
+    started now, and moves the job to Started.
+  </li>
+  <li>
+    <strong>Complete</strong> (once the job is Started, or while Assigned if it doesn't need start confirmation) asks for <strong>Completed At</strong>, the date and time
     the work was done in UK time (it can't be in the future or before the work started, so it can be
     filled in afterwards), and <strong>Completion Comments</strong>, what was done. The job moves to
     Completed.
@@ -189,7 +254,7 @@
       <tr><td>See jobs</td><td>Jobs: View (or the job being assigned to you)</td></tr>
       <tr><td>Approve or reject new jobs</td><td>Approve or reject new jobs</td></tr>
       <tr><td>Assign, reassign, add and remove helpers, and start and complete a job for the person it's assigned to</td><td>Assign jobs, and start and complete them for the assignee</td></tr>
-      <tr><td>Start and complete a job assigned to you</td><td>Nothing extra: just being able to sign in</td></tr>
+      <tr><td>Accept, reject, start and complete a job assigned to you</td><td>Nothing extra: just being able to sign in</td></tr>
       <tr><td>Create a follow-up job</td><td>Jobs: Create</td></tr>
       <tr><td>Close a job</td><td>Close jobs</td></tr>
       <tr><td>Reopen a closed or rejected job</td><td>Reopen jobs</td></tr>
@@ -222,7 +287,7 @@
   </li>
   <li>
     <strong>assigned_to</strong> is the name of a supplier, or the full name of someone in People. Jobs that
-    are Assigned, In Progress, Completed or Closed need one; New, Unassigned and Rejected jobs must leave it
+    are Assigned, Started, Completed or Closed need one; New, Unassigned and Rejected jobs must leave it
     blank. When two people share a name, add the person's email in brackets, such as
     <code>Sam Jones (sam@example.com)</code>, which is how the Excel template's dropdown shows people. If
     more than one supplier or person still matches, the row isn't imported: import it without the

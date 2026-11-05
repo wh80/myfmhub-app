@@ -334,14 +334,25 @@ def seed(count):
             job.closed_at = days_from_today(-30, 0)
         if job.status not in ('new', 'rejected'):
             job.approved_at = now - timedelta(days=40)
-        if job.status in ('assigned', 'in_progress', 'completed', 'closed'):
-            job.assigned_at = now - timedelta(days=38)
+        if job.status in ('issued', 'scheduling', 'assigned', 'started', 'completed', 'closed'):
+            job.issued_at = now - timedelta(days=38)
+            if job.status != 'issued':
+                job.assigned_at = job.issued_at
+            job.assigned_by = random.choice(people)
             if random.random() < 0.5:
                 job.assigned_supplier = random.choice(suppliers)
             else:
                 job.assigned_person = random.choice(people)
             job.helpers = random.sample([person for person in people if person is not job.assigned_person], random.randint(0, 2))
-        if job.status in ('in_progress', 'completed', 'closed'):
+        if job.status in ('issued', 'scheduling', 'assigned'):
+            job.require_start_confirmation = random.random() < 0.5
+        if job.status == 'scheduling' or (job.status in ('issued', 'assigned') and random.random() < 0.5):
+            job.require_scheduling = True
+        if job.status == 'assigned' and job.require_scheduling:
+            soon = days_from_today(1, 20)
+            job.scheduled_for = min(soon, job.due_by) if job.due_by else soon
+        if job.status in ('started', 'completed', 'closed'):
+            job.require_start_confirmation = True
             job.started_at = now - timedelta(days=35)
         if job.status in ('completed', 'closed'):
             job.completed_at = now - timedelta(days=31)
@@ -349,10 +360,12 @@ def seed(count):
         if job.status == 'rejected':
             job.rejected_at = now - timedelta(days=40)
 
-    # a few reactive jobs are follow-up work for a completed or closed job at the same site
-    finished = [job for job in jobs if job.status in ('completed', 'closed')]
-    for job in [job for job in jobs if job.source == 'reactive'][:max(1, count // 10)]:
-        parents = [parent for parent in finished if site_of[parent.location] is site_of[job.location] and parent is not job]
+    # a few reactive jobs are follow-up work for a completed or closed job at the same site. A follow-up isn't
+    # a parent as well, or two jobs could end up as each other's parents, which can't be saved
+    follow_ups = [job for job in jobs if job.source == 'reactive'][:max(1, count // 10)]
+    finished = [job for job in jobs if job.status in ('completed', 'closed') and job not in follow_ups]
+    for job in follow_ups:
+        parents = [parent for parent in finished if site_of[parent.location] is site_of[job.location]]
         if parents:
             job.source = 'follow_up'
             job.parent_job = random.choice(parents)

@@ -43,6 +43,7 @@ def create_app():
     from app.routes.documents import documents_bp
     from app.routes.reference_data import reference_data_bp
     from app.routes.notifications import notifications_bp
+    from app.routes.job_responses import job_responses_bp
 
     app.register_blueprint(locations_bp)
     app.register_blueprint(jobs_bp)
@@ -62,6 +63,7 @@ def create_app():
     app.register_blueprint(documents_bp)
     app.register_blueprint(reference_data_bp)
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(job_responses_bp)
 
     # / goes to the dashboard (which sends signed-out visitors to /login)
     app.add_url_rule('/', endpoint='dashboard.root', view_func=root)
@@ -99,7 +101,7 @@ def create_app():
     app.jinja_env.globals['PERMISSION_NOT_GRANTABLE'] = NOT_GRANTABLE
 
     # the navbar's bell: the signed-in person's unread notifications, as (count, the latest few)
-    from app.services.notifications import NAVBAR_LIMIT, notification_url, unread_notifications
+    from app.services.notifications import NAVBAR_LIMIT, notification_button, notification_url, unread_notifications
     def navbar_notifications():
         if not g.get('person'):
             return 0, []
@@ -107,6 +109,7 @@ def create_app():
         return query.count(), query.limit(NAVBAR_LIMIT).all()
     app.jinja_env.globals['navbar_notifications'] = navbar_notifications
     app.jinja_env.globals['notification_url'] = notification_url
+    app.jinja_env.globals['notification_button'] = notification_button
 
     @app.errorhandler(403)
     def forbidden(error):

@@ -64,6 +64,9 @@ class JobReassignForm(FlaskForm):
 # Assign also takes any number of helpers (people). The lead can't be one of them
 class JobAssignForm(JobReassignForm):
     helper_ids = SelectMultipleField('Helpers', validators=[Optional()])
+    require_acceptance = BooleanField('Require Acceptance')
+    require_start_confirmation = BooleanField('Require Start Confirmation')
+    require_scheduling = BooleanField('Require Scheduling')
 
     def validate_helper_ids(self, field):
         if self.assignee.data and self.assignee.data.removeprefix('person:') in (field.data or []):
@@ -75,6 +78,24 @@ class JobHelpersForm(FlaskForm):
 
 def uk_now_minute():
     return datetime.now(UK_TIMEZONE).replace(tzinfo=None, second=0, microsecond=0)
+
+# the date the assignee will do the work. due_by is the job's. A due date that's already passed can't be met, so it
+# doesn't apply: otherwise an overdue job could never be scheduled
+class JobScheduleForm(FlaskForm):
+    scheduled_for = DateField('Date', validators=[DataRequired(message='Choose the date you will do the work.')])
+
+    def __init__(self, due_by, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.due_by = due_by
+
+    def validate_scheduled_for(self, field):
+        if not field.data:
+            return
+        today = uk_today()
+        if field.data < today:
+            raise ValidationError("The date can't be in the past.")
+        if self.due_by and self.due_by >= today and field.data > self.due_by:
+            raise ValidationError(f"The date can't be after the job's due date ({self.due_by:%d-%m-%Y}).")
 
 # when the work was done, in UK time (stored with the time zone), and notes on it
 class JobCompleteForm(FlaskForm):

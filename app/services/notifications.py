@@ -33,8 +33,30 @@ def unread_notifications(person):
     return person_notifications(person).filter(Notification.read_at.is_(None))
 
 
+def awaiting_response(notification):
+    """It's about a job issued to this person, who has yet to accept or reject it."""
+    job = notification.job
+    return job is not None and job.status == 'issued' and job.is_assignee(notification.person)
+
+
+def awaiting_date(notification):
+    """It's about a job assigned to this person, who has yet to choose a date for it."""
+    job = notification.job
+    return job is not None and job.can_schedule and job.is_assignee(notification.person)
+
+
+def notification_button(notification):
+    if awaiting_response(notification):
+        return 'Accept / Reject Job'
+    return 'Schedule Job' if awaiting_date(notification) else 'View'
+
+
 def notification_url(notification):
-    """What its View button opens."""
+    """What its button opens."""
+    if awaiting_response(notification):
+        return url_for('jobs.respond', id=notification.job_id)
+    if awaiting_date(notification):
+        return url_for('jobs.schedule', id=notification.job_id)
     if notification.job_id:
         return url_for('jobs.view', id=notification.job_id)
     return url_for('notifications.index')

@@ -2,17 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>New job from {{ organisation_name }}</title>
+    <title>{{ 'New job' if not after else 'Link for your job' }} from {{ organisation_name }}</title>
 </head>
 <body style="font-family: Arial, sans-serif; color: #212529;">
     <p>Hi {{ assignee_name }},</p>
-    <p><strong>{{ organisation_name }}</strong> has assigned this job to you:</p>
+    {% set rescheduling = schedule_url and (start_url or complete_url) %}
+    {% if schedule_url and not rescheduling %}
+    {% set next_step = "to choose the date you'll do the work" %}
+    {% else %}
+    {% set next_step = 'when you start the work' if start_url else "when the work's done" %}
+    {% endif %}
+    {% if after == 'accepted' %}
+    <p>This job from <strong>{{ organisation_name }}</strong> has been accepted. Please use the button below {{ next_step }}:</p>
+    {% elif after %}
+    <p>This job from <strong>{{ organisation_name }}</strong> has been {{ after }}. Please use the button below {{ next_step }}:</p>
+    {% elif schedule_url or start_url or complete_url %}
+    <p><strong>{{ organisation_name }}</strong> has assigned this job to you. Please use the button below {{ next_step }}:</p>
+    {% else %}
+    <p><strong>{{ organisation_name }}</strong> has {{ 'issued' if respond_url else 'assigned' }} this job to you{{ ' and needs you to accept or reject it' if respond_url }}:</p>
+    {% endif %}
     <table cellpadding="6" style="border-collapse: collapse; margin-bottom: 16px;">
         <tr><td style="color: #6c757d;">Description</td><td><strong>{{ job.description }}</strong></td></tr>
         <tr><td style="color: #6c757d; vertical-align: top;">Work Required</td><td style="white-space: pre-line;">{{ job.work_required }}</td></tr>
         <tr><td style="color: #6c757d;">Location</td><td>{{ job.location.materialised_path }}</td></tr>
         <tr><td style="color: #6c757d;">Due By</td><td>{{ job.due_by | date }}</td></tr>
+        {% if job.scheduled_for %}
+        <tr><td style="color: #6c757d;">Scheduled For</td><td>{{ job.scheduled_for | date }}</td></tr>
+        {% endif %}
     </table>
+    {% if respond_url %}
+    <p><a href="{{ respond_url }}" style="display: inline-block; padding: 10px 16px; background-color: #198754; color: #ffffff; text-decoration: none; border-radius: 4px;">Accept / Reject Job</a></p>
+    <p style="color: #6c757d;">This link works for {{ link_days }} days.</p>
+    {% endif %}
+    {% if schedule_url or start_url or complete_url %}
+    <p><a href="{{ start_url or complete_url or schedule_url }}" style="display: inline-block; padding: 10px 16px; background-color: #198754; color: #ffffff; text-decoration: none; border-radius: 4px;">{{ 'Start' if start_url else 'Complete' if complete_url else 'Schedule' }} Job</a></p>
+    {% if rescheduling %}
+    <p>Need to change the date? <a href="{{ schedule_url }}">Reschedule this job</a>.</p>
+    {% endif %}
+    <p style="color: #6c757d;">{{ 'These links work' if rescheduling else 'This link works' }} for {{ link_days }} days.</p>
+    {% endif %}
     <p>Please contact {{ organisation_name }} if you have any questions about it.</p>
 </body>
 </html>

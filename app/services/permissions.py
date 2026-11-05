@@ -64,9 +64,10 @@ ENDPOINT_PERMISSIONS = {
     **_resource('assets', view=['export', 'sub_assets', 'jobs', 'planned_jobs'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_planned_jobs', 'unlink_planned_jobs']),
     **_resource('jobs', view=['export', 'assets', 'follow_up_jobs'], edit=['link_assets', 'unlink_assets']),
     'jobs.approve': 'jobs.approve',
+    'jobs.approve_selected': 'jobs.approve',
     'jobs.reject': 'jobs.approve',
     # the job's assignee can open it, and start and complete it, without these (jobs.require_job_permission)
-    **{f'jobs.{name}': 'jobs.assign' for name in ['assign', 'reassign', 'add_helpers', 'remove_helper', 'start', 'complete']},
+    **{f'jobs.{name}': 'jobs.assign' for name in ['assign', 'assign_selected', 'reassign', 'respond', 'schedule', 'add_helpers', 'remove_helper', 'start', 'complete']},
     'jobs.close': 'jobs.close',
     'jobs.reopen': 'jobs.reopen',
     # part of closing a planned job, so it needs close rather than planned_job_schedules.edit
