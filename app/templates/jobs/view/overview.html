@@ -52,7 +52,7 @@
   <div class="col-md-6">
     <div class="text-muted small">Helpers</div>
     <div class="fw-semibold d-flex flex-wrap align-items-center gap-2">
-      {% set can_change_helpers = can('jobs.assign') and job.status in ('issued', 'scheduling', 'assigned', 'started', 'completed') %}
+      {% set can_change_helpers = can('jobs.assign') and job.has_assignee_status %}
       {% for helper in job.helpers %}
       <span class="d-inline-flex align-items-center gap-1">
         {% if can('people.view') %}<a href="{{ url_for('people.view', id=helper.id) }}">{{ helper.first_name }} {{ helper.last_name }}</a>{% else %}{{ helper.first_name }} {{ helper.last_name }}{% endif %}

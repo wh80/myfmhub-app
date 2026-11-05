@@ -43,7 +43,7 @@ def job_for_link(token, step):
         return None
     if as_utc(job.issued_at).timestamp() != data['issued']:
         return None
-    at_step = {'respond': job.status == 'issued', 'schedule': job.can_schedule or job.can_reschedule,
+    at_step = {'respond': job.status == 'pending_acceptance', 'schedule': job.can_schedule or job.can_reschedule,
                'start': job.can_start, 'complete': job.can_complete}
     return job if at_step[step] else None
 
@@ -55,20 +55,40 @@ def tell_assigner(job, message, responder=None):
         notify(assigner, message, job)
 
 
+def set_work_status(job):
+    """Where a job with its assignee goes next: called when it's assigned, accepted or given a date."""
+    if job.require_scheduling and job.scheduled_for is None:
+        job.status = 'pending_scheduling'
+    elif job.require_start_confirmation:
+        job.status = 'pending_start'
+    elif job.scheduled_for and job.scheduled_for > uk_today():
+        job.status = 'scheduled'
+    else:
+        job.status = 'in_progress'
+
+
+def start_jobs_scheduled_for_today():
+    """The daily run: jobs that don't need start confirmation go to in_progress when their date arrives, across
+    every organisation. <= so a missed run is caught. Returns how many."""
+    count = Job.query.filter(Job.status == 'scheduled', Job.scheduled_for <= uk_today()).update({'status': 'in_progress'}, synchronize_session=False)
+    db.session.commit()
+    return count
+
+
 def schedule_job(job, scheduled_for, responder=None):
     """Save the assignee's date. Returns True when it's a change to a date they'd already chosen, which whoever
     assigned the job is told about. responder is the person doing it, or None for the emailed link."""
     rescheduling = job.can_reschedule
     changed = rescheduling and scheduled_for != job.scheduled_for
     job.scheduled_for = scheduled_for
-    job.status = 'assigned'
+    set_work_status(job)
     if changed:
         tell_assigner(job, f"{job.assignee_name} rescheduled a job to {scheduled_for:%d-%m-%Y}: {job.description}", responder)
     return rescheduling
 
 
 def start_job(job):
-    job.status = 'started'
+    job.status = 'in_progress'
     job.started_at = datetime.now(timezone.utc)
 
 
@@ -79,7 +99,7 @@ def complete_job(job, completed_at, comments):
 
 
 def accept_job(job):
-    job.status = 'scheduling' if job.require_scheduling else 'assigned'
+    set_work_status(job)
     job.assigned_at = datetime.now(timezone.utc)
 
 
@@ -124,7 +144,7 @@ def notify_assignee(job, assigned_by=None, after=None):
     there's a date. after ('accepted', 'scheduled' or 'started') means this is the follow-up that carries
     those links, rather than the news of the job. People who can sign in use the buttons on the job's page."""
     person = job.assigned_person
-    issued = job.status == 'issued'
+    issued = job.status == 'pending_acceptance'
     if person is not None and person.can_sign_in():
         if after:
             if job.can_schedule:

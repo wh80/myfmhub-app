@@ -2,7 +2,7 @@ import click
 from flask.cli import with_appcontext
 from app import db
 from app.models import User
-from app.services.jobs import create_scheduled_jobs
+from app.services.jobs import create_scheduled_jobs, start_jobs_scheduled_for_today
 
 
 @click.command('make-platform-admin')
@@ -34,6 +34,13 @@ def make_platform_admin(email, remove):
     user.is_platform_admin = True
     db.session.commit()
     click.echo(f'{email} is now a platform admin.')
+
+
+@click.command('start-scheduled-jobs')
+@with_appcontext
+def start_scheduled_jobs():
+    """Move jobs scheduled for today or earlier (UK time) to In Progress, unless they need start confirmation."""
+    click.echo(f'Moved {start_jobs_scheduled_for_today()} job(s) to In Progress.')
 
 
 @click.command('create-jobs-for-planned-job-schedules')

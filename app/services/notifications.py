@@ -36,7 +36,7 @@ def unread_notifications(person):
 def awaiting_response(notification):
     """It's about a job issued to this person, who has yet to accept or reject it."""
     job = notification.job
-    return job is not None and job.status == 'issued' and job.is_assignee(notification.person)
+    return job is not None and job.status == 'pending_acceptance' and job.is_assignee(notification.person)
 
 
 def awaiting_date(notification):

@@ -37,7 +37,8 @@
 <h4 class="mt-4" id="statuses">1. Job statuses at a glance</h4>
 <p>
   You never set a job's status yourself. MyFmHub moves it on as each step is done. Normally a job goes
-  New, Unassigned, Assigned, Completed and then Closed, with Issued, Scheduling and Started as extra steps when you ask for them.
+  New, Unassigned, In Progress, Completed and then Closed, with extra steps in between when you ask for
+  them. <a href="#flow">How a job gets to In Progress</a> shows which.
 </p>
 <div class="table-responsive">
   <table class="table table-sm align-middle">
@@ -48,10 +49,11 @@
       <tr><td>New</td><td>Just raised, waiting for someone to look at it.</td><td>Approve (to Unassigned) or Reject (to Rejected).</td></tr>
       <tr><td>Rejected</td><td>Turned down when it was new, with a reason. It's finished.</td><td>Reopen (back to New), for jobs that aren't planned.</td></tr>
       <tr><td>Unassigned</td><td>Approved, waiting to be given to someone.</td><td>Assign.</td></tr>
-      <tr><td>Issued</td><td>Given to a supplier or a person who needs to accept it first.</td><td>Accept (to Assigned) or Reject (back to Unassigned).</td></tr>
-      <tr><td>Scheduling</td><td>Waiting for the assignee to choose the date they'll do the work.</td><td>Schedule (to Assigned).</td></tr>
-      <tr><td>Assigned</td><td>Given to a supplier or a person.</td><td>Complete, or Start if the job needs start confirmation.</td></tr>
-      <tr><td>Started</td><td>The assignee has confirmed the work has started.</td><td>Complete.</td></tr>
+      <tr><td>Pending Acceptance</td><td>Given to a supplier or a person who needs to accept it first.</td><td>Accept (to its next step) or Reject (back to Unassigned).</td></tr>
+      <tr><td>Pending Scheduling</td><td>Waiting for the assignee to choose the date they'll do the work.</td><td>Schedule.</td></tr>
+      <tr><td>Scheduled</td><td>Has a date that hasn't arrived yet.</td><td>The date arriving (to In Progress), or Complete if the work's done early.</td></tr>
+      <tr><td>Pending Start</td><td>Waiting for the assignee to confirm the work has started.</td><td>Start.</td></tr>
+      <tr><td>In Progress</td><td>With the assignee to do. If the job needs start confirmation, they've confirmed it.</td><td>Complete.</td></tr>
       <tr><td>Completed</td><td>The work is done.</td><td>Close.</td></tr>
       <tr><td>Closed</td><td>Checked and closed. It's finished.</td><td>Reopen (back to Completed), for jobs that aren't planned.</td></tr>
     </tbody>
@@ -108,8 +110,32 @@
 <p>
   An Unassigned job has an <strong>Assign</strong> button. Choose who'll do the work: one supplier or one
   person in your organisation. You can also choose any number of <strong>helpers</strong>, people working
-  with them. The job moves to <strong>Assigned</strong>, and its page shows who it's assigned to and the
-  helpers. The jobs list's <strong>Assigned To</strong> column shows it too.
+  with them. The job moves to <strong>In Progress</strong>, or its first extra step if you've asked for any,
+  and its page shows who it's assigned to and the helpers. The jobs list's <strong>Assigned To</strong>
+  column shows it too.
+</p>
+<h5 class="mt-3" id="flow">How a job gets to In Progress</h5>
+<p>
+  The assign page has three optional boxes, and they decide the job's steps. If you tick
+  <strong>Require Acceptance</strong>, Pending Acceptance comes first in every row. If the assignee rejects
+  the job, it goes back to Unassigned.
+</p>
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr><th scope="col">Require Scheduling</th><th scope="col">Require Start Confirmation</th><th scope="col">What happens after it's assigned (and accepted, if required)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>No</td><td>No</td><td>In Progress straight away</td></tr>
+      <tr><td>No</td><td>Yes</td><td>Pending Start, then In Progress when they press Start</td></tr>
+      <tr><td>Yes</td><td>No</td><td>Pending Scheduling, Scheduled, then In Progress on the date</td></tr>
+      <tr><td>Yes</td><td>Yes</td><td>Pending Scheduling, Pending Start, then In Progress when they press Start</td></tr>
+    </tbody>
+  </table>
+</div>
+<p>
+  Without start confirmation you don't know exactly when the work began, so the job's Started At is only
+  filled in when someone presses Start.
 </p>
 <p>
   To give several jobs to the same supplier or person, tick them on the Jobs page and choose
@@ -119,13 +145,13 @@
 </p>
 <p>
   Tick <strong>Require Acceptance</strong> when assigning if the supplier or person should agree to the job
-  first. The job moves to <strong>Issued</strong> instead of Assigned, and the notification or email has an
+  first. The job moves to <strong>Pending Acceptance</strong>, and the notification or email has an
   <strong>Accept / Reject Job</strong> button. Suppliers, and people who can't sign in, don't need to sign in
   for this: the link in their email opens the page, works for 30 days, and stops working once they've
   answered or the job has been reassigned. Only the assignee answers, not helpers.
 </p>
 <ul>
-  <li><strong>Accept</strong> moves the job to Assigned, ready to start.</li>
+  <li><strong>Accept</strong> moves the job on to its next step.</li>
   <li>
     <strong>Reject</strong> moves it back to Unassigned and removes the assignee and helpers, so it can be
     assigned again. Whoever assigned it gets a notification under the bell, and its <strong>View</strong>
@@ -139,22 +165,25 @@
 </ul>
 <p>
   Tick <strong>Require Start Confirmation</strong> if the assignee should confirm when the work begins.
-  Without it, the job goes straight from Assigned to Complete. With it, the job shows
-  <strong>Start</strong> first. Suppliers, and people who can't sign in, get a <strong>Start Job</strong>
+  The job waits at <strong>Pending Start</strong> and shows <strong>Start</strong>. Suppliers, and people who can't sign in, get a <strong>Start Job</strong>
   link by email that needs no sign-in and works for a year. It comes with the last email before the work
   starts: the assignment email, or a separate one once they've accepted or chosen a date. People who can sign in use the
   Start button on the job's page.
 </p>
 <p>
   Tick <strong>Require Scheduling</strong> if the assignee should confirm the date they'll do the work.
-  The job moves to <strong>Scheduling</strong> as soon as it's assigned, or once it's accepted if it also
+  The job moves to <strong>Pending Scheduling</strong> as soon as it's assigned, or once it's accepted if it also
   requires acceptance. The notification has a <strong>Schedule Job</strong> button, and the email a
   link that needs no sign-in. The job's page has a <strong>Schedule</strong> button too. The date can't be
   in the past or after the job's due date, unless the due date has already passed. Once there's a date
-  the job goes to Assigned and its next step.
+  the job goes to Pending Start if it needs start confirmation. Otherwise it's <strong>Scheduled</strong>
+  until the date arrives, then moves to In Progress by itself. A job can be completed early while it's
+  Scheduled.
 </p>
 <p>
-  Until the work starts, the date can be changed with <strong>Reschedule</strong> on the job's page.
+  Until the work starts, the date can be changed with <strong>Reschedule</strong> on the job's page. On a job
+  without start confirmation that's until it's completed, because it moved to In Progress by itself: a
+  later date puts it back to Scheduled.
   Suppliers, and people who can't sign in, get a reschedule link in the same email as the Start Job link,
   or with the Complete Job link if the job doesn't need start confirmation. If the date changes, whoever
   assigned the job gets a notification under the bell. Reassigning a job keeps its date.
@@ -188,11 +217,11 @@
 </p>
 <ul>
   <li>
-    <strong>Start</strong> (while Assigned, on jobs that need start confirmation) records that the work
-    started now, and moves the job to Started.
+    <strong>Start</strong> (while Pending Start) records that the work started now, and moves the job to
+    In Progress.
   </li>
   <li>
-    <strong>Complete</strong> (once the job is Started, or while Assigned if it doesn't need start confirmation) asks for <strong>Completed At</strong>, the date and time
+    <strong>Complete</strong> (while In Progress or Scheduled) asks for <strong>Completed At</strong>, the date and time
     the work was done in UK time (it can't be in the future or before the work started, so it can be
     filled in afterwards), and <strong>Completion Comments</strong>, what was done. The job moves to
     Completed.
@@ -283,11 +312,11 @@
 <ul>
   <li>Imported jobs are reactive jobs. Planned jobs come from planned job schedules, so they can't be imported.</li>
   <li>
-    <strong>status</strong> can be any job status, such as New, Assigned or Completed. Leave it blank for New.
+    <strong>status</strong> can be any job status, such as New, In Progress or Completed. Leave it blank for New.
   </li>
   <li>
     <strong>assigned_to</strong> is the name of a supplier, or the full name of someone in People. Jobs that
-    are Assigned, Started, Completed or Closed need one; New, Unassigned and Rejected jobs must leave it
+    are Pending Acceptance through to Closed need one; New, Unassigned and Rejected jobs must leave it
     blank. When two people share a name, add the person's email in brackets, such as
     <code>Sam Jones (sam@example.com)</code>, which is how the Excel template's dropdown shows people. If
     more than one supplier or person still matches, the row isn't imported: import it without the

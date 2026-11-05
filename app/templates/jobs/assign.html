@@ -80,7 +80,7 @@
             {{ form.require_acceptance(class="form-check-input") }}
             {{ form.require_acceptance.label(class="form-check-label") }}
           </div>
-          <div class="form-text">The job stays Issued until the assignee accepts it. If they reject it, it goes back to Unassigned.</div>
+          <div class="form-text">The job stays Pending Acceptance until the assignee accepts it. If they reject it, it goes back to Unassigned.</div>
         </div>
 
         <div class="col-md-6 mb-3">
@@ -88,7 +88,7 @@
             {{ form.require_start_confirmation(class="form-check-input") }}
             {{ form.require_start_confirmation.label(class="form-check-label") }}
           </div>
-          <div class="form-text">The assignee confirms when they start the work. Otherwise the job goes straight from Assigned to Complete.</div>
+          <div class="form-text">The assignee confirms when they start the work. Otherwise the job goes to In Progress by itself.</div>
         </div>
 
         <div class="col-md-6 mb-3">

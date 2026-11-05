@@ -1,6 +1,6 @@
 {# expects job in context #}
 {% set status_colours = {
-  'new': 'primary', 'unassigned': 'info', 'issued': 'info', 'scheduling': 'info', 'assigned': 'info', 'started': 'warning', 'completed': 'success',
+  'new': 'primary', 'unassigned': 'info', 'pending_acceptance': 'info', 'pending_scheduling': 'info', 'scheduled': 'info', 'pending_start': 'info', 'in_progress': 'warning', 'completed': 'success',
   'closed': 'secondary', 'rejected': 'dark',
 } %}
 <span class="badge text-bg-{{ status_colours.get(job.status, 'light') }}">{{ job.status_label }}</span>

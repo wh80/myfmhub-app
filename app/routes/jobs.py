@@ -4,7 +4,7 @@ from app import db
 from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, JobScheduleForm, PlannedJobScheduleNextDueForm
 from app.models import Job, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.auth import as_utc
-from app.services.jobs import accept_job, complete_job, overdue_conditions, notify_assignee, reject_assignment, schedule_job, start_job, tell_next_step
+from app.services.jobs import accept_job, complete_job, overdue_conditions, notify_assignee, reject_assignment, schedule_job, set_work_status, start_job, tell_next_step
 from app.services.notifications import mark_read
 from app.services.permissions import can
 from app.services.scheduling import job_creation_date, next_due_date, uk_today
@@ -395,16 +395,16 @@ def give_job_to(job, assignee):
         job.helpers.remove(assignee)
 
 def assign_job(job, assignee, helpers, form):
-    """Require Acceptance issues the job, and it only becomes assigned when the assignee accepts it. Require
-    Scheduling holds it at scheduling (after acceptance, if that's needed too) until they choose a date."""
+    """Require Acceptance waits for the assignee to accept it, and assigned_at is set then. Otherwise it
+    goes straight to its next step."""
     give_job_to(job, assignee)
     job.require_start_confirmation = form.require_start_confirmation.data
     job.require_scheduling = form.require_scheduling.data
     job.helpers.extend(person for person in helpers if person not in job.helpers)
     if form.require_acceptance.data:
-        job.status = 'issued'
+        job.status = 'pending_acceptance'
     else:
-        job.status = 'scheduling' if form.require_scheduling.data else 'assigned'
+        set_work_status(job)
         job.assigned_at = job.issued_at
 
 def tell_assignee(jobs):
@@ -507,8 +507,8 @@ def reassign(id):
     if form.validate_on_submit():
         previous = job.assignee_name
         give_job_to(job, chosen_assignee(form.assignee.data))
-        # an issued job is still waiting on an answer: now from the new assignee, and the old one's link stops working
-        if job.status != 'issued':
+        # a job pending acceptance is still waiting on an answer: now from the new assignee, and the old one's link stops working
+        if job.status != 'pending_acceptance':
             job.assigned_at = job.issued_at
         db.session.commit()
         flash(f"Job '{job.description}' reassigned from {previous} to {job.assignee_name}.", 'success')
@@ -574,7 +574,7 @@ def not_at_step(job, action):
 def respond(id):
     job = org_get_or_404(Job, id)
 
-    if job.status != 'issued':
+    if job.status != 'pending_acceptance':
         return not_at_step(job, 'accepted or rejected')
 
     mark_read(Notification.query.filter_by(person_id=g.person.id, job_id=job.id, read_at=None))

@@ -22,7 +22,7 @@
         <a href="{{ url_for('jobs.assign', id=job.id) }}" class="btn btn-success btn-sm">Assign</a>
         {% endif %}
 
-        {% if can_progress and job.status == 'issued' %}
+        {% if can_progress and job.status == 'pending_acceptance' %}
         <a href="{{ url_for('jobs.respond', id=job.id) }}" class="btn btn-success btn-sm">Accept / Reject</a>
         {% endif %}
 
@@ -45,7 +45,7 @@
         <a href="{{ url_for('jobs.schedule', id=job.id) }}" class="btn btn-outline-primary btn-sm">Reschedule</a>
         {% endif %}
 
-        {% if can('jobs.assign') and job.status in ('issued', 'scheduling', 'assigned', 'started', 'completed') %}
+        {% if can('jobs.assign') and job.has_assignee_status %}
         <a href="{{ url_for('jobs.reassign', id=job.id) }}" class="btn btn-outline-primary btn-sm">Reassign</a>
         {% endif %}
 

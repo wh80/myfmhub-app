@@ -26,7 +26,7 @@ from app.extensions import db
 from app.services.locations import build_path
 from app.services.permissions import create_default_groups
 from app.services.scheduling import FREQUENCIES, job_creation_date
-from app.models import JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Location, Asset, Job, PlannedJobSchedule, Supplier, Notification, job_assets, job_helpers, planned_job_schedule_assets
+from app.models import ASSIGNED_JOB_STATUSES, JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Location, Asset, Job, PlannedJobSchedule, Supplier, Notification, job_assets, job_helpers, planned_job_schedule_assets
 from app.models import JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory
 
 PLACE_NAMES = ['Riverside', 'Oakwood', 'Hillcrest', 'Kingsway', 'Meadow', 'Harbour', 'Station', 'Market', 'Abbey', 'Victoria']
@@ -334,9 +334,9 @@ def seed(count):
             job.closed_at = days_from_today(-30, 0)
         if job.status not in ('new', 'rejected'):
             job.approved_at = now - timedelta(days=40)
-        if job.status in ('issued', 'scheduling', 'assigned', 'started', 'completed', 'closed'):
+        if job.status in ASSIGNED_JOB_STATUSES or job.status == 'closed':
             job.issued_at = now - timedelta(days=38)
-            if job.status != 'issued':
+            if job.status != 'pending_acceptance':
                 job.assigned_at = job.issued_at
             job.assigned_by = random.choice(people)
             if random.random() < 0.5:
@@ -344,15 +344,17 @@ def seed(count):
             else:
                 job.assigned_person = random.choice(people)
             job.helpers = random.sample([person for person in people if person is not job.assigned_person], random.randint(0, 2))
-        if job.status in ('issued', 'scheduling', 'assigned'):
+        # the steps it was assigned with, as far as it's got. started_at is only there if someone pressed Start
+        if job.status in ('pending_acceptance', 'pending_scheduling', 'in_progress'):
             job.require_start_confirmation = random.random() < 0.5
-        if job.status == 'scheduling' or (job.status in ('issued', 'assigned') and random.random() < 0.5):
-            job.require_scheduling = True
-        if job.status == 'assigned' and job.require_scheduling:
-            soon = days_from_today(1, 20)
-            job.scheduled_for = min(soon, job.due_by) if job.due_by else soon
-        if job.status in ('started', 'completed', 'closed'):
+        if job.status in ('pending_start', 'completed', 'closed'):
             job.require_start_confirmation = True
+        if job.status in ('pending_scheduling', 'scheduled') or (job.status in ('pending_acceptance', 'pending_start') and random.random() < 0.5):
+            job.require_scheduling = True
+        if job.require_scheduling and job.status in ('scheduled', 'pending_start'):
+            soon = days_from_today(1, 20)
+            job.scheduled_for = job.due_by if job.due_by and days_from_today(0, 0) <= job.due_by < soon else soon
+        if job.require_start_confirmation and job.status in ('in_progress', 'completed', 'closed'):
             job.started_at = now - timedelta(days=35)
         if job.status in ('completed', 'closed'):
             job.completed_at = now - timedelta(days=31)

@@ -73,9 +73,10 @@ def create_app():
     app.add_url_rule('/terms', endpoint='organisations.terms', view_func=terms)
     app.add_url_rule('/login', endpoint='auth.login', view_func=login, methods=['GET', 'POST'])
 
-    from app.commands import make_platform_admin, create_jobs_for_planned_job_schedules
+    from app.commands import make_platform_admin, create_jobs_for_planned_job_schedules, start_scheduled_jobs
     app.cli.add_command(make_platform_admin)
     app.cli.add_command(create_jobs_for_planned_job_schedules)
+    app.cli.add_command(start_scheduled_jobs)
 
     # times are stored in UTC and shown as UTC for now
     app.jinja_env.filters['datetime'] = lambda value: value.strftime('%d-%m-%Y %H:%M') if value else '-'

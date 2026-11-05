@@ -6,18 +6,19 @@ from datetime import datetime, timezone
 from app.services.scheduling import FREQUENCY_LABELS, uk_date, uk_today
 
 # a job's lifecycle. The key is stored on Job.status, which is set by the app, never a form. A new job is
-# approved (to unassigned) or rejected, then assigned to one supplier or person, who starts and completes
-# it. Then it's closed. Assigning with Require Acceptance goes to issued first: the assignee accepts (to assigned)
-# or rejects (back to unassigned). Assigning with Require Start Confirmation means it must be started before
-# it's completed; otherwise it goes straight from assigned to completed. Require Scheduling puts scheduling before
-# assigned, until the assignee chooses a date
+# approved (to unassigned) or rejected, then assigned to one supplier or person. Then it goes through whichever
+# steps the assigner asked for, in order, on its way to in_progress (services/jobs.py, set_work_status):
+# pending_acceptance (accepting moves on, rejecting goes back to unassigned), pending_scheduling (the assignee
+# chooses a date), then pending_start if they must confirm the start, or scheduled until the date arrives.
+# Then it's completed and closed
 JOB_STATUSES = [
     ('new', 'New'),
     ('unassigned', 'Unassigned'),
-    ('issued', 'Issued'),
-    ('scheduling', 'Scheduling'),
-    ('assigned', 'Assigned'),
-    ('started', 'Started'),
+    ('pending_acceptance', 'Pending Acceptance'),
+    ('pending_scheduling', 'Pending Scheduling'),
+    ('scheduled', 'Scheduled'),
+    ('pending_start', 'Pending Start'),
+    ('in_progress', 'In Progress'),
     ('completed', 'Completed'),
     ('closed', 'Closed'),
     ('rejected', 'Rejected'),
@@ -26,7 +27,7 @@ JOB_STATUS_LABELS = dict(JOB_STATUSES)
 # statuses a job doesn't move on from: it isn't overdue, a compliance risk or "not closed", and can't be closed
 JOB_FINISHED_STATUSES = ('closed', 'rejected')
 # statuses where the job has an assignee: it can be reassigned and given helpers
-ASSIGNED_JOB_STATUSES = ('issued', 'scheduling', 'assigned', 'started', 'completed')
+ASSIGNED_JOB_STATUSES = ('pending_acceptance', 'pending_scheduling', 'scheduled', 'pending_start', 'in_progress', 'completed')
 
 # where a job came from. The key is stored on Job.source, which is set by the app, never a form
 JOB_SOURCES = [
@@ -240,7 +241,8 @@ class Job(db.Model):
     # who last assigned or reassigned it. Blank on imported jobs. They're told if the assignee rejects it
     assigned_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
     assigned_by = db.relationship('Person', foreign_keys=[assigned_by_id], backref=db.backref('jobs_assigned_by', lazy=True), lazy=True)
-    # assigning chose this: the job has to go through started on its way to completed
+    # assigning chose this: the assignee has to press Start. started_at is only set when they do, so it's blank
+    # on a job that went to in_progress by itself
     require_start_confirmation = db.Column(db.Boolean, default=False, server_default=db.text('false'), nullable=False)
     # assigning chose this: the assignee picks scheduled_for, the date they'll do the work, not after due_by
     require_scheduling = db.Column(db.Boolean, default=False, server_default=db.text('false'), nullable=False)
@@ -351,20 +353,29 @@ class Job(db.Model):
 
     # the signed-in person is the job's assignee, so they can open it, start it and complete it
     @property
+    def has_assignee_status(self):
+        return self.status in ASSIGNED_JOB_STATUSES
+
+    @property
     def can_schedule(self):
-        return self.status == 'scheduling'
+        return self.status == 'pending_scheduling'
 
     @property
     def can_reschedule(self):
-        return self.status == 'assigned' and self.require_scheduling
+        """Until the work starts. in_progress only means that if the assignee confirmed it: without start
+        confirmation the job got there by itself when the date arrived."""
+        if not self.require_scheduling:
+            return False
+        return self.status in ('scheduled', 'pending_start') or (self.status == 'in_progress' and not self.require_start_confirmation)
 
     @property
     def can_start(self):
-        return self.status == 'assigned' and self.require_start_confirmation
+        return self.status == 'pending_start'
 
     @property
     def can_complete(self):
-        return self.status == 'started' or (self.status == 'assigned' and not self.require_start_confirmation)
+        """scheduled too, so someone who does the work before the date isn't blocked."""
+        return self.status in ('scheduled', 'in_progress')
 
     def is_assignee(self, person):
         return person is not None and self.assigned_person_id is not None and self.assigned_person_id == person.id
