@@ -30,6 +30,7 @@
       <li><a href="#permissions">Permissions</a></li>
       <li><a href="#records">What's kept on record</a></li>
       <li><a href="#importing">Importing jobs</a></li>
+      <li><a href="#notes">Notes</a></li>
     </ol>
   </div>
 </div>
@@ -49,7 +50,7 @@
       <tr><td>New</td><td>Just raised, waiting for someone to look at it.</td><td>Approve (to Unassigned) or Reject (to Rejected).</td></tr>
       <tr><td>Rejected</td><td>Turned down when it was new, with a reason. It's finished.</td><td>Reopen (back to New), for jobs that aren't planned.</td></tr>
       <tr><td>Unassigned</td><td>Approved, waiting to be given to someone.</td><td>Assign.</td></tr>
-      <tr><td>Pending Acceptance</td><td>Given to a supplier or a person who needs to accept it first.</td><td>Accept (to its next step) or Reject (back to Unassigned).</td></tr>
+      <tr><td>Pending Acceptance</td><td>Given to a supplier or a person who needs to accept it first.</td><td>Accept (to its next step) or Decline (back to Unassigned).</td></tr>
       <tr><td>Pending Scheduling</td><td>Waiting for the assignee to choose the date they'll do the work.</td><td>Schedule.</td></tr>
       <tr><td>Pending Start</td><td>The work hasn't started yet. The job is waiting for the assignee to confirm the start or, if it doesn't need that, for its scheduled date.</td><td>Start, or the date arriving. Without start confirmation it can also be completed early, or rescheduled to today to start now.</td></tr>
       <tr><td>In Progress</td><td>With the assignee to do. If the job needs start confirmation, they've confirmed it.</td><td>Complete.</td></tr>
@@ -116,7 +117,7 @@
 <h5 class="mt-3" id="flow">How a job gets to In Progress</h5>
 <p>
   The assign page has three optional boxes, and they decide the job's steps. If you tick
-  <strong>Require Acceptance</strong>, Pending Acceptance comes first in every row. If the assignee rejects
+  <strong>Require Acceptance</strong>, Pending Acceptance comes first in every row. If the assignee declines
   the job, it goes back to Unassigned.
 </p>
 <div class="table-responsive">
@@ -145,20 +146,20 @@
 <p>
   Tick <strong>Require Acceptance</strong> when assigning if the supplier or person should agree to the job
   first. The job moves to <strong>Pending Acceptance</strong>, and the notification or email has an
-  <strong>Accept / Reject Job</strong> button. Suppliers, and people who can't sign in, don't need to sign in
+  <strong>Accept / Decline Job</strong> button. Suppliers, and people who can't sign in, don't need to sign in
   for this: the link in their email opens the page, works for 30 days, and stops working once they've
   answered or the job has been reassigned. Only the assignee answers, not helpers.
 </p>
 <ul>
   <li><strong>Accept</strong> moves the job on to its next step.</li>
   <li>
-    <strong>Reject</strong> moves it back to Unassigned and removes the assignee and helpers, so it can be
+    <strong>Decline</strong> asks for a reason, then moves it back to Unassigned and removes the assignee and helpers, so it can be
     assigned again. Whoever assigned it gets a notification under the bell, and its <strong>View</strong>
     button opens the job.
   </li>
   <li>
     If a supplier answers another way, for example by phone, open the job and use
-    <strong>Accept / Reject</strong> for them. That needs <strong>Assign jobs, and start and complete them
+    <strong>Accept / Decline</strong> for them. That needs <strong>Assign jobs, and start and complete them
     for the assignee</strong>, the same as starting a job for them.
   </li>
 </ul>
@@ -255,7 +256,7 @@
     Acceptance, and with no boxes ticked it's In Progress. Any scheduled date is cleared, because it was the previous
     assignee's, and so is Started At unless the job goes straight to In Progress. Helpers stay. The new assignee is
     told in the same way. The previous one is told they're no longer required: a notification if they can sign in,
-    otherwise an email. A supplier with no email address isn't told, so let them know yourself. If the new assignee rejects it, it goes back to
+    otherwise an email. A supplier with no email address isn't told, so let them know yourself. If the new assignee declines it, it goes back to
     Unassigned. Once the work is completed, use a follow-up job instead.
   </li>
   <li>
@@ -285,10 +286,10 @@
       <tr><th scope="col">To do this</th><th scope="col">You need</th></tr>
     </thead>
     <tbody>
-      <tr><td>See jobs</td><td>Jobs: View (or the job being assigned to you)</td></tr>
+      <tr><td>See jobs, and see and add notes</td><td>Jobs: View (or the job being assigned to you)</td></tr>
       <tr><td>Approve or reject new jobs</td><td>Approve or reject new jobs</td></tr>
       <tr><td>Assign, reassign, add and remove helpers, and start and complete a job for the person it's assigned to</td><td>Assign jobs, and start and complete them for the assignee</td></tr>
-      <tr><td>Accept, reject, start and complete a job assigned to you</td><td>Nothing extra: just being able to sign in</td></tr>
+      <tr><td>Accept, decline, start and complete a job assigned to you, and see and add to its notes</td><td>Nothing extra: just being able to sign in</td></tr>
       <tr><td>Create a follow-up job</td><td>Jobs: Create</td></tr>
       <tr><td>Close a job</td><td>Close jobs</td></tr>
       <tr><td>Reopen a closed or rejected job</td><td>Reopen jobs</td></tr>
@@ -335,6 +336,34 @@
   <li>
     Nobody is told about imported jobs, and the dates the job's buttons normally record (approved, assigned,
     started, completed and closed) are left blank.
+  </li>
+</ul>
+
+<h4 class="mt-4" id="notes">12. Notes</h4>
+<p>
+  Each job has a <strong>Notes</strong> tab, the record of everything that's happened on it, newest first. Each note shows
+  who it's from and when, in UK time. MyFmHub adds notes itself as the job moves along: when it's created, approved,
+  rejected, assigned, reassigned, accepted, declined, scheduled, started, completed, closed or reopened, when helpers
+  change, and when its details are edited, showing what changed from and to. If someone does a step for the assignee, the note says so, and it says when a step came from an emailed link.
+</p>
+<ul>
+  <li>
+    Anyone who can see the job can add their own note on the tab, including the person it's assigned to. Assignees can
+    read every note on the job, so keep that in mind when writing about a supplier or person.
+  </li>
+  <li>
+    Accepting, starting and scheduling each have an optional <strong>Comments</strong> box, and declining and completing
+    need one. What's entered goes into the note.
+  </li>
+  <li>
+    Suppliers, and people who can't sign in, get an <strong>Add a note</strong> link in their emails. It needs no sign-in,
+    and it can only add a note, not read the job's notes. It stops working once the job is closed or they're no longer the
+    assignee. Whoever assigned the job gets a notification under the bell.
+  </li>
+  <li>
+    Notes can't be changed or deleted, so a correction is a new note. They're deleted with the job, so a job's history
+    goes if the job is deleted. Notes start from when this feature was added, so older jobs only show what's happened
+    since.
   </li>
 </ul>
 {% endblock body %}

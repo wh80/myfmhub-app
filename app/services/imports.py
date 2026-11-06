@@ -11,6 +11,7 @@ from app.extensions import db
 from app.models import ASSIGNED_JOB_STATUSES, JOB_STATUSES, Asset, ImportEvent, Job, PlannedJobSchedule, Location, Person, Supplier, User, UserGroup, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory
 from app.services.addresses import MAX_ADDRESS_LENGTH, clean_address
 from app.services.locations import MAX_PATH_LENGTH, build_path, normalise_path
+from app.services.notes import add_note
 from app.services.people import delete_person
 from app.services.permissions import can
 from app.services.scheduling import FREQUENCIES, FREQUENCY_LABELS, FREQUENCY_MIN_DAYS, job_creation_date, uk_today
@@ -477,6 +478,7 @@ def create_job(values, lookups):
 def job_saved(records, lookups):
     job = records[0]
     job.helpers = job.import_helpers
+    add_note(job, 'Job imported.', lookups.person)
 
 
 def create_person(values, lookups):

@@ -112,6 +112,7 @@ class Organisation(db.Model):
     document_categories = db.relationship('DocumentCategory', backref='organisation', lazy=True, cascade='delete')
     support_tickets = db.relationship('SupportTicket', backref='organisation', lazy=True, cascade='delete')
     notifications = db.relationship('Notification', backref='organisation', lazy=True, cascade='delete')
+    notes = db.relationship('Note', backref='organisation', lazy=True, cascade='delete')
 
 
 ### REFERENCE DATA ###
@@ -246,7 +247,7 @@ class Job(db.Model):
     # assigning chose this: the assignee picks scheduled_for, the date they'll do the work, not after due_by
     require_scheduling = db.Column(db.Boolean, default=False, server_default=db.text('false'), nullable=False)
     scheduled_for = db.Column(db.Date)
-    # the emailed Accept / Reject Job, Schedule Job, Start Job and Complete Job links only work for the latest issued_at
+    # the emailed Accept / Decline Job, Schedule Job, Start Job and Complete Job links only work for the latest issued_at
     issued_at = db.Column(db.DateTime(timezone=True))
     # set with status by Start (now) and Complete (entered in UK time on JobCompleteForm, with the comments)
     started_at = db.Column(db.DateTime(timezone=True))
@@ -286,6 +287,9 @@ class Job(db.Model):
     helpers = db.relationship('Person', secondary=job_helpers, lazy=True,
                               order_by=lambda: (Person.first_name, Person.last_name),
                               backref=db.backref('helping_jobs', lazy=True))
+
+    # what's happened on the job and what people have said about it, newest first. See services/notes.py
+    notes = db.relationship('Note', backref='job', lazy=True, cascade='delete', order_by='Note.created_at.desc()')
 
     __table_args__ = (
         db.CheckConstraint(
@@ -385,6 +389,26 @@ class Job(db.Model):
 
     def is_assignee(self, person):
         return person is not None and self.assigned_person_id is not None and self.assigned_person_id == person.id
+
+
+class Note(db.Model):
+    """One entry on a record's Notes tab: something the app recorded (is_system) or something someone wrote. Never edited
+    or deleted, except with its record. created_by_name is copied, so it survives the person being deleted and covers
+    suppliers and emailed links, who have no person. Blank means the system itself, like the daily run. Only jobs have
+    notes so far. When another record needs them, add its foreign key and make job_id nullable."""
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    description = db.Column(db.Text, nullable=False)
+    is_system = db.Column(db.Boolean, default=False, server_default=db.text('false'), nullable=False)
+    created_by_name = db.Column(db.String(201))
+
+    organisation_id = db.Column(UUID(as_uuid=True), db.ForeignKey('organisation.id'), nullable=False)
+    job_id = db.Column(UUID(as_uuid=True), db.ForeignKey('job.id', ondelete='CASCADE'), nullable=False)
+    # one-way, so the ORM never tries to clear it when a person is deleted
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey('person.id', ondelete='SET NULL'))
+    created_by = db.relationship('Person', lazy=True)
 
 
 class Notification(db.Model):

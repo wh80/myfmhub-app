@@ -4,7 +4,7 @@ from functools import wraps
 from flask import request, g, redirect, url_for, flash, abort, render_template
 from app import db
 from sqlalchemy.orm import with_parent
-from app.models import Location, Asset, Job, PlannedJobSchedule, Document, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory
+from app.models import Note, Location, Asset, Job, PlannedJobSchedule, Document, JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory
 from app.services.locations import SEPARATOR, subtree_ids
 from app.services.auth import revoke_session, clear_session_cookie
 from app.services.permissions import ENDPOINT_PERMISSIONS, can
@@ -227,6 +227,7 @@ RELATED_LISTS = {
     Job: ([Job.description, Job.work_required], Job.description),
     PlannedJobSchedule: ([PlannedJobSchedule.description, PlannedJobSchedule.work_required], PlannedJobSchedule.description),
     Document: ([Document.description, Document.filename], Document.description),
+    Note: ([Note.description, Note.created_by_name], Note.created_at.desc()),
 }
 
 

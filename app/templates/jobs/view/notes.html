@@ -1,0 +1,44 @@
+{% extends "jobs/view/_layout.html" %}
+{% from "_related_search.html" import related_search %}
+{% from "pagination.html" import pagination_nav %}
+
+{% block tab_content %}
+
+<h5 class="mb-3">Notes</h5>
+
+<form method="POST" action="{{ url_for('jobs.add_note', id=job.id) }}" class="mb-4">
+  {{ form.hidden_tag() }}
+  <div class="row">
+    <div class="col-md-6 mb-2">
+      {{ form.description.label(class="form-label") }}
+      {{ form.description(class="form-control", rows=3) }}
+      <div class="form-text">Notes can't be changed or deleted once they're added.</div>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-circle"></i> Add Note
+  </button>
+</form>
+
+{{ related_search(pagination, search, 'Note or name ...') }}
+
+{% if notes %}
+<ul class="list-group mb-3">
+  {% for note in notes %}
+  <li class="list-group-item">
+    <div class="d-flex justify-content-between flex-wrap gap-2">
+      <span class="fw-semibold">{{ note.created_by_name or 'System' }}{% if note.is_system %} <span class="badge text-bg-secondary fw-normal">Automatic</span>{% endif %}</span>
+      <span class="text-muted small">{{ note.created_at | uk_datetime }}</span>
+    </div>
+    <div style="white-space: pre-line">{{ note.description }}</div>
+  </li>
+  {% endfor %}
+</ul>
+{{ pagination_nav(pagination) }}
+{% elif search %}
+<p class="text-muted mb-0">No notes match your search.</p>
+{% else %}
+<p class="text-muted mb-0">No notes yet.</p>
+{% endif %}
+
+{% endblock tab_content %}

@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 from app.extensions import db
-from app.models import Asset, Job, PlannedJobSchedule, Location, Person, Supplier
+from app.models import Asset, Job, Note, PlannedJobSchedule, Location, Person, Supplier
 from app.services.auth import as_utc
 from app.services.scheduling import UK_TIMEZONE
 from app.services.spreadsheets import export_xlsx
@@ -117,6 +117,16 @@ EXPORT_TYPES = {export_type.key: export_type for export_type in [
         ('Asset IDs', lambda job: ids(job.assets)),
         *TIMESTAMP_COLUMNS,
     ], lambda: [db.joinedload(Job.location), db.selectinload(Job.assets)]),
+    ExportType('job_notes', 'Job Notes', Note, 'jobs.view', [
+        ('ID', lambda note: note.id),
+        ('Job ID', lambda note: note.job_id),
+        ('Job', lambda note: note.job.description),
+        ('Note', lambda note: note.description),
+        ('System', lambda note: note.is_system),
+        ('Created By', lambda note: note.created_by_name),
+        ('Created By ID', lambda note: note.created_by_id),
+        ('Created (UTC)', lambda note: note.created_at),
+    ], lambda: [db.joinedload(Note.job)]),
     ExportType('planned_jobs', 'Planned Jobs', PlannedJobSchedule, 'planned_jobs.view', [
         ('ID', lambda planned_job_schedule: planned_job_schedule.id),
         ('Description', lambda planned_job_schedule: planned_job_schedule.description),

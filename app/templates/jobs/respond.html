@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
-{% set title = {'schedule': 'Schedule Job', 'start': 'Start Job', 'complete': 'Complete Job'}.get(step, 'Accept or Reject Job') %}
+{% set title = {'schedule': 'Schedule Job', 'start': 'Start Job', 'complete': 'Complete Job'}.get(step, 'Accept or Decline Job') %}
 {# the job's page for the assignee (jobs.respond), and the page their emailed links open with no sign-in
-   (job_responses, which sets step and state: invalid, accepted, rejected, scheduled, started or completed). Keep it to what the
+   (job_responses, which sets step and state: invalid, accepted, declined, scheduled, started or completed). Keep it to what the
    email already shows #}
 {% block body %}
 
@@ -24,8 +24,8 @@
     <p class="mb-0">Thanks. You've started this job, and <strong>{{ job.organisation.name }}</strong> can see that on the job.{% if link_emailed %} We've emailed you a link to use when the work's done.{% endif %}</p>
     {% elif state == 'completed' %}
     <p class="mb-0">Thanks. You've completed this job, and <strong>{{ job.organisation.name }}</strong> can see that on the job.</p>
-    {% elif state == 'rejected' %}
-    <p class="mb-0">You've rejected this job, and it's gone back to <strong>{{ job.organisation.name }}</strong> to assign again.</p>
+    {% elif state == 'declined' %}
+    <p class="mb-0">You've declined this job, and it's gone back to <strong>{{ job.organisation.name }}</strong> to assign again.</p>
     {% else %}
     {% if on_behalf %}
     <div class="alert alert-info" role="alert">This job is issued to {{ job.assignee_name }}. You're responding for them.</div>
@@ -33,7 +33,7 @@
     {% if step == 'start' %}
     <p><strong>{{ job.organisation.name }}</strong> has assigned this job to you. Press Start when the work begins.</p>
     {% else %}
-    <p><strong>{{ job.organisation.name }}</strong> has issued this job to {{ 'them' if on_behalf else 'you' }}. Rejecting it sends it back to be assigned again.</p>
+    <p><strong>{{ job.organisation.name }}</strong> has issued this job to {{ 'them' if on_behalf else 'you' }}. Declining it sends it back to be assigned again.</p>
     {% endif %}
 
     <div class="row g-3 mb-3">
@@ -55,14 +55,30 @@
       </div>
     </div>
 
-    <form method="POST" class="d-flex gap-2">
+    <form method="POST">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-      {% if step == 'start' %}
-      <button type="submit" class="btn btn-success">Start</button>
-      {% else %}
-      <button type="submit" name="response" value="accept" class="btn btn-success">Accept</button>
-      <button type="submit" name="response" value="reject" class="btn btn-outline-danger">Reject</button>
-      {% endif %}
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.comments.label(class="form-label") }}
+          {{ form.comments(class="form-control" ~ (" is-invalid" if form.comments.errors else ""), rows=4) }}
+          {% for error in form.comments.errors %}
+          <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+          <div class="form-text">{{ 'Optional.' if step == 'start' else 'Optional if accepting. Required if declining.' }}</div>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        {% if step == 'start' %}
+        <button type="submit" class="btn btn-success">Start</button>
+        {% else %}
+        <button type="submit" name="response" value="accept" class="btn btn-success">Accept</button>
+        <button type="submit" name="response" value="decline" class="btn btn-outline-danger">Decline</button>
+        {% endif %}
+        {# on_behalf is only passed by the job's own pages, not the emailed links #}
+        {% if on_behalf is defined %}
+        <a href="{{ url_for('jobs.view', id=job.id) }}" class="btn btn-secondary">Back</a>
+        {% endif %}
+      </div>
     </form>
     {% endif %}
   </div>

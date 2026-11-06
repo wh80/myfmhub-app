@@ -11,6 +11,15 @@
    
     <li class="nav-item">
         <a
+            class="nav-link {% if active_tab == 'notes' %}active{% endif %}"
+            href="{{ url_for('jobs.notes', id=job.id) }}"
+        >
+            Notes
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a
             class="nav-link {% if active_tab == 'assets' %}active{% endif %}"
             href="{{ url_for('jobs.assets', id=job.id) }}"
         >

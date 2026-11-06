@@ -23,7 +23,7 @@
         {% endif %}
 
         {% if can_progress and job.status == 'pending_acceptance' %}
-        <a href="{{ url_for('jobs.respond', id=job.id) }}" class="btn btn-success btn-sm">Accept / Reject</a>
+        <a href="{{ url_for('jobs.respond', id=job.id) }}" class="btn btn-success btn-sm">Accept / Decline</a>
         {% endif %}
 
         {% if can_progress and job.can_schedule %}
@@ -31,10 +31,7 @@
         {% endif %}
 
         {% if can_progress and job.can_start %}
-        <form method="POST" action="{{ url_for('jobs.start', id=job.id) }}" class="m-0">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button type="submit" class="btn btn-success btn-sm">Start</button>
-        </form>
+        <a href="{{ url_for('jobs.start', id=job.id) }}" class="btn btn-success btn-sm">Start</a>
         {% endif %}
 
         {% if can_progress and job.can_complete %}

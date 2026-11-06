@@ -45,6 +45,12 @@
           {{ form.scheduled_for(class="form-control" ~ (" is-invalid" if form.scheduled_for.errors else "")) }}
           {{ errors(form.scheduled_for) }}
         </div>
+        <div class="col-md-6 mb-3">
+          {{ form.comments.label(class="form-label") }}
+          {{ form.comments(class="form-control" ~ (" is-invalid" if form.comments.errors else ""), rows=3) }}
+          {{ errors(form.comments) }}
+          <div class="form-text">Optional.</div>
+        </div>
       </div>
     </form>
 

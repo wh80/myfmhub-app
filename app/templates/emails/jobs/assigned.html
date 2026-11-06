@@ -19,7 +19,7 @@
     {% elif schedule_url or start_url or complete_url %}
     <p><strong>{{ organisation_name }}</strong> has assigned this job to you. Please use the button below {{ next_step }}:</p>
     {% else %}
-    <p><strong>{{ organisation_name }}</strong> has {{ 'issued' if respond_url else 'assigned' }} this job to you{{ ' and needs you to accept or reject it' if respond_url }}:</p>
+    <p><strong>{{ organisation_name }}</strong> has {{ 'issued' if respond_url else 'assigned' }} this job to you{{ ' and needs you to accept or decline it' if respond_url }}:</p>
     {% endif %}
     <table cellpadding="6" style="border-collapse: collapse; margin-bottom: 16px;">
         <tr><td style="color: #6c757d;">Description</td><td><strong>{{ job.description }}</strong></td></tr>
@@ -31,7 +31,7 @@
         {% endif %}
     </table>
     {% if respond_url %}
-    <p><a href="{{ respond_url }}" style="display: inline-block; padding: 10px 16px; background-color: #198754; color: #ffffff; text-decoration: none; border-radius: 4px;">Accept / Reject Job</a></p>
+    <p><a href="{{ respond_url }}" style="display: inline-block; padding: 10px 16px; background-color: #198754; color: #ffffff; text-decoration: none; border-radius: 4px;">Accept / Decline Job</a></p>
     <p style="color: #6c757d;">This link works for {{ link_days }} days.</p>
     {% endif %}
     {% if schedule_url or start_url or complete_url %}
@@ -41,6 +41,7 @@
     {% endif %}
     <p style="color: #6c757d;">{{ 'These links work' if rescheduling else 'This link works' }} for {{ link_days }} days.</p>
     {% endif %}
+    <p>Need to tell {{ organisation_name }} something about this job? <a href="{{ note_url }}">Add a note</a>.</p>
     <p>Please contact {{ organisation_name }} if you have any questions about it.</p>
 </body>
 </html>

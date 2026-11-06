@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
 from flask import Blueprint, render_template, redirect, url_for, request, flash, g, current_app, abort
 from app import db
-from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, JobScheduleForm, PlannedJobScheduleNextDueForm
-from app.models import Job, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
+from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, NoteForm, JobResponseForm, JobScheduleForm, PlannedJobScheduleNextDueForm
+from app.models import Job, Note, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.auth import as_utc
-from app.services.jobs import accept_job, complete_job, overdue_conditions, notify_assignee, notify_previous_assignee, reject_assignment, schedule_job, set_work_status, start_job, tell_next_step
+from app.services.jobs import accept_job, complete_job, decline_job, overdue_conditions, notify_assignee, notify_previous_assignee, schedule_job, set_work_status, start_job, tell_next_step
+from app.services.notes import add_note
 from app.services.notifications import mark_read
 from app.services.permissions import can
 from app.services.scheduling import job_creation_date, next_due_date, uk_today
@@ -15,7 +16,7 @@ jobs_bp.before_request(require_login)
 
 # the job's assignee (a person) can open it, and start and complete it, whatever their user group allows,
 # so someone with no jobs permissions can still do a job assigned to them
-ASSIGNEE_ENDPOINTS = {'jobs.view', 'jobs.respond', 'jobs.schedule', 'jobs.start', 'jobs.complete'}
+ASSIGNEE_ENDPOINTS = {'jobs.view', 'jobs.respond', 'jobs.schedule', 'jobs.start', 'jobs.complete', 'jobs.notes', 'jobs.add_note'}
 
 def require_job_permission():
     """require_permission, letting the job's assignee through to ASSIGNEE_ENDPOINTS."""
@@ -211,6 +212,7 @@ def create():
         if asset:
             job.assets.append(asset)
         db.session.add(job)
+        add_note(job, f"Follow-up job created from job '{parent.description}'." if parent else 'Job created.', g.person)
         db.session.commit()
         flash(f"Job '{job.description}' created successfully!", 'success')
         return redirect(back_url)
@@ -227,6 +229,20 @@ def view(id):
 
     return render_template('jobs/view/overview.html', job=job, active_tab="overview")
 
+def job_details(job):
+    """The editable details as they're shown, for comparing before and after an edit. Browsers post new lines as
+    \\r\\n, so they're evened out, or an unchanged text field could look changed."""
+    money = lambda value: '-' if value is None else f'£{value:,.2f}'
+    return {
+        'Description': job.description,
+        'Work Required': job.work_required.replace('\r\n', '\n'),
+        'Due By': job.due_by.strftime('%d-%m-%Y') if job.due_by else '-',
+        'Location': job.location.materialised_path,
+        'Job Category': job.job_category.description if job.job_category else '-',
+        'Estimated Cost': money(job.estimated_cost),
+        'Actual Cost': money(job.actual_cost),
+    }
+
 @jobs_bp.route('/<uuid:id>/edit', methods=['GET', 'POST'])
 def edit(id):
     job = org_get_or_404(Job, id)
@@ -236,7 +252,8 @@ def edit(id):
     set_reference_choices(form)
 
     if form.validate_on_submit():
-        
+        before = job_details(job)
+
         job.description=form.description.data
         job.work_required=form.work_required.data
         # a planned job is due when its schedule said, so its due date can't be changed
@@ -246,7 +263,14 @@ def edit(id):
         job.job_category_id=parse_uuid(form.job_category_id.data)
         job.estimated_cost=form.estimated_cost.data
         job.actual_cost=form.actual_cost.data
-                
+
+        # load the new location and category, to show their names
+        db.session.flush()
+        db.session.expire(job, ['location', 'job_category'])
+        changes = [f'{label} changed from {value} to {job_details(job)[label]}' for label, value in before.items() if value != job_details(job)[label]]
+        if changes:
+            add_note(job, 'Job edited:\n' + '\n'.join(changes), g.person)
+
         db.session.commit()
         flash(f"Job '{job.work_required}' updated successfully!", 'success')
         return redirect(url_for('jobs.view', id=job.id))
@@ -274,6 +298,7 @@ def delete(id):
 def approve_job(job):
     job.status = 'unassigned'
     job.approved_at = datetime.now(timezone.utc)
+    add_note(job, 'Job approved.', g.person)
 
 @jobs_bp.route('/<uuid:id>/approve', methods=['POST'])
 def approve(id):
@@ -339,10 +364,13 @@ def reject(id):
         job.rejection_reason = form.rejection_reason.data
         job.rejected_at = datetime.now(timezone.utc)
         message = f"Job '{job.description}' rejected."
+        note = f'Job rejected with the following reason:\n{job.rejection_reason}'
         if planned_job_schedule:
             planned_job_schedule.next_due_by = form.next_due_by.data
             planned_job_schedule.next_job_creation_date = job_creation_date(planned_job_schedule.next_due_by, planned_job_schedule.notice_days)
             message += f" Planned Job Schedule '{planned_job_schedule.description}' next due {planned_job_schedule.next_due_by:%d-%m-%Y}."
+            note += f'\n\nPlanned job schedule next due {planned_job_schedule.next_due_by:%d-%m-%Y}.'
+        add_note(job, note, g.person)
         db.session.commit()
         flash(message, 'success')
         return redirect(url_for('jobs.index'))
@@ -394,7 +422,7 @@ def give_job_to(job, assignee):
     if assignee in job.helpers:
         job.helpers.remove(assignee)
 
-def assign_job(job, assignee, helpers, form):
+def assign_job(job, assignee, helpers, form, reassigned_from=None):
     """Assign and Reassign. Require Acceptance waits for the assignee to accept it, and assigned_at is set then.
     Otherwise it goes straight to its next step. Any date was the previous assignee's, so it's cleared."""
     give_job_to(job, assignee)
@@ -408,6 +436,14 @@ def assign_job(job, assignee, helpers, form):
     else:
         set_work_status(job)
         job.assigned_at = job.issued_at
+    note = f'Job reassigned from {reassigned_from} to {job.assignee_name}.' if reassigned_from else f'Job assigned to {job.assignee_name}.'
+    required = [label for label, wanted in [('acceptance', form.require_acceptance.data), ('scheduling', form.require_scheduling.data),
+                                            ('start confirmation', form.require_start_confirmation.data)] if wanted]
+    if required:
+        note += f" Requires {', '.join(required)}."
+    if helpers:
+        note += f" Helpers: {', '.join(person_name(person) for person in helpers)}."
+    add_note(job, f'{note} Status is now {job.status_label}.', g.person)
 
 def tell_assignee(jobs):
     """Notify the new assignee of each job, one notification or email per job (after the jobs are committed),
@@ -524,7 +560,7 @@ def reassign(id):
     if form.validate_on_submit():
         previous = job.assignee
         previous_name = job.assignee_name
-        assign_job(job, chosen_assignee(form.assignee.data), [], form)
+        assign_job(job, chosen_assignee(form.assignee.data), [], form, reassigned_from=previous_name)
         # started_at is when someone confirmed the start, and the new assignee has steps to go through first
         if job.status != 'in_progress':
             job.started_at = None
@@ -556,6 +592,7 @@ def add_helpers(id):
     if form.validate_on_submit():
         helpers = chosen_people(form.helper_ids.data)
         job.helpers.extend(helpers)
+        add_note(job, f"Helpers added: {', '.join(person_name(person) for person in helpers)}.", g.person)
         db.session.commit()
         flash(f"Added {', '.join(person_name(person) for person in helpers)} to job '{job.description}' as helpers.", 'success')
         return redirect(url_for('jobs.view', id=job.id))
@@ -576,6 +613,7 @@ def remove_helper(id, person_id):
         abort(404)
 
     job.helpers.remove(helper)
+    add_note(job, f'Helper removed: {person_name(helper)}.', g.person)
     db.session.commit()
     flash(f"Removed {person_name(helper)} from job '{job.description}' as a helper.", 'success')
     return redirect(url_for('jobs.view', id=job.id))
@@ -590,34 +628,37 @@ def not_at_step(job, action):
     flash(f"Job '{job.description}' can't be {action} because it's {job.status_label.lower()}.", 'warning')
     return redirect(url_for('jobs.view', id=job.id))
 
-# Accept / Reject Job on an issued job, for the assignee (require_job_permission), or someone with jobs.assign
+# Accept / Decline Job on an issued job, for the assignee (require_job_permission), or someone with jobs.assign
 # responding for them, for example a supplier who rang up. Suppliers use job_responses.respond from their email
 @jobs_bp.route('/<uuid:id>/respond', methods=['GET', 'POST'])
 def respond(id):
     job = org_get_or_404(Job, id)
 
     if job.status != 'pending_acceptance':
-        return not_at_step(job, 'accepted or rejected')
+        return not_at_step(job, 'accepted or declined')
 
     mark_read(Notification.query.filter_by(person_id=g.person.id, job_id=job.id, read_at=None))
     db.session.commit()
 
-    response = request.form.get('response')
-    if request.method == 'POST' and response == 'accept':
-        accept_job(job)
+    form = JobResponseForm()
+    on_behalf = not job.is_assignee(g.person)
+    validated = form.validate_on_submit()
+
+    if validated and form.response.data == 'accept':
+        accept_job(job, g.person, form.comments.data)
         db.session.commit()
         flash(f"Job '{job.description}' accepted.", 'success')
         tell_about_next_step(job, 'accepted')
         return redirect(url_for('jobs.view', id=job.id))
 
-    if request.method == 'POST' and response == 'reject':
-        reject_assignment(job, g.person)
+    if validated and form.response.data == 'decline':
+        decline_job(job, g.person, form.comments.data)
         db.session.commit()
-        flash(f"Job '{job.description}' rejected. It's back to Unassigned.", 'success')
+        flash(f"Job '{job.description}' declined. It's back to Unassigned.", 'success')
         # the assignee may only have been able to see it because it was theirs
         return redirect(url_for('jobs.view', id=job.id) if can(g.person, 'jobs.view') else url_for('dashboard.index'))
 
-    return render_template('jobs/respond.html', job=job, on_behalf=not job.is_assignee(g.person))
+    return render_template('jobs/respond.html', job=job, form=form, on_behalf=on_behalf)
 
 # Schedule Job and Reschedule, for the assignee (require_job_permission), or someone with jobs.assign doing it for
 # them. Suppliers use job_responses.schedule from their email
@@ -630,7 +671,7 @@ def schedule(id):
     form = JobScheduleForm(due_by=job.due_by, scheduled_for=job.scheduled_for)
 
     if form.validate_on_submit():
-        rescheduling = schedule_job(job, form.scheduled_for.data, g.person)
+        rescheduling = schedule_job(job, form.scheduled_for.data, g.person, form.comments.data)
         db.session.commit()
         flash(f"Job '{job.description}' scheduled for {form.scheduled_for.data:%d-%m-%Y}.", 'success')
         if not rescheduling:
@@ -641,17 +682,22 @@ def schedule(id):
 
 # Start and Complete are for the job's assignee (require_job_permission), or someone with jobs.assign doing it
 # for them. Start: the work has begun, now
-@jobs_bp.route('/<uuid:id>/start', methods=['POST'])
+@jobs_bp.route('/<uuid:id>/start', methods=['GET', 'POST'])
 def start(id):
     job = org_get_or_404(Job, id)
     if not job.can_start:
         return not_at_step(job, 'started')
 
-    start_job(job)
-    db.session.commit()
-    flash(f"Job '{job.description}' started. Use Complete when the work's done.", 'success')
-    tell_about_next_step(job, 'started')
-    return redirect(url_for('jobs.view', id=job.id))
+    form = JobResponseForm()
+
+    if form.validate_on_submit():
+        start_job(job, g.person, form.comments.data)
+        db.session.commit()
+        flash(f"Job '{job.description}' started. Use Complete when the work's done.", 'success')
+        tell_about_next_step(job, 'started')
+        return redirect(url_for('jobs.view', id=job.id))
+
+    return render_template('jobs/respond.html', job=job, form=form, step='start', on_behalf=not job.is_assignee(g.person))
 
 # Complete: when the work was done (UK time, not before it started) and what was done
 @jobs_bp.route('/<uuid:id>/complete', methods=['GET', 'POST'])
@@ -663,7 +709,7 @@ def complete(id):
     form = JobCompleteForm(started_at=as_utc(job.started_at) if job.started_at else None)
 
     if form.validate_on_submit():
-        complete_job(job, form.completed_at_uk(), form.completion_comments.data)
+        complete_job(job, form.completed_at_uk(), form.completion_comments.data, g.person)
         db.session.commit()
         flash(f"Job '{job.description}' completed.", 'success')
         return redirect(url_for('jobs.view', id=job.id))
@@ -695,6 +741,7 @@ def close(id):
     job.status = 'closed'
     job.closed_at = uk_today()
     job.closed_by = g.person
+    add_note(job, 'Job closed.', g.person)
     db.session.commit()
     flash(f"Job '{job.description}' closed.", 'success')
     return redirect(url_for('jobs.view', id=job.id))
@@ -725,6 +772,7 @@ def update_schedule(id):
         job.closed_by = g.person
         planned_job_schedule.next_due_by = form.next_due_by.data
         planned_job_schedule.next_job_creation_date = job_creation_date(planned_job_schedule.next_due_by, planned_job_schedule.notice_days)
+        add_note(job, f'Job closed. Planned job schedule next due {planned_job_schedule.next_due_by:%d-%m-%Y}.', g.person)
         db.session.commit()
         flash(f"Job '{job.description}' closed. Planned Job Schedule '{planned_job_schedule.description}' next due {planned_job_schedule.next_due_by:%d-%m-%Y}.", 'success')
         return redirect(url_for('jobs.view', id=job.id))
@@ -753,11 +801,33 @@ def reopen(id):
         job.status = 'completed'
         job.closed_at = None
         job.closed_by = None
+    add_note(job, 'Job reopened.', g.person)
     db.session.commit()
     flash(f"Job '{job.description}' reopened.", 'success')
     return redirect(url_for('jobs.view', id=job.id))
 
 ### RELATED DATA ###
+
+# what's happened on the job and what people have said, newest first. Notes are only ever added
+@jobs_bp.route("/<uuid:id>/notes")
+def notes(id):
+    job = org_get_or_404(Job, id)
+    pagination, search = related_page(related(job, Job.notes, Note), Note)
+    return render_template("jobs/view/notes.html", job=job, notes=pagination.items, pagination=pagination, search=search, form=NoteForm(), active_tab="notes")
+
+@jobs_bp.route("/<uuid:id>/notes/add", methods=['POST'], endpoint='add_note')
+def add_job_note(id):
+    job = org_get_or_404(Job, id)
+    form = NoteForm()
+
+    if form.validate_on_submit():
+        add_note(job, form.description.data, g.person, is_system=False)
+        db.session.commit()
+        flash('Note added.', 'success')
+    else:
+        for error in form.description.errors:
+            flash(error, 'warning')
+    return redirect(url_for('jobs.notes', id=job.id))
 
 # jobs created as follow-up work for this one
 @jobs_bp.route("/<uuid:id>/follow-up-jobs")

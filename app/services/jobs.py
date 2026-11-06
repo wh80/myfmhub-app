@@ -9,6 +9,7 @@ from app.extensions import db
 from app.models import Job, Person, PlannedJobSchedule, JOB_FINISHED_STATUSES
 from app.services.auth import as_utc
 from app.services.email import send_email
+from app.services.notes import add_note, step_note
 from app.services.notifications import notify
 from app.services.scheduling import uk_today
 
@@ -26,8 +27,8 @@ def link_serializer():
 
 
 def make_link_token(job, step):
-    """For an emailed link, for step 'respond' (Accept / Reject Job), 'schedule' (Schedule Job, and the same link
-    to reschedule), 'start' (Start Job) or 'complete' (Complete Job). It names this issue of the job, so reassigning or issuing the job again stops an earlier link working."""
+    """For an emailed link, for step 'respond' (Accept / Decline Job), 'schedule' (Schedule Job, and the same link
+    to reschedule), 'start' (Start Job), 'complete' (Complete Job) or 'note' (Add a Note). It names this issue of the job, so reassigning or issuing the job again stops an earlier link working."""
     return link_serializer().dumps({'job': str(job.id), 'step': step, 'issued': as_utc(job.issued_at).timestamp()})
 
 
@@ -44,7 +45,7 @@ def job_for_link(token, step):
     if as_utc(job.issued_at).timestamp() != data['issued']:
         return None
     at_step = {'respond': job.status == 'pending_acceptance', 'schedule': job.can_schedule or job.can_reschedule,
-               'start': job.can_start, 'complete': job.can_complete}
+               'start': job.can_start, 'complete': job.can_complete, 'note': job.has_assignee_status}
     return job if at_step[step] else None
 
 
@@ -68,20 +69,29 @@ def set_work_status(job):
 def start_jobs_scheduled_for_today():
     """The daily run: jobs that don't need start confirmation go to in_progress when their date arrives, across
     every organisation. <= so a missed run is caught. Returns how many."""
-    count = Job.query.filter(
+    jobs = Job.query.filter(
         Job.status == 'pending_start',
         Job.require_start_confirmation.is_(False),
         Job.scheduled_for <= uk_today(),
-    ).update({'status': 'in_progress'}, synchronize_session=False)
+    ).all()
+    for job in jobs:
+        job.status = 'in_progress'
+        add_note(job, 'The scheduled date arrived, so the job moved to In Progress.')
     db.session.commit()
-    return count
+    return len(jobs)
 
 
-def schedule_job(job, scheduled_for, responder=None):
+def schedule_job(job, scheduled_for, responder=None, comments=None):
     """Save the assignee's date. Returns True when it's a change to a date they'd already chosen, which whoever
     assigned the job is told about. responder is the person doing it, or None for the emailed link."""
     rescheduling = job.can_reschedule
     changed = rescheduling and scheduled_for != job.scheduled_for
+    if not rescheduling:
+        step_note(job, f'scheduled the job for {scheduled_for:%d-%m-%Y}', responder, comments)
+    elif changed:
+        step_note(job, f'rescheduled the job from {job.scheduled_for:%d-%m-%Y} to {scheduled_for:%d-%m-%Y}', responder, comments)
+    elif comments:
+        step_note(job, f'kept the job scheduled for {scheduled_for:%d-%m-%Y}', responder, comments)
     job.scheduled_for = scheduled_for
     set_work_status(job)
     if changed:
@@ -89,18 +99,21 @@ def schedule_job(job, scheduled_for, responder=None):
     return rescheduling
 
 
-def start_job(job):
+def start_job(job, responder=None, comments=None):
+    step_note(job, 'started the job', responder, comments)
     job.status = 'in_progress'
     job.started_at = datetime.now(timezone.utc)
 
 
-def complete_job(job, completed_at, comments):
+def complete_job(job, completed_at, comments, responder=None):
+    step_note(job, f'completed the job at {completed_at:%d-%m-%Y %H:%M} (UK time)', responder, comments)
     job.status = 'completed'
     job.completed_at = completed_at
     job.completion_comments = comments
 
 
-def accept_job(job):
+def accept_job(job, responder=None, comments=None):
+    step_note(job, 'accepted the job', responder, comments)
     set_work_status(job)
     job.assigned_at = datetime.now(timezone.utc)
 
@@ -118,11 +131,12 @@ def tell_next_step(job, after, responder=None):
         return False
 
 
-def reject_assignment(job, responder=None):
+def decline_job(job, responder=None, comments=None):
     """The assignee turned the job down: it goes back to unassigned, to be assigned afresh, and whoever
-    assigned it gets a notification (the caller commits it), unless they're the one rejecting it.
-    responder is the person doing it, or None for the emailed link."""
-    tell_assigner(job, f"{job.assignee_name} rejected a job you issued: {job.description}", responder)
+    assigned it gets a notification (the caller commits it), unless they're the one declining it.
+    responder is the person doing it, or None for the emailed link. The note is the record of it."""
+    step_note(job, 'declined the job', responder, comments)
+    tell_assigner(job, f"{job.assignee_name} declined a job you issued: {job.description}", responder)
 
     job.status = 'unassigned'
     job.assigned_supplier = None
@@ -140,7 +154,7 @@ def notify_assignee(job, assigned_by=None, after=None):
     """Tell the job's new assignee it's been assigned to them (Assign and Reassign): an in-app notification
     for a person who can sign in (the caller commits it), otherwise an email with the job's details, for a
     supplier or a person who can't sign in. assigned_by is the assigner's name. Returns False when there's
-    no email address to send to. Raises if the email fails. An issued job asks them to accept or reject it:
+    no email address to send to. Raises if the email fails. An issued job asks them to accept or decline it:
     the notification opens jobs.respond, and the email has a link that needs no sign-in. Otherwise the email
     has a link for the job's next step, Schedule Job, Start Job or Complete Job, and a Reschedule link once
     there's a date. after ('accepted', 'scheduled' or 'started') means this is the follow-up that carries
@@ -155,7 +169,7 @@ def notify_assignee(job, assigned_by=None, after=None):
                 next_step = 'Start it when the work begins' if job.can_start else "Complete it when the work's done"
             message = f"Your job has been {after} for you. {next_step}: {job.description}"
         elif issued:
-            message = f"{assigned_by} issued you a job to accept or reject: {job.description}"
+            message = f"{assigned_by} issued you a job to accept or decline: {job.description}"
         elif job.can_schedule:
             message = f"{assigned_by} assigned you a job to schedule: {job.description}"
         else:
@@ -170,13 +184,21 @@ def notify_assignee(job, assigned_by=None, after=None):
     schedule_url = url_for('job_responses.schedule', token=make_link_token(job, 'schedule'), _external=True) if job.can_schedule or job.can_reschedule else None
     start_url = url_for('job_responses.start', token=make_link_token(job, 'start'), _external=True) if job.can_start else None
     complete_url = url_for('job_responses.complete', token=make_link_token(job, 'complete'), _external=True) if job.can_complete else None
+    note_url = url_for('job_responses.note', token=make_link_token(job, 'note'), _external=True)
     html = render_template('emails/jobs/assigned.html', job=job, assignee_name=job.assignee_name, organisation_name=organisation_name,
-                           respond_url=respond_url, schedule_url=schedule_url, start_url=start_url, complete_url=complete_url, after=after,
+                           respond_url=respond_url, schedule_url=schedule_url, start_url=start_url, complete_url=complete_url, note_url=note_url, after=after,
                            link_days=RESPONSE_LINK_DAYS if respond_url else WORK_LINK_DAYS)
     link = 'Schedule' if job.can_schedule else 'Start' if start_url else 'Complete'
     subject = f'{link} link for your job from {organisation_name}' if after else f'New job from {organisation_name}'
     send_email(email, f'{subject}: {job.description}', html)
     return True
+
+
+def add_emailed_note(job, description):
+    """A note from the assignee's Add a Note link. Whoever assigned the job gets a notification, or nobody would know
+    it's there (the caller commits both)."""
+    add_note(job, description, job.assignee_name, is_system=False)
+    tell_assigner(job, f"{job.assignee_name} added a note to a job: {job.description}")
 
 
 def notify_previous_assignee(job, assignee, assignee_name, reassigned_by):
@@ -225,6 +247,7 @@ def raise_job(planned_job_schedule):
     )
     job.assets = list(planned_job_schedule.assets)
     db.session.add(job)
+    add_note(job, f"Job raised from planned job schedule '{planned_job_schedule.description}'.")
 
     planned_job_schedule.next_job_creation_date = None
     return job

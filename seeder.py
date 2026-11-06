@@ -26,7 +26,7 @@ from app.extensions import db
 from app.services.locations import build_path
 from app.services.permissions import create_default_groups
 from app.services.scheduling import FREQUENCIES, job_creation_date
-from app.models import ASSIGNED_JOB_STATUSES, JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Location, Asset, Job, PlannedJobSchedule, Supplier, Notification, job_assets, job_helpers, planned_job_schedule_assets
+from app.models import ASSIGNED_JOB_STATUSES, JOB_STATUSES, ImportEvent, Organisation, User, Person, OTP, UserSession, UserGroup, UserGroupPermission, Location, Asset, Job, Note, PlannedJobSchedule, Supplier, Notification, job_assets, job_helpers, planned_job_schedule_assets
 from app.models import JobCategory, AssetCategory, AssetCondition, LocationCategory, SupplierCategory, DocumentCategory
 
 PLACE_NAMES = ['Riverside', 'Oakwood', 'Hillcrest', 'Kingsway', 'Meadow', 'Harbour', 'Station', 'Market', 'Abbey', 'Victoria']
@@ -119,7 +119,7 @@ def clear():
     db.session.execute(job_assets.delete())
     db.session.execute(job_helpers.delete())
     db.session.execute(planned_job_schedule_assets.delete())
-    for model in (Notification, Job, Asset, PlannedJobSchedule, Supplier, Location, *REFERENCE_DATA, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
+    for model in (Notification, Note, Job, Asset, PlannedJobSchedule, Supplier, Location, *REFERENCE_DATA, OTP, UserSession, Person, ImportEvent, User, UserGroupPermission, UserGroup, Organisation):
         db.session.execute(db.delete(model))
     db.session.commit()
 
@@ -365,6 +365,16 @@ def seed(count):
         if job.status == 'rejected':
             job.rejected_at = now - timedelta(days=40)
 
+    # the start of each job's notes, and a comment on some of them
+    notes = []
+    for job in jobs:
+        notes.append(Note(job=job, organisation=organisation, description='Job created.', is_system=True, created_by_name=people[0].full_name, created_by=people[0],
+                             created_at=now - timedelta(days=45)))
+        if random.random() < 0.3:
+            person = random.choice(people)
+            notes.append(Note(job=job, organisation=organisation, description='Spoke to the site manager about access. Keys are at reception.', created_by_name=person.full_name, created_by=person,
+                                 created_at=now - timedelta(days=30)))
+
     # a few reactive jobs are follow-up work for a completed or closed job at the same site. A follow-up isn't
     # a parent as well, or two jobs could end up as each other's parents, which can't be saved
     follow_ups = [job for job in jobs if job.source == 'reactive'][:max(1, count // 10)]
@@ -383,7 +393,7 @@ def seed(count):
         asset.jobs = random.sample(site_jobs, min(len(site_jobs), random.randint(0, 3)))
         asset.planned_job_schedules = random.sample(site_planned_job_schedules, min(len(site_planned_job_schedules), random.randint(0, 2)))
 
-    db.session.add_all([organisation] + [item for items in reference_data.values() for item in items] + people + locations + suppliers + assets + planned_job_schedules + jobs)
+    db.session.add_all([organisation] + [item for items in reference_data.values() for item in items] + people + locations + suppliers + assets + planned_job_schedules + jobs + notes)
     db.session.commit()
 
     links = sum(len(asset.jobs) + len(asset.planned_job_schedules) for asset in assets)

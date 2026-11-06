@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% set title = 'Add a Note' %}
+{# the page the Add a Note link in an assignee's email opens, with no sign-in (job_responses.note). It can add a note but
+   never shows the job's notes. Keep it to what the email already shows #}
+{% block body %}
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    <h4 class="mb-0">{{ title }}</h4>
+  </div>
+
+  <div class="card-body">
+    {% if state == 'invalid' %}
+    <p class="mb-0">
+      This link is no longer valid. The job may have been closed or given to someone else, or the link may have
+      expired. Please contact the organisation that sent it.
+    </p>
+    {% elif state == 'added' %}
+    <p class="mb-0">Thanks. Your note has been added to this job, and <strong>{{ job.organisation.name }}</strong> can see it.</p>
+    {% else %}
+    <p>Add a note to this job for <strong>{{ job.organisation.name }}</strong>.</p>
+
+    <div class="row g-3 mb-3">
+      <div class="col-md-6">
+        <div class="text-muted small">Description</div>
+        <div class="fw-semibold">{{ job.description }}</div>
+      </div>
+      <div class="col-md-6">
+        <div class="text-muted small">Location</div>
+        <div class="fw-semibold">{{ job.location.materialised_path }}</div>
+      </div>
+    </div>
+
+    <form method="POST">
+      {{ form.hidden_tag() }}
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          {{ form.description.label(class="form-label") }}
+          {{ form.description(class="form-control" ~ (" is-invalid" if form.description.errors else ""), rows=5) }}
+          {% for error in form.description.errors %}
+          <div class="invalid-feedback d-block">{{ error }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-success">Add Note</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock body %}

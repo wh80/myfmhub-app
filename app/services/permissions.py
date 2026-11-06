@@ -62,7 +62,7 @@ def _resource(blueprint, view=(), edit=()):
 ENDPOINT_PERMISSIONS = {
     **_resource('locations', view=['export', 'assets', 'jobs', 'planned_jobs']),
     **_resource('assets', view=['export', 'sub_assets', 'jobs', 'planned_jobs'], edit=['assign', 'link_jobs', 'unlink_jobs', 'link_planned_jobs', 'unlink_planned_jobs']),
-    **_resource('jobs', view=['export', 'assets', 'follow_up_jobs'], edit=['link_assets', 'unlink_assets']),
+    **_resource('jobs', view=['export', 'assets', 'follow_up_jobs', 'notes', 'add_note'], edit=['link_assets', 'unlink_assets']),
     'jobs.approve': 'jobs.approve',
     'jobs.approve_selected': 'jobs.approve',
     'jobs.reject': 'jobs.approve',

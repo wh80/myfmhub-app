@@ -72,6 +72,20 @@ class JobAssignForm(JobReassignForm):
         if self.assignee.data and self.assignee.data.removeprefix('person:') in (field.data or []):
             raise ValidationError("The person the job is assigned to can't also be a helper.")
 
+# a comment on accepting, declining or starting a job, which goes in its notes. Declining needs a reason. response is
+# the name of the button pressed
+class JobResponseForm(FlaskForm):
+    response = StringField('Response')
+    comments = TextAreaField('Comments', validators=[Length(max=2000)], filters=[strip])
+
+    def validate_comments(self, field):
+        if self.response.data == 'decline' and not field.data:
+            raise ValidationError('Please say why you are declining this job.')
+
+# a note added on a job's Notes tab, or from the link in an assignee's email
+class NoteForm(FlaskForm):
+    description = TextAreaField('Add a Note', validators=[DataRequired(message='Enter a note.'), Length(max=2000)], filters=[strip])
+
 # Add Helpers: people who aren't on the job already (set in the route)
 class JobHelpersForm(FlaskForm):
     helper_ids = SelectMultipleField('Helpers', validators=[DataRequired(message='Choose at least one person.')])
@@ -83,6 +97,7 @@ def uk_now_minute():
 # doesn't apply: otherwise an overdue job could never be scheduled
 class JobScheduleForm(FlaskForm):
     scheduled_for = DateField('Date', validators=[DataRequired(message='Choose the date you will do the work.')])
+    comments = TextAreaField('Comments', validators=[Length(max=2000)], filters=[strip])
 
     def __init__(self, due_by, *args, **kwargs):
         super().__init__(*args, **kwargs)
