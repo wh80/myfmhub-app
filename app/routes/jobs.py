@@ -4,7 +4,7 @@ from app import db
 from app.forms import JobForm, JobRejectForm, JobAssignForm, JobReassignForm, JobHelpersForm, JobCompleteForm, JobScheduleForm, PlannedJobScheduleNextDueForm
 from app.models import Job, Asset, Notification, Person, Supplier, JobCategory, ASSIGNED_JOB_STATUSES, JOB_STATUSES, JOB_STATUS_LABELS, JOB_FINISHED_STATUSES, JOB_SOURCES, JOB_SOURCE_LABELS
 from app.services.auth import as_utc
-from app.services.jobs import accept_job, complete_job, overdue_conditions, notify_assignee, reject_assignment, schedule_job, set_work_status, start_job, tell_next_step
+from app.services.jobs import accept_job, complete_job, overdue_conditions, notify_assignee, notify_previous_assignee, reject_assignment, schedule_job, set_work_status, start_job, tell_next_step
 from app.services.notifications import mark_read
 from app.services.permissions import can
 from app.services.scheduling import job_creation_date, next_due_date, uk_today
@@ -395,14 +395,16 @@ def give_job_to(job, assignee):
         job.helpers.remove(assignee)
 
 def assign_job(job, assignee, helpers, form):
-    """Require Acceptance waits for the assignee to accept it, and assigned_at is set then. Otherwise it
-    goes straight to its next step."""
+    """Assign and Reassign. Require Acceptance waits for the assignee to accept it, and assigned_at is set then.
+    Otherwise it goes straight to its next step. Any date was the previous assignee's, so it's cleared."""
     give_job_to(job, assignee)
+    job.scheduled_for = None
     job.require_start_confirmation = form.require_start_confirmation.data
     job.require_scheduling = form.require_scheduling.data
     job.helpers.extend(person for person in helpers if person not in job.helpers)
     if form.require_acceptance.data:
         job.status = 'pending_acceptance'
+        job.assigned_at = None
     else:
         set_work_status(job)
         job.assigned_at = job.issued_at
@@ -431,6 +433,20 @@ def tell_assignee(jobs):
         flash(f"{emails} to {assignee_name} couldn't be sent, so let them know yourself.", 'warning')
     if no_address:
         flash(f"{assignee_name} has no email address, so they haven't been told. Let them know yourself.", 'warning')
+
+def tell_previous_assignee(job, previous, previous_name):
+    """Tell whoever a job was reassigned from, after the commit, and flash if they couldn't be told. The reassignment
+    stands either way. Not when you reassign a job from yourself."""
+    if previous == g.person:
+        return
+    try:
+        if not notify_previous_assignee(job, previous, previous_name, person_name(g.person)):
+            flash(f"{previous_name} has no email address, so they haven't been told it's been reassigned. Let them know yourself.", 'warning')
+    except Exception:
+        current_app.logger.exception('Sending job reassigned email failed')
+        flash(f"The email to {previous_name} couldn't be sent, so let them know it's been reassigned yourself.", 'warning')
+    # the in-app notification
+    db.session.commit()
 
 # Assign: gives an unassigned job to one supplier or one person, plus any helpers (people). Only the assignee
 # is told: a notification for a person who can sign in, otherwise an email with the job's details
@@ -491,13 +507,14 @@ def assign_selected():
     return render_template('jobs/assign.html', jobs=jobs, selected=selected, refused=refused, back_url=back_url,
                            form=form, suppliers=suppliers, people=people, reassign=False)
 
-# Reassign: gives the job to someone else, at any stage after it's assigned and before it's closed. The
-# status, dates and helpers stay as they are. The new assignee is told; the old one isn't
+# Reassign: gives the job to someone else, at any stage after it's assigned until the work is completed. The
+# options chosen set its status, as they do on Assign, even if it was in progress: that's where the job now is.
+# Helpers stay. The new assignee is told, and so is the previous one, that they're no longer required
 @jobs_bp.route('/<uuid:id>/reassign', methods=['GET', 'POST'])
 def reassign(id):
     job = org_get_or_404(Job, id)
 
-    if job.status not in ASSIGNED_JOB_STATUSES:
+    if not job.can_reassign:
         flash(f"Job '{job.description}' can't be reassigned because it's {job.status_label.lower()}.", 'warning')
         return redirect(url_for('jobs.view', id=job.id))
 
@@ -505,14 +522,19 @@ def reassign(id):
     suppliers, people = set_assignee_choices(form, exclude=job.assignee)
 
     if form.validate_on_submit():
-        previous = job.assignee_name
-        give_job_to(job, chosen_assignee(form.assignee.data))
-        # a job pending acceptance is still waiting on an answer: now from the new assignee, and the old one's link stops working
-        if job.status != 'pending_acceptance':
-            job.assigned_at = job.issued_at
+        previous = job.assignee
+        previous_name = job.assignee_name
+        assign_job(job, chosen_assignee(form.assignee.data), [], form)
+        # started_at is when someone confirmed the start, and the new assignee has steps to go through first
+        if job.status != 'in_progress':
+            job.started_at = None
+        # their notifications about it are out of date, and they may not be able to open the job any more
+        if isinstance(previous, Person):
+            mark_read(Notification.query.filter_by(person_id=previous.id, job_id=job.id, read_at=None))
         db.session.commit()
-        flash(f"Job '{job.description}' reassigned from {previous} to {job.assignee_name}.", 'success')
+        flash(f"Job '{job.description}' reassigned from {previous_name} to {job.assignee_name}. It's now {job.status_label}.", 'success')
         tell_assignee([job])
+        tell_previous_assignee(job, previous, previous_name)
         return redirect(url_for('jobs.view', id=job.id))
 
     return render_template('jobs/assign.html', job=job, form=form, suppliers=suppliers, people=people, reassign=True)

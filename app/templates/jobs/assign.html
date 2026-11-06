@@ -21,7 +21,8 @@
     {% if reassign %}
     <p>
       This job is assigned to <strong>{{ job.assignee_name }}</strong>. Choose a supplier or a person to give it to
-      instead. Its status and helpers stay as they are. They'll be told, and {{ job.assignee_name }} won't be, so let them know yourself.
+      instead. The options below set the job's status, as they do when it's first assigned, even if the work had started,
+      and any scheduled date is cleared. Helpers stay. They'll be told, and {{ job.assignee_name }} will be told they're no longer required.
     </p>
     {% elif jobs %}
     {% if refused %}

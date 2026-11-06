@@ -45,7 +45,7 @@
         <a href="{{ url_for('jobs.schedule', id=job.id) }}" class="btn btn-outline-primary btn-sm">Reschedule</a>
         {% endif %}
 
-        {% if can('jobs.assign') and job.has_assignee_status %}
+        {% if can('jobs.assign') and job.can_reassign %}
         <a href="{{ url_for('jobs.reassign', id=job.id) }}" class="btn btn-outline-primary btn-sm">Reassign</a>
         {% endif %}
 

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Job no longer required from {{ organisation_name }}</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #212529;">
+    <p>Hi {{ assignee_name }},</p>
+    <p><strong>{{ organisation_name }}</strong> has reassigned this job, so you're no longer required to do it. Any links we emailed you for it won't work any more.</p>
+    <table cellpadding="6" style="border-collapse: collapse; margin-bottom: 16px;">
+        <tr><td style="color: #6c757d;">Description</td><td><strong>{{ job.description }}</strong></td></tr>
+        <tr><td style="color: #6c757d;">Location</td><td>{{ job.location.materialised_path }}</td></tr>
+    </table>
+    <p>Please contact {{ organisation_name }} if you have any questions about it.</p>
+</body>
+</html>

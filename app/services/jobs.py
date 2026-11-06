@@ -6,7 +6,7 @@ from flask import current_app, render_template, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.extensions import db
-from app.models import Job, PlannedJobSchedule, JOB_FINISHED_STATUSES
+from app.models import Job, Person, PlannedJobSchedule, JOB_FINISHED_STATUSES
 from app.services.auth import as_utc
 from app.services.email import send_email
 from app.services.notifications import notify
@@ -59,10 +59,8 @@ def set_work_status(job):
     """Where a job with its assignee goes next: called when it's assigned, accepted or given a date."""
     if job.require_scheduling and job.scheduled_for is None:
         job.status = 'pending_scheduling'
-    elif job.require_start_confirmation:
+    elif job.require_start_confirmation or (job.scheduled_for and job.scheduled_for > uk_today()):
         job.status = 'pending_start'
-    elif job.scheduled_for and job.scheduled_for > uk_today():
-        job.status = 'scheduled'
     else:
         job.status = 'in_progress'
 
@@ -70,7 +68,11 @@ def set_work_status(job):
 def start_jobs_scheduled_for_today():
     """The daily run: jobs that don't need start confirmation go to in_progress when their date arrives, across
     every organisation. <= so a missed run is caught. Returns how many."""
-    count = Job.query.filter(Job.status == 'scheduled', Job.scheduled_for <= uk_today()).update({'status': 'in_progress'}, synchronize_session=False)
+    count = Job.query.filter(
+        Job.status == 'pending_start',
+        Job.require_start_confirmation.is_(False),
+        Job.scheduled_for <= uk_today(),
+    ).update({'status': 'in_progress'}, synchronize_session=False)
     db.session.commit()
     return count
 
@@ -174,6 +176,22 @@ def notify_assignee(job, assigned_by=None, after=None):
     link = 'Schedule' if job.can_schedule else 'Start' if start_url else 'Complete'
     subject = f'{link} link for your job from {organisation_name}' if after else f'New job from {organisation_name}'
     send_email(email, f'{subject}: {job.description}', html)
+    return True
+
+
+def notify_previous_assignee(job, assignee, assignee_name, reassigned_by):
+    """Tell whoever a job was reassigned from that they're no longer required, so a supplier doesn't turn up for
+    nothing: a notification for a person who can sign in (the caller commits it), otherwise an email. The notification
+    has no job link, because they may not be able to open the job any more. reassigned_by is the name of the person
+    who did it. Returns False when there's no email address to send to. Raises if the email fails."""
+    if isinstance(assignee, Person) and assignee.can_sign_in():
+        notify(assignee, f"{reassigned_by} reassigned a job, so you're no longer required on it: {job.description}")
+        return True
+    if not assignee.email:
+        return False
+    organisation_name = job.organisation.name
+    html = render_template('emails/jobs/reassigned.html', job=job, assignee_name=assignee_name, organisation_name=organisation_name)
+    send_email(assignee.email, f'Job no longer required by {organisation_name}: {job.description}', html)
     return True
 
 

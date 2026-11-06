@@ -60,13 +60,13 @@ class JobRejectForm(FlaskForm):
 # so WTForms refuses anyone else
 class JobReassignForm(FlaskForm):
     assignee = SelectField('Assign To', validators=[DataRequired(message='Choose a supplier or a person.')])
+    require_acceptance = BooleanField('Require Acceptance')
+    require_start_confirmation = BooleanField('Require Start Confirmation')
+    require_scheduling = BooleanField('Require Scheduling')
 
 # Assign also takes any number of helpers (people). The lead can't be one of them
 class JobAssignForm(JobReassignForm):
     helper_ids = SelectMultipleField('Helpers', validators=[Optional()])
-    require_acceptance = BooleanField('Require Acceptance')
-    require_start_confirmation = BooleanField('Require Start Confirmation')
-    require_scheduling = BooleanField('Require Scheduling')
 
     def validate_helper_ids(self, field):
         if self.assignee.data and self.assignee.data.removeprefix('person:') in (field.data or []):

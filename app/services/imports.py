@@ -458,6 +458,8 @@ def create_job(values, lookups):
         location_id=values['location'].id,
         due_by=values['due_by'],
         status=status,
+        # with no date to wait for, a job at Pending Start can only move on by someone pressing Start
+        require_start_confirmation=status == 'pending_start',
         source='reactive',
         statutory_compliance=values['statutory_compliance'],
         job_category_id=reference_id(values['job_category']),

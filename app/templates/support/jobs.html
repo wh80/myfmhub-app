@@ -51,8 +51,7 @@
       <tr><td>Unassigned</td><td>Approved, waiting to be given to someone.</td><td>Assign.</td></tr>
       <tr><td>Pending Acceptance</td><td>Given to a supplier or a person who needs to accept it first.</td><td>Accept (to its next step) or Reject (back to Unassigned).</td></tr>
       <tr><td>Pending Scheduling</td><td>Waiting for the assignee to choose the date they'll do the work.</td><td>Schedule.</td></tr>
-      <tr><td>Scheduled</td><td>Has a date that hasn't arrived yet.</td><td>The date arriving (to In Progress), or Complete if the work's done early.</td></tr>
-      <tr><td>Pending Start</td><td>Waiting for the assignee to confirm the work has started.</td><td>Start.</td></tr>
+      <tr><td>Pending Start</td><td>The work hasn't started yet. The job is waiting for the assignee to confirm the start or, if it doesn't need that, for its scheduled date.</td><td>Start, or the date arriving. Without start confirmation it can also be completed early, or rescheduled to today to start now.</td></tr>
       <tr><td>In Progress</td><td>With the assignee to do. If the job needs start confirmation, they've confirmed it.</td><td>Complete.</td></tr>
       <tr><td>Completed</td><td>The work is done.</td><td>Close.</td></tr>
       <tr><td>Closed</td><td>Checked and closed. It's finished.</td><td>Reopen (back to Completed), for jobs that aren't planned.</td></tr>
@@ -128,7 +127,7 @@
     <tbody>
       <tr><td>No</td><td>No</td><td>In Progress straight away</td></tr>
       <tr><td>No</td><td>Yes</td><td>Pending Start, then In Progress when they press Start</td></tr>
-      <tr><td>Yes</td><td>No</td><td>Pending Scheduling, Scheduled, then In Progress on the date</td></tr>
+      <tr><td>Yes</td><td>No</td><td>Pending Scheduling, Pending Start, then In Progress on the date</td></tr>
       <tr><td>Yes</td><td>Yes</td><td>Pending Scheduling, Pending Start, then In Progress when they press Start</td></tr>
     </tbody>
   </table>
@@ -176,17 +175,18 @@
   requires acceptance. The notification has a <strong>Schedule Job</strong> button, and the email a
   link that needs no sign-in. The job's page has a <strong>Schedule</strong> button too. The date can't be
   in the past or after the job's due date, unless the due date has already passed. Once there's a date
-  the job goes to Pending Start if it needs start confirmation. Otherwise it's <strong>Scheduled</strong>
-  until the date arrives, then moves to In Progress by itself. A job can be completed early while it's
-  Scheduled.
+  the job goes to <strong>Pending Start</strong>. If it needs start confirmation it waits there for the assignee to
+  press Start, whatever the date. Otherwise there's no Start button: it moves to In Progress by itself when the date
+  arrives, or straight away if the date is today. It can be completed early while it's waiting.
 </p>
 <p>
   Until the work starts, the date can be changed with <strong>Reschedule</strong> on the job's page. On a job
   without start confirmation that's until it's completed, because it moved to In Progress by itself: a
-  later date puts it back to Scheduled.
+  later date puts it back to Pending Start, and changing the date to today moves it to In Progress, which is how to
+  start work early.
   Suppliers, and people who can't sign in, get a reschedule link in the same email as the Start Job link,
   or with the Complete Job link if the job doesn't need start confirmation. If the date changes, whoever
-  assigned the job gets a notification under the bell. Reassigning a job keeps its date.
+  assigned the job gets a notification under the bell.
 </p>
 <p>
   Suppliers, and people who can't sign in, also get a <strong>Complete Job</strong> link at the point the
@@ -217,11 +217,11 @@
 </p>
 <ul>
   <li>
-    <strong>Start</strong> (while Pending Start) records that the work started now, and moves the job to
+    <strong>Start</strong> (while Pending Start, on a job that needs start confirmation) records that the work started now, and moves the job to
     In Progress.
   </li>
   <li>
-    <strong>Complete</strong> (while In Progress or Scheduled) asks for <strong>Completed At</strong>, the date and time
+    <strong>Complete</strong> (while In Progress, or Pending Start on a job that doesn't need start confirmation) asks for <strong>Completed At</strong>, the date and time
     the work was done in UK time (it can't be in the future or before the work started, so it can be
     filled in afterwards), and <strong>Completion Comments</strong>, what was done. The job moves to
     Completed.
@@ -249,9 +249,14 @@
 <h4 class="mt-4" id="reassigning">7. Reassigning and adding helpers</h4>
 <ul>
   <li>
-    <strong>Reassign</strong> (once a job is assigned, until it's closed) gives the job to a different
-    supplier or person. Its status, dates and helpers stay as they are. The new assignee is told in the
-    same way; the previous one isn't, so let them know yourself.
+    <strong>Reassign</strong> (once a job is assigned, until the work is completed) gives the job to a different
+    supplier or person. It has the same three boxes as assigning, and they set the job's status in the same way, even
+    if the work had started. For example, ticking Require Acceptance moves an In Progress job back to Pending
+    Acceptance, and with no boxes ticked it's In Progress. Any scheduled date is cleared, because it was the previous
+    assignee's, and so is Started At unless the job goes straight to In Progress. Helpers stay. The new assignee is
+    told in the same way. The previous one is told they're no longer required: a notification if they can sign in,
+    otherwise an email. A supplier with no email address isn't told, so let them know yourself. If the new assignee rejects it, it goes back to
+    Unassigned. Once the work is completed, use a follow-up job instead.
   </li>
   <li>
     <strong>Add Helpers</strong>, next to the job's helpers on its Overview, adds more people to help.

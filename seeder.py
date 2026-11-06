@@ -347,11 +347,14 @@ def seed(count):
         # the steps it was assigned with, as far as it's got. started_at is only there if someone pressed Start
         if job.status in ('pending_acceptance', 'pending_scheduling', 'in_progress'):
             job.require_start_confirmation = random.random() < 0.5
-        if job.status in ('pending_start', 'completed', 'closed'):
+        if job.status in ('completed', 'closed'):
             job.require_start_confirmation = True
-        if job.status in ('pending_scheduling', 'scheduled') or (job.status in ('pending_acceptance', 'pending_start') and random.random() < 0.5):
+        # at pending_start, either they must confirm the start or it's waiting for its date
+        if job.status == 'pending_start':
+            job.require_start_confirmation = random.random() < 0.5
+        if job.status == 'pending_scheduling' or (job.status == 'pending_start' and not job.require_start_confirmation) or (job.status in ('pending_acceptance', 'pending_start') and random.random() < 0.5):
             job.require_scheduling = True
-        if job.require_scheduling and job.status in ('scheduled', 'pending_start'):
+        if job.require_scheduling and job.status == 'pending_start':
             soon = days_from_today(1, 20)
             job.scheduled_for = job.due_by if job.due_by and days_from_today(0, 0) <= job.due_by < soon else soon
         if job.require_start_confirmation and job.status in ('in_progress', 'completed', 'closed'):
